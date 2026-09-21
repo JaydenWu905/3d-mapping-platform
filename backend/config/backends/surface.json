@@ -1,0 +1,33 @@
+{
+  "stage": "surface",
+  "stage_label": "Surface Mapping",
+  "backends": [
+    {
+      "id": "mrhash_lidar",
+      "display_name": "MrHash (LiDAR)",
+      "status": "ready",
+      "input_modalities": ["lidar", "camera_pose"],
+      "preview_types": ["mesh"],
+      "description": "Hash-grid based implicit surface reconstruction from LiDAR.",
+      "home_url": "https://github.com/ghosticcb/MrHash"
+    },
+    {
+      "id": "mrhash_rgbd",
+      "display_name": "MrHash (RGB-D)",
+      "status": "ready",
+      "input_modalities": ["rgb", "depth", "camera_pose"],
+      "preview_types": ["mesh"],
+      "description": "Hash-grid based implicit surface reconstruction from RGB-D.",
+      "home_url": "https://github.com/ghosticcb/MrHash"
+    },
+    {
+      "id": "h3_rgbd",
+      "display_name": "H3-Mapping",
+      "status": "experimental",
+      "input_modalities": ["rgb", "depth", "camera_pose"],
+      "preview_types": ["mesh_raw", "mesh_culled"],
+      "description": "Hierarchical 3D dense mapping from RGB-D sequences.",
+      "home_url": "https://github.com/Solidbris/H3-Mapping"
+    }
+  ]
+}

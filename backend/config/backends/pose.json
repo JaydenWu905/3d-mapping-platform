@@ -1,0 +1,33 @@
+{
+  "stage": "pose",
+  "stage_label": "Pose / SLAM",
+  "backends": [
+    {
+      "id": "glim",
+      "display_name": "GLIM",
+      "status": "ready",
+      "input_modalities": ["rgb", "depth", "imu"],
+      "preview_types": ["trajectory"],
+      "description": "Generic local SLAM / global mapping (tightly-coupled).",
+      "home_url": "https://github.com/koide3/glim"
+    },
+    {
+      "id": "fast_livo2",
+      "display_name": "FAST-LIVO2",
+      "status": "ready",
+      "input_modalities": ["lidar", "imu", "rgb"],
+      "preview_types": ["trajectory"],
+      "description": "Direct LiDAR-inertial-odometry with photometric RGB registration.",
+      "home_url": "https://github.com/hku-mars/FAST-LIVO2"
+    },
+    {
+      "id": "lio_sam",
+      "display_name": "LIO-SAM",
+      "status": "experimental",
+      "input_modalities": ["lidar", "imu"],
+      "preview_types": ["trajectory"],
+      "description": "Tightly-coupled LiDAR-inertial state estimator and mapping.",
+      "home_url": "https://github.com/TixiaoShan/LIO-SAM"
+    }
+  ]
+}

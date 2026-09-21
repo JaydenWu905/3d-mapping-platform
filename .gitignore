@@ -1,0 +1,25 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+backend/.venv/
+.venv/
+
+# ---- Node ----
+frontend/node_modules/
+frontend/dist/
+frontend/*.local
+
+# ---- Runtime data (regenerated on backend startup) ----
+jobs/
+backend/e2e_fail.json
+backend/e2e_job.json
+backend/sse_capture.txt
+
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+.idea/
+*.iml
+
+# ---- Logs ----
+*.log

@@ -1,0 +1,47 @@
+{
+  "schema_version": "0.1",
+  "job_id": "demo",
+  "stage": "surface",
+  "backend": "mrhash_lidar",
+  "status": "completed",
+  "runtime_sec": 118.0,
+  "frame_id": "world",
+  "unit": "meter",
+  "metrics": {
+    "vertices": 234,
+    "faces": 428,
+    "bbox_m": [
+      16.0,
+      16.0,
+      3.0
+    ]
+  },
+  "artifacts": [
+    {
+      "artifact_id": "surface_model",
+      "role": "preview",
+      "path": "surface_preview.glb",
+      "content_type": "model/gltf-binary"
+    },
+    {
+      "artifact_id": "surface_mesh",
+      "role": "data",
+      "path": "surface.ply",
+      "content_type": "application/octet-stream",
+      "download": true
+    },
+    {
+      "artifact_id": "navigation_input",
+      "role": "data",
+      "path": "navigation_input.ply",
+      "content_type": "application/octet-stream",
+      "download": true,
+      "note": "输入给下阶段(voxel_esdf)的简化点云/网格"
+    }
+  ],
+  "backend_details": {
+    "mock_backend": true,
+    "data_source": "demo preview (not a real algorithm run)",
+    "note": "Prepared demo artifacts presented as mrhash_lidar results for phase-1 demo."
+  }
+}

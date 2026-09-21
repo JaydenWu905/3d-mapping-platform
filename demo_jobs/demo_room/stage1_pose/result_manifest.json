@@ -1,0 +1,35 @@
+{
+  "schema_version": "0.1",
+  "job_id": "demo",
+  "stage": "pose",
+  "backend": "glim",
+  "status": "completed",
+  "runtime_sec": 42.0,
+  "frame_id": "world",
+  "unit": "meter",
+  "metrics": {
+    "pose_count": 120,
+    "trajectory_length_m": 37.7,
+    "loop_closures": 1
+  },
+  "artifacts": [
+    {
+      "artifact_id": "trajectory_model",
+      "role": "preview",
+      "path": "trajectory_preview.json",
+      "content_type": "application/json"
+    },
+    {
+      "artifact_id": "trajectory_raw",
+      "role": "data",
+      "path": "trajectory.txt",
+      "content_type": "text/plain",
+      "download": true
+    }
+  ],
+  "backend_details": {
+    "mock_backend": true,
+    "data_source": "demo preview (not a real algorithm run)",
+    "note": "Prepared demo artifacts presented as glim results for phase-1 demo."
+  }
+}

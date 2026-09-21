@@ -1,0 +1,33 @@
+{
+  "stage": "distance",
+  "stage_label": "Distance Field / ESDF",
+  "backends": [
+    {
+      "id": "voxel_esdf",
+      "display_name": "Voxel-ESDF",
+      "status": "ready",
+      "input_modalities": ["surface_mesh", "camera_pose"],
+      "preview_types": ["slices", "gradient"],
+      "description": "Voxelized Euclidean signed distance field from a surface mesh.",
+      "home_url": ""
+    },
+    {
+      "id": "kernel_sdf",
+      "display_name": "Kernel-SDF",
+      "status": "experimental",
+      "input_modalities": ["surface_mesh", "camera_pose"],
+      "preview_types": ["slices", "gradient"],
+      "description": "Continuous kernel-implicit signed distance field.",
+      "home_url": ""
+    },
+    {
+      "id": "oren",
+      "display_name": "Oren",
+      "status": "disabled",
+      "input_modalities": ["surface_mesh", "camera_pose"],
+      "preview_types": ["slices"],
+      "description": "Placeholder algorithm reserved for a future backend.",
+      "home_url": ""
+    }
+  ]
+}

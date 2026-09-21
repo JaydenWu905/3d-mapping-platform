@@ -1,0 +1,23 @@
+{
+  "schema_version": "0.1",
+  "dataset_id": "demo_room",
+  "name": "Demo Room (合成房间)",
+  "description": "合成室内房间点云序列:单回环,含桌椅墙壁,用于三种算法阶段的无环境演示。",
+  "sensor": {
+    "type": "lidar",
+    "channels": 16,
+    "fov_deg": [
+      0,
+      90
+    ],
+    "range_m": 30.0
+  },
+  "frame_count": 120,
+  "trajectory_file": "trajectory.txt",
+  "created_at": "2026-09-21T10:29:12",
+  "tags": [
+    "demo",
+    "synthetic",
+    "indoor"
+  ]
+}

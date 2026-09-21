@@ -1,0 +1,76 @@
+{
+  "schema_version": "0.1",
+  "job_id": "demo",
+  "stage": "distance",
+  "backend": "voxel_esdf",
+  "status": "completed",
+  "runtime_sec": 55.0,
+  "frame_id": "world",
+  "unit": "meter",
+  "metrics": {
+    "resolution_m": 0.1,
+    "voxel_count": 691200,
+    "max_distance_m": 9.0,
+    "slices": [
+      "xy",
+      "xz",
+      "yz"
+    ]
+  },
+  "artifacts": [
+    {
+      "artifact_id": "gradient",
+      "role": "preview",
+      "path": "gradient.json",
+      "content_type": "application/json"
+    },
+    {
+      "artifact_id": "slice_xy",
+      "role": "preview",
+      "path": "slices/xy.png",
+      "content_type": "image/png"
+    },
+    {
+      "artifact_id": "slice_xz",
+      "role": "preview",
+      "path": "slices/xz.png",
+      "content_type": "image/png"
+    },
+    {
+      "artifact_id": "slice_yz",
+      "role": "preview",
+      "path": "slices/yz.png",
+      "content_type": "image/png"
+    },
+    {
+      "artifact_id": "observed_xy",
+      "role": "preview",
+      "path": "slices/observed_xy.png",
+      "content_type": "image/png"
+    },
+    {
+      "artifact_id": "observed_xz",
+      "role": "preview",
+      "path": "slices/observed_xz.png",
+      "content_type": "image/png"
+    },
+    {
+      "artifact_id": "observed_yz",
+      "role": "preview",
+      "path": "slices/observed_yz.png",
+      "content_type": "image/png"
+    },
+    {
+      "artifact_id": "slices_archive",
+      "role": "data",
+      "path": "slices.zip",
+      "content_type": "application/zip",
+      "download": true
+    }
+  ],
+  "backend_details": {
+    "mock_backend": true,
+    "data_source": "demo preview (not a real algorithm run)",
+    "note": "Prepared demo artifacts presented as voxel_esdf results for phase-1 demo."
+  }
+}

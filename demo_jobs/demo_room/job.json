@@ -1,0 +1,35 @@
+{
+  "job_id": "demo",
+  "dataset": "demo_room",
+  "created_at": "2026-09-21T10:29:12",
+  "preview_job": true,
+  "fail_stage": null,
+  "backends": {
+    "pose": "glim",
+    "surface": "mrhash_lidar",
+    "distance": "voxel_esdf"
+  },
+  "stages": {
+    "pose": {
+      "stage": "pose",
+      "backend": "glim",
+      "status": "completed",
+      "started_at": "2026-09-21T10:29:12",
+      "finished_at": "2026-09-21T10:29:12"
+    },
+    "surface": {
+      "stage": "surface",
+      "backend": "mrhash_lidar",
+      "status": "completed",
+      "started_at": "2026-09-21T10:29:12",
+      "finished_at": "2026-09-21T10:29:12"
+    },
+    "distance": {
+      "stage": "distance",
+      "backend": "voxel_esdf",
+      "status": "completed",
+      "started_at": "2026-09-21T10:29:12",
+      "finished_at": "2026-09-21T10:29:12"
+    }
+  }
+}
