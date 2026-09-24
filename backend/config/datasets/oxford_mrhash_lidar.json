@@ -1,0 +1,41 @@
+{
+  "id": "oxford_mrhash_lidar",
+  "name": "Oxford Spires (MrHash LiDAR, corrected poses)",
+  "description": "Server-managed Oxford LiDAR bag with completed GLIM T_world_lidar poses corrected to MrHash bag-record lookup timestamps.",
+  "kind": "external",
+  "execution": "real",
+  "root": "oxford_mrhash/mrhash_input",
+  "files": {
+    "bag": "1710755015_2024-03-18-09-43-36_0.bag",
+    "poses": "poses.txt"
+  },
+  "integrity": {
+    "bag_size_bytes": 5541766461,
+    "bag_sha256": "98d089f404470b0bea7cdb1a8138227a2390bacf405bbcea5fce16ad816f9693",
+    "poses_size_bytes": 359268,
+    "poses_sha256": "e00c948e8df3c8d4dd2c9deedf22d6923bf3b47b4d7b1eb65bf966c3f70475af"
+  },
+  "input_manifest": {
+    "schema_version": "0.1",
+    "dataset_id": "oxford_mrhash_lidar",
+    "sensor": {"type": "lidar", "topic": "/hesai/pandar"},
+    "frame_count": 3111,
+    "bag_message_count": 3123,
+    "coordinate_frame": "world",
+    "pose_semantics": "T_world_lidar",
+    "unit": "meter",
+    "pose_file_format": "bag_record_timestamp tx ty tz qx qy qz qw",
+    "timebase": {
+      "lookup_key": "ROS bag record timestamp",
+      "pose_selection": "nearest GLIM pose by physical LiDAR first-point timestamp",
+      "note": "The timestamp column is a MrHash lookup key; it is not the original GLIM trajectory timestamp."
+    },
+    "data_source": "Oxford Spires ROS1 bag and externally completed GLIM trajectory; corrected association prepared on this server",
+    "tags": ["real", "lidar", "oxford", "mrhash"]
+  },
+  "surface": {
+    "backend": "mrhash_lidar",
+    "topic": "/hesai/pandar",
+    "reference_config": "oxford_hesai_corrected_full.cfg"
+  }
+}

@@ -8,7 +8,7 @@
       "status": "ready",
       "input_modalities": ["surface_mesh", "camera_pose"],
       "preview_types": ["slices", "gradient"],
-      "description": "Voxelized Euclidean signed distance field from a surface mesh.",
+      "description": "Mock demo backend only; no real Distance runner is integrated yet.",
       "home_url": ""
     },
     {
@@ -17,7 +17,7 @@
       "status": "experimental",
       "input_modalities": ["surface_mesh", "camera_pose"],
       "preview_types": ["slices", "gradient"],
-      "description": "Continuous kernel-implicit signed distance field.",
+      "description": "Mock demo backend only; no real Distance runner is integrated yet.",
       "home_url": ""
     },
     {

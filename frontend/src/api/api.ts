@@ -43,8 +43,9 @@ export const api = {
   eventsUrl: (jobId: string) => `${BASE}${jobUrl(jobId)}/events`,
 
   // 预览（role === 'preview'，缩略图/前端渲染用）
-  previewUrl: (jobId: string, stage: string, artifactId: string) =>
-    `${BASE}${stageUrl(jobId, stage)}/previews/${encodeURIComponent(artifactId)}`,
+  previewUrl: (jobId: string, stage: string, artifactId: string, revision?: string) =>
+    `${BASE}${stageUrl(jobId, stage)}/previews/${encodeURIComponent(artifactId)}` +
+    (revision ? `?v=${encodeURIComponent(revision)}` : ''),
 
   // 下载（后端要求 manifest 中 download === true，否则 404）
   artifactUrl: (jobId: string, stage: string, artifactId: string) =>

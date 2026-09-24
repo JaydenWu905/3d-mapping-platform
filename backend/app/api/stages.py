@@ -138,6 +138,8 @@ async def get_artifact(job_id: str, stage: str, artifact_id: str, request: Reque
 def _file_response(art: ArtifactFile, *, download: bool) -> FileResponse:
     filename = art.path.name
     headers = {"X-Artifact-Id": art.artifact_id}
+    if art.preview_role:
+        headers["Cache-Control"] = "no-store, max-age=0"
     if download:
         headers["Content-Disposition"] = f'attachment; filename="{filename}"'
     return FileResponse(path=str(art.path), media_type=art.content_type or None, headers=headers)

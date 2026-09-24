@@ -20,6 +20,7 @@ from app.models.job import (
 from app.models.manifest import load_manifest
 from app.models.progress import atomic_write_json, load_progress, read_json
 from app.services.registry_service import BackendRegistry
+from app.services.dataset_service import DatasetError, DatasetService, get_dataset_service
 
 
 class JobNotFoundError(Exception):
@@ -37,9 +38,10 @@ class JobBusyError(Exception):
 class JobService:
     """Owns on-disk job layout and assembles API-facing job detail dicts."""
 
-    def __init__(self, jobs_dir: Path | None = None):
+    def __init__(self, jobs_dir: Path | None = None, datasets: DatasetService | None = None):
         self.jobs_dir = jobs_dir or JOBS_DIR
         self.demo_dir = DEMO_JOBS_DIR
+        self.datasets = datasets or get_dataset_service()
         self.jobs_dir.mkdir(parents=True, exist_ok=True)
         self._locks: dict[str, asyncio.Lock] = {}
 
@@ -61,22 +63,7 @@ class JobService:
 
     # ---------------------------------------------------------------- datasets
     def list_datasets(self) -> list[dict[str, Any]]:
-        out: list[dict[str, Any]] = []
-        if not self.demo_dir.exists():
-            return out
-        for folder in sorted(self.demo_dir.iterdir()):
-            if not folder.is_dir():
-                continue
-            manifest = read_json(folder / "input" / "input_manifest.json", {}) or {}
-            out.append(
-                {
-                    "id": folder.name,
-                    "name": manifest.get("name", folder.name),
-                    "description": manifest.get("description", ""),
-                    "input_manifest": manifest,
-                }
-            )
-        return out
+        return self.datasets.list_public()
 
     # -------------------------------------------------------------- creation
     async def create_job(
@@ -97,6 +84,18 @@ class JobService:
         for stage in STAGES:
             registry.ensure_runnable(stage, backends[stage])
 
+        dataset_def = self.datasets.get(dataset)
+        errors = dataset_def.validate()
+        if errors:
+            raise ValueError(f"Dataset '{dataset}' is unavailable: {'; '.join(errors)}")
+        if dataset_def.execution == "real" and backends.get("surface") != dataset_def.surface.get("backend"):
+            raise ValueError(
+                f"Dataset '{dataset}' currently supports surface backend "
+                f"'{dataset_def.surface.get('backend')}' only"
+            )
+        if dataset_def.execution == "real" and backends.get("pose") != "registered_pose_import":
+            raise ValueError("Real registered datasets require pose backend 'registered_pose_import'")
+
         job = new_job(dataset, backends, fail_stage, job_id=job_id, preview_job=preview_job)
         job_dir = self.job_dir(job["job_id"])
         if job_dir.exists():
@@ -106,10 +105,17 @@ class JobService:
         # Copy only the selected dataset's input skeleton into the job.
         dataset_dir = self.demo_dir / dataset
         src_input = dataset_dir / "input"
-        if src_input.exists():
+        if dataset_def.kind == "demo" and src_input.exists():
             shutil.copytree(src_input, job_dir / "input")
         else:
-            (job_dir / "input").mkdir(parents=True, exist_ok=True)
+            input_dir = job_dir / "input"
+            input_dir.mkdir(parents=True, exist_ok=True)
+            manifest = dict(dataset_def.input_manifest)
+            manifest.update({"execution": dataset_def.execution, "dataset_kind": dataset_def.kind})
+            atomic_write_json(input_dir / "input_manifest.json", manifest)
+            # Stable names keep algorithm adapters independent from source filenames.
+            (input_dir / "source.bag").symlink_to(dataset_def.source_file("bag"))
+            (input_dir / "poses.txt").symlink_to(dataset_def.source_file("poses"))
 
         self.save_job(job)
         return job
@@ -233,6 +239,18 @@ class JobService:
             return False, "Stage already running"
         if status in ("completed",):
             return False, "Stage already completed"
+        try:
+            dataset_def = self.datasets.get(job.get("dataset", ""))
+        except DatasetError as exc:
+            return False, str(exc)
+        if dataset_def.execution == "real":
+            if stage == "pose":
+                if backend_id != "registered_pose_import":
+                    return False, "Real registered datasets require registered_pose_import"
+            elif stage == "distance":
+                return False, "No real Distance runner is integrated yet"
+            elif stage != "surface" or backend_id != "mrhash_lidar":
+                return False, f"No real runner is available for {stage}/{backend_id}"
         dep = stage_dependency_satisfied(job, stage)
         if not dep:
             label = {"pose": "Pose", "surface": "Surface", "distance": "Distance"}[stage]
@@ -244,6 +262,28 @@ class JobService:
         if def_.status == "disabled":
             return False, "Selected backend is disabled"
         return True, ""
+
+    def reconcile_interrupted_jobs(self) -> int:
+        """Mark persisted running stages failed after a backend restart."""
+        changed = 0
+        for job in self.list_jobs():
+            dirty = False
+            for stage, state in job.get("stages", {}).items():
+                if state.get("status") != "running":
+                    continue
+                state["status"] = "failed"
+                state["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+                progress = load_progress(self.stage_dir(job["job_id"], stage), stage,
+                                         state.get("backend", ""))
+                progress.update(status="failed", phase="interrupted",
+                                message="Backend restarted while the subprocess was running",
+                                updated_at=time.strftime("%Y-%m-%dT%H:%M:%S"))
+                atomic_write_json(self.stage_dir(job["job_id"], stage) / "progress.json", progress)
+                dirty = True
+                changed += 1
+            if dirty:
+                self.save_job(job)
+        return changed
 
     def job_detail(self, job_id: str, registry: BackendRegistry, backend_labels: dict[str, str]) -> dict[str, Any]:
         job = self.load_job(job_id)

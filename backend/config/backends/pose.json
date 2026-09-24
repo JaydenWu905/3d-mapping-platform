@@ -3,12 +3,21 @@
   "stage_label": "Pose / SLAM",
   "backends": [
     {
+      "id": "registered_pose_import",
+      "display_name": "Registered Pose Import",
+      "status": "ready",
+      "input_modalities": ["registered_pose"],
+      "preview_types": ["trajectory"],
+      "description": "Validates and imports a dataset-registered precomputed Pose; does not run SLAM or estimate poses.",
+      "home_url": ""
+    },
+    {
       "id": "glim",
       "display_name": "GLIM",
       "status": "ready",
       "input_modalities": ["rgb", "depth", "imu"],
       "preview_types": ["trajectory"],
-      "description": "Generic local SLAM / global mapping (tightly-coupled).",
+      "description": "Mock demo backend; real Oxford jobs use a validated import of an externally completed GLIM result.",
       "home_url": "https://github.com/koide3/glim"
     },
     {

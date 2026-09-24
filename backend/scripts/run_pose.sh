@@ -10,10 +10,10 @@
 #
 # 职责：
 #   1. 读取上一阶段产物/输入数据（由调度器传入或按约定读取）；
-#   2. 写进度：  <job_dir>/pose/progress.json
+#   2. 写进度：  <job_dir>/stage1_pose/progress.json
 #                {"phase","progress","current","total","unit","message"}
-#   3. 写产物：  <job_dir>/pose/preview/... 与 <job_dir>/pose/data/...
-#   4. 登记 manifest：<job_dir>/pose/result_manifest.json
+#   3. 写产物：  <job_dir>/stage1_pose/...
+#   4. 登记 manifest：<job_dir>/stage1_pose/result_manifest.json
 #                （artifacts: artifact_id / role / content_type / download + metrics）
 #   5. 退出码： 0=成功，非 0=失败（调度器停止下游阶段）。
 #
@@ -34,5 +34,10 @@ while [[ $# -gt 0 ]]; do
 done
 [[ -n "$JOB_DIR" && -n "$BACKEND" && -n "$MODE" ]] || usage
 
-echo "[pose] Phase 2 真实算法尚未接入（backend=$BACKEND mode=$MODE job=$JOB_DIR）。"
-exit 1
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+PLATFORM_PYTHON="$SCRIPT_DIR/../.venv/bin/python"
+[[ -x "$PLATFORM_PYTHON" ]] || PLATFORM_PYTHON=python3
+case "$BACKEND" in
+  registered_pose_import) exec "$PLATFORM_PYTHON" "$SCRIPT_DIR/import_pose.py" --job-dir "$JOB_DIR" ;;
+  *) echo "No real Pose adapter is available for backend '$BACKEND'." >&2; exit 2 ;;
+esac

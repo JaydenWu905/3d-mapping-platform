@@ -9,11 +9,11 @@
 #   run_esdf.sh --job-dir <JOB_DIR> --backend <backend_id> --mode demo|full
 #
 # 职责：
-#   1. 读取 Surface 阶段产物（网格： <job_dir>/surface/preview/surface_model.glb 等）；
-#   2. 写进度：  <job_dir>/distance/progress.json
+#   1. 读取 Surface 阶段产物（网格： <job_dir>/stage2_surface/preview/surface_model.glb 等）；
+#   2. 写进度：  <job_dir>/stage3_esdf/progress.json
 #                {"phase","progress","current","total","unit","message"}
-#   3. 写产物：  <job_dir>/distance/preview/（xy/xz/yz 切面 png + gradient.json）
-#   4. 登记 manifest：<job_dir>/distance/result_manifest.json
+#   3. 写产物：  <job_dir>/stage3_esdf/preview/（xy/xz/yz 切面 png + gradient.json）
+#   4. 登记 manifest：<job_dir>/stage3_esdf/result_manifest.json
 #   5. 退出码： 0=成功，非 0=失败（调度器停止下游阶段）。
 #
 # 后端代码本身绝不 import 任何算法 Python 包；算法环境（Conda/容器等）

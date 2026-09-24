@@ -1,16 +1,13 @@
-# 三模块三维建图系统 — Phase 1（演示与调度框架）
+# 三模块三维建图系统
 
 三维建图平台：**位姿估计（Pose/SLAM）→ 稠密建面（Surface）→ 距离场（ESDF）** 三阶段流水线的
 **网页展示 + 轻量调度** 框架。
 
-> **Phase 1 定位（诚实说明）**：本阶段**不包含任何真实建图算法**，也不依赖
-> GLIM / MrHash / H3 / ROS / Conda / CUDA。所有阶段由 **伪 Runner** 按预设节奏产出一条
-> 完整的数据链路（轨迹 → GLB 网格 → ESDF 切片），用于：
-> 1. 验证三阶段调度、实时状态、失败/取消/重跑的整体流程；
-> 2. 验证三套 3D 前端查看器（轨迹 / 网格 / 距离场切片）；
-> 3. 作为 Phase 2 真实算法接入的“插座”（见下方 *Phase 2 接入契约*）。
->
-> 未实现的真实算法部分（见 *未实现清单*）**没有**被描述为已完成。
+平台同时支持两类执行路径：`demo_room` 使用 Mock Runner 演示完整三阶段；注册的 Oxford
+LiDAR 数据使用真实子进程链路，执行
+`registered_pose_import → Surface input preparation → MrHash-LiDAR`。其中 Pose backend
+只验证并导入数据集已注册的预计算 Pose，**不是本次运行 GLIM**。真实 GLIM、MrHash RGB-D、
+H3-Mapping 和真实 ESDF Runner 尚未接入。
 
 ---
 
@@ -29,7 +26,7 @@
 ┌──────────────────────┴──────────────────────────────────────┐
 │  后端 (FastAPI)      127.0.0.1:8000                          │
 │  ┌──────────────────┐  ┌──────────────────────────────────┐  │
-│  │ 调度器            │  │ Mock Runner（Phase 1）           │  │
+│  │ 调度器            │  │ Mock / 真实子进程 Runner         │  │
 │  │ 阶段状态机        │  │ 生成 trajectory.json / *.glb /   │  │
 │  │ 取消/重跑/失败    │  │ 切片 png / gradient.json / manifest │  │
 │  └──────────────────┘  └──────────────────────────────────┘  │
@@ -56,8 +53,9 @@
 │   │   ├── main.py            # FastAPI 入口（/api）
 │   │   ├── api/               # 路由：jobs / stages / previews / artifacts / events
 │   │   ├── models/            # Pydantic 模型
-│   │   └── services/          # 调度器、Mock Runner、磁盘状态
-│   ├── scripts/               # Phase 2 适配器脚本（约定，见下）
+│   │   └── services/          # 调度器、Mock/子进程 Runner、磁盘状态
+│   ├── config/                # backend 与服务器受控 dataset 注册信息
+│   ├── scripts/               # Mock/真实算法子进程入口与适配器
 │   ├── requirements.txt
 │   ├── run_backend.bat        # 一键启动后端（自动建 venv）
 │   └── ...
@@ -72,7 +70,8 @@
 │   │   └── styles.css
 │   ├── run_frontend.bat       # 一键启动前端
 │   └── ...
-├── jobs/                      # 运行时数据（job.json / progress.json / manifest / 预览文件）
+├── docs/                      # 阶段间版本化接口文档
+├── jobs/                      # 运行时数据；被 Git 忽略
 └── README.md
 ```
 
@@ -96,11 +95,14 @@ run_frontend.bat
 ```
 首次运行 `npm install`，然后打开 `http://localhost:5173`。
 
-> 无 Conda / Pixi / ROS / CUDA；只需 Python 3.10+ 与 Node.js 18+。
+`demo_room` 只需平台 Python 与 Node.js。真实 Oxford → MrHash-LiDAR 还要求服务器已注册数据、
+可用的 MrHash/Pixi 环境以及算法所需的 ROS/CUDA 依赖；这些依赖始终与 FastAPI 环境隔离。
 
 ---
 
-## 四、演示流程（Demo Walkthrough）
+## 四、操作流程
+
+### Mock demo
 
 1. **新建任务**：进入首页 → “新建任务” → 选数据集 `demo_room` → 三个阶段各选一个算法
    （全部都是演示算法，任意组合均可）→ 创建。
@@ -120,6 +122,17 @@ run_frontend.bat
 9. **刷新恢复**：任务运行途中或完成后刷新浏览器，状态从磁盘完整恢复（任务、阶段、
    产物、日志全部在 `jobs/` 下）。
 
+### Oxford → MrHash-LiDAR
+
+1. 在新建任务页选择 `oxford_mrhash_lidar`。页面会限制组合为 Pose
+   `registered_pose_import` 和 Surface `mrhash_lidar`；RGB-D Surface backend 不可选。
+2. 创建 Job 后只点击一次 **Run All**。平台依次验证并导入已注册 Pose、生成
+   `stage2_surface/input/surface_input_manifest.json`、再次校验输入并启动 MrHash-LiDAR。
+3. `MAPPING_SURFACE_MODE=demo` 是真实短序列 smoke，帧上限由服务器环境变量
+   `MRHASH_SMOKE_END_FRAME` 控制；`MAPPING_SURFACE_MODE=full` 使用完整可关联序列。
+4. Surface 完成后，因真实 Distance backend 尚未接入，Run All 明确停在
+   “Distance backend unavailable”；已完成的 Pose/Surface 不会被标记为失败。
+
 ---
 
 ## 五、安全模型（文件下载守则）
@@ -128,7 +141,8 @@ run_frontend.bat
 `.../artifacts/{artifact_id}`。每一步都在服务端校验：
 
 1. 从该阶段的 `result_manifest.json` 中按 `artifact_id` 取 `path`；
-2. 校验产物角色（`preview` 走 preview 路由，`data` 且 `download=true` 才走 artifact 路由）；
+2. 校验访问方式（`preview` role 才能走 preview 路由；下载必须显式 `download=true`，可支持
+   `data` 或 `trajectory` 等已登记 role）；
 3. 把解析后的绝对路径与作业/阶段目录比对，**不位于该目录内一律拒绝**（`../`、URL 编码、
    绝对路径等穿越尝试统一 404）。
 
@@ -141,11 +155,15 @@ run_frontend.bat
 ```
 jobs/<job_id>/
 ├── job.json                # 任务元数据 + 每个阶段的 backend/status/can_run 等
-├── pose/progress.json      # 阶段运行中：phase / progress / current+total / message
-├── pose/result_manifest.json  # 阶段完成：状态/耗时/指标/metrics/artifacts[]
-├── pose/preview/*.{json,glb,png}   # 预览文件（trajectory_model 等）
-├── pose/data/trajectory_raw.json   # download=true 的原始数据
-└── ...（surface/、distance/ 同上）
+├── stage1_pose/progress.json      # 阶段运行中：phase / progress / current+total / message
+├── stage1_pose/result_manifest.json  # 阶段完成：状态/耗时/指标/metrics/artifacts[]
+├── stage1_pose/trajectory_preview.json # 预览文件（trajectory_model）
+├── stage1_pose/poses.txt          # download=true 的导入 Pose 原件
+├── stage2_surface/input/surface_input_manifest.json # Pose→Surface 标准输入
+├── stage2_surface/result_manifest.json              # Surface 标准结果
+├── stage2_surface/preview/surface_model.glb          # 浏览器简化预览
+├── stage2_surface/runs/<run_id>/                     # 配置及完整 PLY；运行时数据
+└── stage3_esdf/                   # Distance 阶段目录
 ```
 
 - 阶段成功后**先写盘再发 SSE `stage.result`**，前端收到后 REST 全量刷新 → 浏览器刷新
@@ -156,10 +174,10 @@ jobs/<job_id>/
 
 ---
 
-## 七、Phase 2 接入契约（真实算法替换点）
+## 七、真实算法接入契约
 
-Phase 1 的 Mock Runner 是唯一需要替换的部分。后端调度器以**子进程方式**调用各阶段脚本，
-真实算法通过实现以下统一 CLI 契约接入，**前端与调度代码一行都不用改**：
+演示数据继续使用 Mock Runner。已注册的真实数据由后端调度器以**子进程方式**调用阶段脚本；
+算法通过以下统一 CLI 契约接入：
 
 ```bash
 backend/scripts/run_pose.sh    --job-dir <JOB_DIR> --backend <backend_id> --mode demo|full
@@ -170,29 +188,59 @@ backend/scripts/run_esdf.sh    --job-dir <JOB_DIR> --backend <backend_id> --mode
 脚本责任：
 
 - **从标准输入/约定文件接收输入数据**（上一阶段的产物路径）；
-- **写进度**：把 `{phase, progress, current, total, unit, message}` 写入
-  `<job_dir>/<stage>/progress.json`；
-- **成功**：把产物按约定写入 `<job_dir>/<stage>/preview|data/`，并在
-  `<job_dir>/<stage>/result_manifest.json` 中登记 `artifacts`（`artifact_id`、
-   `role: preview|data`、`content_type`、`download`，以及 metrics）；
+- **写进度**：把 `{phase, progress, current, total, unit, message}` 写入实际阶段目录
+  `stage1_pose/`、`stage2_surface/` 或 `stage3_esdf/`；
+- **成功**：把产物写入对应实际阶段目录（`stage1_pose/`、`stage2_surface/`、
+  `stage3_esdf/`），并在该目录的 `result_manifest.json` 中登记 `artifacts`（`artifact_id`、
+   `role`、`content_type`、`download`，以及 metrics）；
 - **退出码**：0=成功，非 0=失败（调度器把退出码写入状态并停止下游）；
 - `--mode full` 时算法可加载自有环境（容器/Conda 等），但**后端代码本身不 import
    任何算法 Python 包**，算法环境与平台环境隔离。
 
-`backend/scripts/` 下已放置 `run_{pose,surface,esdf}.sh` 三个骨架脚本。
-**Phase 1 中后端并不调用它们**（当前由内置 MockRunner 演示）；骨架脚本如果被直接执行会
-立即以非 0 退出并打印“尚未接入”，以明确标记该链路未实现。
+`run_pose.sh` 已支持 `registered_pose_import`；`run_surface.sh` 已支持 `mrhash_lidar`。
+`run_esdf.sh` 和其他真实 backend 会明确拒绝运行。
+
+### Oxford → MrHash-LiDAR
+
+`oxford_mrhash_lidar` 是服务器端注册的真实数据集。浏览器只提交数据集 id；bag 和
+`poses.txt` 的位置、大小及 SHA-256 由 `backend/config/datasets/` 控制。创建 Job
+只建立服务器端符号链接，不复制大 bag，也不接受浏览器提供文件路径。
+
+一次 Run All 会自动调用 `registered_pose_import`。它校验八列格式、严格递增时间戳、有限数值、
+单位四元数及注册数据完整性，并写入
+`stage1_pose/`。该 `poses.txt` 第一列是 MrHash Ros1Reader 使用的 ROS bag record
+timestamp lookup key；后七列是按物理 LiDAR first-point 时间匹配原始 GLIM trajectory
+得到的 `T_world_lidar`，两列时间不是同一时间基准。
+
+Pose 完成后，调度器自动准备并验证 Surface 输入，再启动 MrHash。`demo` 模式在真实数据集上
+表示真实小规模 smoke run，不是预制输出；`full` 使用全部可关联帧。
+完整 PLY、voxel field、hash points 和本次配置保存在 Job 内；`surface_model` 是明确标注的
+简化 GLB 预览。接口细节见 `docs/surface-input-manifest-v1.md`，Surface 到 Distance 的讨论草案
+见 `docs/surface-to-distance-manifest-v0.md`。
+
+### 当前集成状态
+
+| 能力 | 状态 |
+|---|---|
+| Registered Pose import | 已完成；验证并导入预计算 Pose，不运行 SLAM |
+| Pose → Surface 自动准备 | 已完成；Run All 自动生成并验证 v1 manifest |
+| MrHash-LiDAR smoke/full | 已完成；真实子进程链路 |
+| 真实 GLIM → Surface | Runner 尚未接入，待联合验证 |
+| MrHash RGB-D | 待接入 |
+| H3-Mapping | 待接入 |
+| Surface → 真实 ESDF | 待第三模块契约确认及 Runner 接入 |
+| 分布式服务器部署 | 未实施；阶段契约使用受控引用，不要求浏览器提供同机绝对路径 |
 
 ---
 
-## 八、未实现清单（Phase 1 明确范围外）
+## 八、未实现清单
 
 以下内容**未实现**，也不会伪装成已完成：
 
-- 真实 SLAM / 建面 / ESDF 算法（GLIM、fast_livo2、lio_sam、mrhash_lidar、
-  mrhash_rgbd、h3_rgbd、voxel_esdf、kernel_sdf、oren 均未安装、未调用）；
-- ROS / 传感器数据接入 / 相机内参、外参处理；
-- Conda / Pixi 环境管理与算法环境隔离（Phase 2 统一由适配器脚本负责）；
+- 真实 GLIM Runner；Oxford 当前只导入并验证数据集注册的预计算 Pose；
+- MrHash RGB-D、H3-Mapping 及真实 ESDF/Distance runner；
+- RGB-D 相机内参、深度单位及相机/LiDAR 外参契约与适配器；
+- 除已接入 MrHash 的 Pixi 子进程环境外，其他算法环境管理；
 - 3D 体素场体渲染（当前是三个正交切面切片）；
 - 任务持久化到数据库（当前为本地 JSON/文件，满足“刷新恢复”要求）；
 - 多用户 / 登录鉴权 / 配额；

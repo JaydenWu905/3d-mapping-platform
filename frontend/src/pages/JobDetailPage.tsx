@@ -187,7 +187,10 @@ function StageViewer({
 
   if (stage.stage === 'surface') {
     const a = manifestArtifact(stage, 'surface_model');
-    if (a) return <MeshViewer url={api.previewUrl(jobId, stage.stage, a.artifact_id)} />;
+    if (a) {
+      const revision = String(stage.manifest?.metrics?.preview_sha256 ?? '');
+      return <MeshViewer url={api.previewUrl(jobId, stage.stage, a.artifact_id, revision)} />;
+    }
     return <div className="viewer-empty">Surface 阶段暂无网格预览（manifest 中缺 surface_model）。</div>;
   }
 
