@@ -11,11 +11,12 @@ export interface MeshViewerProps {
 export function MeshViewer({ url }: MeshViewerProps) {
   return (
     <div className="viewer-3d mesh-viewer">
-      <Canvas camera={{ position: [4, 5, 6], fov: 45 }}>
-        <color attach="background" args={['#0b1118']} />
-        <ambientLight intensity={0.7} />
-        <directionalLight position={[10, 20, 8]} intensity={1.1} />
-        <directionalLight position={[-12, -4, -6]} intensity={0.35} color="#7fb3d9" />
+      <Canvas camera={{ position: [4, 5, 6], fov: 45 }} gl={{ toneMapping: THREE.ACESFilmicToneMapping }}>
+        <color attach="background" args={['#111820']} />
+        <hemisphereLight args={['#dcecff', '#26313b', 1.25]} />
+        <ambientLight intensity={0.35} />
+        <directionalLight position={[10, 20, 8]} intensity={1.5} />
+        <directionalLight position={[-12, -4, -6]} intensity={0.55} color="#91c7ef" />
         <Suspense
           fallback={
             <Html center>
@@ -41,17 +42,33 @@ function Model({ url }: { url: string }) {
   } | null;
 
   useEffect(() => {
+    scene.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      const geometry = object.geometry as THREE.BufferGeometry;
+      if (!geometry.getAttribute('normal')) geometry.computeVertexNormals();
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      for (const material of materials) {
+        material.side = THREE.DoubleSide;
+        material.needsUpdate = true;
+      }
+    });
     const box = new THREE.Box3().setFromObject(scene);
     if (box.isEmpty()) return;
     const center = box.getCenter(new THREE.Vector3());
-    const size = box.getSize(new THREE.Vector3());
-    const r = Math.max(size.x, size.y, size.z) * 0.55;
-    const d = Math.max(r * 2.4, 0.5);
-    camera.position.set(center.x + d * 0.7, center.y + d * 0.55, center.z + d * 1.0);
-    camera.far = Math.max(d * 60, 10);
+    const sphere = box.getBoundingSphere(new THREE.Sphere());
+    const perspective = camera as THREE.PerspectiveCamera;
+    const verticalFov = THREE.MathUtils.degToRad(perspective.fov);
+    const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * perspective.aspect);
+    const limitingFov = Math.min(verticalFov, horizontalFov);
+    const distance = Math.max(sphere.radius / Math.sin(limitingFov / 2) * 1.15, 0.5);
+    const direction = new THREE.Vector3(0.75, -0.85, 0.65).normalize();
+    camera.position.copy(center).addScaledVector(direction, distance);
+    perspective.near = Math.max(distance / 10_000, 0.001);
+    perspective.far = Math.max(distance + sphere.radius * 10, 10);
+    camera.lookAt(center);
     camera.updateProjectionMatrix();
     if (controls) {
-      controls.target.set(center.x, center.y - r * 0.1, center.z);
+      controls.target.copy(center);
       controls.update();
     }
   }, [scene, camera, controls]);

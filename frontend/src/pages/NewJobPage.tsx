@@ -39,7 +39,13 @@ export function NewJobPage() {
       .getDatasets()
       .then((d) => {
         setDatasets(d);
-        if (d.length > 0) setDataset(d[0].id);
+        const firstAvailable = d.find((item) => item.input_manifest?.available !== false);
+        if (firstAvailable) {
+          setDataset(firstAvailable.id);
+          if (firstAvailable.input_manifest?.execution === 'real') {
+            setSelected((prev) => ({ ...prev, pose: 'registered_pose_import', surface: 'mrhash_lidar' }));
+          }
+        }
       })
       .catch((e: unknown) => setError(messageOf(e)));
   }, []);
@@ -88,19 +94,28 @@ export function NewJobPage() {
             <h3>① 选择数据集</h3>
             <div className="dataset-list">
               {datasets.map((ds) => (
-                <label key={ds.id} className={`dataset-card ${ds.id === dataset ? 'selected' : ''}`}>
+                <label key={ds.id} className={`dataset-card ${ds.id === dataset ? 'selected' : ''} ${ds.input_manifest?.available === false ? 'disabled' : ''}`}>
                   <input
                     type="radio"
                     name="dataset"
                     value={ds.id}
                     checked={ds.id === dataset}
-                    onChange={() => setDataset(ds.id)}
+                    disabled={ds.input_manifest?.available === false}
+                    onChange={() => {
+                      setDataset(ds.id);
+                      if (ds.input_manifest?.execution === 'real') {
+                        setSelected((prev) => ({ ...prev, pose: 'registered_pose_import', surface: 'mrhash_lidar' }));
+                      }
+                    }}
                   />
                   <div>
                     <div className="dataset-name">
                       {ds.name} <code>{ds.id}</code>
                     </div>
                     <div className="dataset-desc">{ds.description}</div>
+                    {ds.input_manifest?.available === false ? (
+                      <div className="alert alert-error">{String(ds.input_manifest.availability_message || '服务器数据不可用')}</div>
+                    ) : null}
                     {ds.input_manifest ? <div className="dataset-manifest">{formatInput(ds)}</div> : null}
                   </div>
                 </label>
@@ -121,7 +136,10 @@ export function NewJobPage() {
                 </div>
                 <div className="backend-grid">
                   {backends.groups[s].map((b: BackendDef) => {
-                    const disabled = b.status === 'disabled';
+                    const realDataset = datasets.find((d) => d.id === dataset)?.input_manifest?.execution === 'real';
+                    const incompatibleRealSurface = realDataset && s === 'surface' && b.id !== 'mrhash_lidar';
+                    const incompatibleRealPose = realDataset && s === 'pose' && b.id !== 'registered_pose_import';
+                    const disabled = b.status === 'disabled' || incompatibleRealSurface || incompatibleRealPose;
                     return (
                       <label
                         key={b.id}

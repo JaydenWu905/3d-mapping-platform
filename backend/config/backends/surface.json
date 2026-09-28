@@ -17,7 +17,7 @@
       "status": "ready",
       "input_modalities": ["rgb", "depth", "camera_pose"],
       "preview_types": ["mesh"],
-      "description": "Hash-grid based implicit surface reconstruction from RGB-D.",
+      "description": "Mock demo only; MrHash RGB-D is not integrated in the real runner.",
       "home_url": "https://github.com/ghosticcb/MrHash"
     },
     {
@@ -26,7 +26,7 @@
       "status": "experimental",
       "input_modalities": ["rgb", "depth", "camera_pose"],
       "preview_types": ["mesh_raw", "mesh_culled"],
-      "description": "Hierarchical 3D dense mapping from RGB-D sequences.",
+      "description": "Mock demo only; H3-Mapping is not integrated in the real runner.",
       "home_url": "https://github.com/Solidbris/H3-Mapping"
     }
   ]

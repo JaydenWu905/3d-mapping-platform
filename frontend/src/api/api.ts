@@ -43,8 +43,9 @@ export const api = {
   eventsUrl: (jobId: string) => `${BASE}${jobUrl(jobId)}/events`,
 
   // 预览（role === 'preview'，缩略图/前端渲染用）
-  previewUrl: (jobId: string, stage: string, artifactId: string) =>
-    `${BASE}${stageUrl(jobId, stage)}/previews/${encodeURIComponent(artifactId)}`,
+  previewUrl: (jobId: string, stage: string, artifactId: string, revision?: string) =>
+    `${BASE}${stageUrl(jobId, stage)}/previews/${encodeURIComponent(artifactId)}` +
+    (revision ? `?v=${encodeURIComponent(revision)}` : ''),
 
   // 下载（后端要求 manifest 中 download === true，否则 404）
   artifactUrl: (jobId: string, stage: string, artifactId: string) =>
@@ -68,6 +69,10 @@ export const api = {
   getLogs: (jobId: string, stage: string, offset = 0, limit = 400) =>
     request<{ offset: number; total: number; lines: string[] }>(
       `${stageUrl(jobId, stage)}/logs?offset=${offset}&limit=${limit}`,
+    ),
+  getLogTail: (jobId: string, stage: string, limit = 2000) =>
+    request<{ offset: number; total: number; lines: string[] }>(
+      `${stageUrl(jobId, stage)}/logs?tail=true&limit=${limit}`,
     ),
 
   // 任意 preview 文件（JSON）读取，前端自带时填充图/轨迹用。

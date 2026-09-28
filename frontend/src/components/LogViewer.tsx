@@ -23,7 +23,9 @@ export function LogViewer({ jobId, stage, active }: LogViewerProps) {
 
     const load = async () => {
       try {
-        const r = await api.getLogs(jobId, stage, 0, 2000);
+        // Always request the bounded tail. A full run has >2000 tqdm records;
+        // offset=0 permanently froze the visible log around 63%.
+        const r = await api.getLogTail(jobId, stage, 2000);
         if (cancelled) return;
         setLines(r.lines);
         setTotal(r.total);

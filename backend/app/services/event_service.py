@@ -21,6 +21,8 @@ EVENT_TYPES = {
 
 
 class EventService:
+    _RESERVED_CONTROL_SLOTS = 8
+
     def __init__(self, queue_size: int = 400):
         self._subscribers: dict[str, set[asyncio.Queue]] = defaultdict(set)
         self._queue_size = queue_size
@@ -45,16 +47,82 @@ class EventService:
             return
         event = {"type": event_type, "data": data}
         for q in list(self._subscribers.get(job_id, ())):
+            self._enqueue(q, event)
+
+    def _enqueue(self, q: asyncio.Queue, event: dict) -> None:
+        """Bounded, priority-aware enqueue for slow SSE consumers.
+
+        Log traffic may be discarded. Progress is coalesced per stage. Control
+        and terminal frames use reserved capacity and can evict only disposable
+        traffic, so a tqdm burst cannot hide completion.
+        """
+        event_type = event["type"]
+        if event_type == "stage.log" and q.qsize() >= max(
+            1, q.maxsize - self._RESERVED_CONTROL_SLOTS
+        ):
+            return
+
+        buffered: list[dict] = []
+        while True:
             try:
-                # Drop-oldest so a slow client cannot wedge the runner.
-                while q.full():
-                    try:
-                        q.get_nowait()
-                    except asyncio.QueueEmpty:
-                        break
-                q.put_nowait(event)
-            except asyncio.QueueFull:
-                pass
+                buffered.append(q.get_nowait())
+            except asyncio.QueueEmpty:
+                break
+
+        if event_type == "stage.progress":
+            stage = event["data"].get("stage")
+            buffered = [
+                old for old in buffered
+                if not (old.get("type") == "stage.progress"
+                        and old.get("data", {}).get("stage") == stage)
+            ]
+        elif event_type == "stage.status":
+            stage = event["data"].get("stage")
+            buffered = [
+                old for old in buffered
+                if not (old.get("type") == "stage.status"
+                        and old.get("data", {}).get("stage") == stage
+                        and not self._is_terminal(old))
+            ]
+        elif event_type == "job.status":
+            buffered = [
+                old for old in buffered
+                if old.get("type") != "job.status" or self._is_terminal(old)
+            ]
+
+        if len(buffered) >= q.maxsize:
+            disposable = next(
+                (i for i, old in enumerate(buffered)
+                 if old.get("type") in ("stage.log", "heartbeat")
+                 or not self._is_terminal(old)),
+                None,
+            )
+            if disposable is None and event_type == "stage.progress":
+                disposable = next(
+                    (i for i, old in enumerate(buffered)
+                     if old.get("type") == "stage.progress"), None
+                )
+            if disposable is None:
+                # A queue containing only control/terminal events is already
+                # more useful than another log/progress frame.
+                if event_type in ("stage.log", "stage.progress", "heartbeat"):
+                    for old in buffered:
+                        q.put_nowait(old)
+                    return
+                disposable = 0
+            buffered.pop(disposable)
+
+        buffered.append(event)
+        for item in buffered[-q.maxsize:]:
+            q.put_nowait(item)
+
+    @staticmethod
+    def _is_terminal(event: dict) -> bool:
+        return (
+            event.get("type") == "stage.result"
+            or event.get("data", {}).get("status")
+            in ("completed", "failed", "cancelled")
+        )
 
     # ---- convenience emitters -------------------------------------------------
     async def job_status(self, job_id: str, payload: dict) -> None:

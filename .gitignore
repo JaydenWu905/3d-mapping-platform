@@ -9,6 +9,12 @@ frontend/node_modules/
 frontend/dist/
 frontend/*.local
 
+# ---- Server-local configuration / secrets ----
+.env
+.env.*
+!.env.example
+backend/config/datasets/*.local.json
+
 # ---- Runtime data (regenerated on backend startup) ----
 jobs/
 backend/e2e_fail.json

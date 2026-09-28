@@ -94,6 +94,7 @@ async def get_logs(
     request: Request,
     offset: int = Query(0, ge=0),
     limit: int = Query(400, ge=1, le=2000),
+    tail: bool = Query(False),
 ) -> dict[str, Any]:
     jobs = get_job_service()
     stage_dir = jobs.stage_dir(job_id, stage)
@@ -102,7 +103,7 @@ async def get_logs(
         return {"offset": 0, "total": 0, "lines": []}
     lines = run_log.read_text(encoding="utf-8").splitlines()
     total = len(lines)
-    start = min(offset, total)
+    start = max(0, total - limit) if tail else min(offset, total)
     return {"offset": start, "total": total, "lines": lines[start : start + limit]}
 
 
@@ -138,6 +139,8 @@ async def get_artifact(job_id: str, stage: str, artifact_id: str, request: Reque
 def _file_response(art: ArtifactFile, *, download: bool) -> FileResponse:
     filename = art.path.name
     headers = {"X-Artifact-Id": art.artifact_id}
+    if art.preview_role:
+        headers["Cache-Control"] = "no-store, max-age=0"
     if download:
         headers["Content-Disposition"] = f'attachment; filename="{filename}"'
     return FileResponse(path=str(art.path), media_type=art.content_type or None, headers=headers)

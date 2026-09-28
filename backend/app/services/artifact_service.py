@@ -91,6 +91,8 @@ class ArtifactService:
             raise PathTraversalError(
                 f"artifact path '{rel}' escapes the stage directory; download rejected"
             )
+        if not target.is_file():
+            raise ArtifactNotFoundError(f"artifact file '{rel}' is missing on disk")
 
         return ArtifactFile(
             path=target,

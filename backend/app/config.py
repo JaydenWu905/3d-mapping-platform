@@ -21,6 +21,7 @@ DEMO_JOBS_DIR = PROJECT_ROOT / "demo_jobs"
 
 # backend/config/backends/*.json  (pose / surface / distance)
 BACKENDS_CONFIG_DIR = BACKEND_ROOT / "config" / "backends"
+DATASETS_CONFIG_DIR = BACKEND_ROOT / "config" / "datasets"
 
 # Whether the first backend start seeds one completed demo job so the UI
 # has immediate content and page-refresh state restoration can be shown.

@@ -46,6 +46,7 @@ async def lifespan(app: FastAPI):
     app.state.events = events
     app.state.runner = RunnerService(jobs, events)
     app.state.artifacts = ArtifactService(jobs)
+    jobs.reconcile_interrupted_jobs()
 
     if SEED_DEMO_JOB_ON_START:
         _seed_demo_job(jobs)
