@@ -6,6 +6,40 @@ import { BACKEND_STATUS_LABELS } from '../components/PipelineView';
 
 const STAGE_ORDER: StageKey[] = ['pose', 'surface', 'distance'];
 
+export function datasetModalities(ds: DatasetInfo | undefined): Set<string> {
+  const declared = ds?.input_manifest?.modalities;
+  if (Array.isArray(declared)) return new Set(declared.filter((item): item is string => typeof item === 'string'));
+  // Legacy demo manifests predate modalities. Keep their mock-only behavior.
+  return new Set();
+}
+
+export function backendCompatibility(ds: DatasetInfo | undefined, backend: BackendDef, stage: StageKey): string | null {
+  if (backend.status === 'disabled') return backend.unavailable_reason || '该后端当前不可用';
+  if (!ds || ds.input_manifest?.execution !== 'real') return null;
+  if (stage === 'pose' && backend.id !== 'registered_pose_import') return '真实注册数据集仅支持 registered_pose_import';
+  if (stage !== 'surface') return null;
+  const registeredBackend = ds.input_manifest.surface_backend;
+  if (typeof registeredBackend === 'string' && registeredBackend && backend.id !== registeredBackend) {
+    return `数据集仅注册用于 ${registeredBackend}`;
+  }
+  const available = datasetModalities(ds);
+  const required = backend.input_modalities.map((item) => item === 'camera_pose' ? 'pose' : item);
+  const missing = required.filter((item) => !available.has(item));
+  return missing.length ? `数据集缺少所需模态：${missing.join(', ')}` : null;
+}
+
+export function defaultBackendsForDataset(
+  ds: DatasetInfo | undefined,
+  backends: BackendsResponse,
+): Record<StageKey, string | null> {
+  return Object.fromEntries(STAGE_ORDER.map((stage) => {
+    const match = (backends.groups[stage] ?? []).find(
+      (backend) => backendCompatibility(ds, backend, stage) === null,
+    );
+    return [stage, match?.id ?? null];
+  })) as Record<StageKey, string | null>;
+}
+
 export function NewJobPage() {
   const [backends, setBackends] = useState<BackendsResponse | null>(null);
   const [datasets, setDatasets] = useState<DatasetInfo[] | null>(null);
@@ -25,14 +59,6 @@ export function NewJobPage() {
       .getBackends()
       .then((b) => {
         setBackends(b);
-        // 默认预选每个阶段第一个"可用"算法（ready/experimental）。
-        const pre: Record<StageKey, string | null> = { pose: null, surface: null, distance: null };
-        for (const s of STAGE_ORDER) {
-          const defs = b.groups[s] ?? [];
-          const pick = defs.find((d) => d.status !== 'disabled');
-          pre[s] = pick?.id ?? null;
-        }
-        setSelected(pre);
       })
       .catch((e: unknown) => setError(messageOf(e)));
     api
@@ -42,19 +68,24 @@ export function NewJobPage() {
         const firstAvailable = d.find((item) => item.input_manifest?.available !== false);
         if (firstAvailable) {
           setDataset(firstAvailable.id);
-          if (firstAvailable.input_manifest?.execution === 'real') {
-            setSelected((prev) => ({ ...prev, pose: 'registered_pose_import', surface: 'mrhash_lidar' }));
-          }
         }
       })
       .catch((e: unknown) => setError(messageOf(e)));
   }, []);
 
+  useEffect(() => {
+    if (!backends || !datasets || !dataset) return;
+    setSelected(defaultBackendsForDataset(datasets.find((item) => item.id === dataset), backends));
+  }, [backends, datasets, dataset]);
+
   const submit = async () => {
     setSubmitting(true);
     setError(null);
     try {
-      const missing = STAGE_ORDER.filter((s) => !backends?.groups[s]?.some((d) => d.id === selected[s]));
+      const activeDataset = datasets?.find((item) => item.id === dataset);
+      const missing = STAGE_ORDER.filter((s) => !backends?.groups[s]?.some(
+        (definition) => definition.id === selected[s] && backendCompatibility(activeDataset, definition, s) === null,
+      ));
       if (missing.length > 0) throw new Error(`以下阶段未选择可用算法：${missing.join(', ')}`);
       const body = {
         dataset,
@@ -103,9 +134,6 @@ export function NewJobPage() {
                     disabled={ds.input_manifest?.available === false}
                     onChange={() => {
                       setDataset(ds.id);
-                      if (ds.input_manifest?.execution === 'real') {
-                        setSelected((prev) => ({ ...prev, pose: 'registered_pose_import', surface: 'mrhash_lidar' }));
-                      }
                     }}
                   />
                   <div>
@@ -121,6 +149,9 @@ export function NewJobPage() {
                 </label>
               ))}
             </div>
+            {dataset && !selected.surface ? (
+              <div className="alert alert-error">所选数据集当前没有兼容且可运行的 Surface backend。</div>
+            ) : null}
           </section>
 
           <section className="form-section">
@@ -136,15 +167,14 @@ export function NewJobPage() {
                 </div>
                 <div className="backend-grid">
                   {backends.groups[s].map((b: BackendDef) => {
-                    const realDataset = datasets.find((d) => d.id === dataset)?.input_manifest?.execution === 'real';
-                    const incompatibleRealSurface = realDataset && s === 'surface' && b.id !== 'mrhash_lidar';
-                    const incompatibleRealPose = realDataset && s === 'pose' && b.id !== 'registered_pose_import';
-                    const disabled = b.status === 'disabled' || incompatibleRealSurface || incompatibleRealPose;
+                    const activeDataset = datasets.find((d) => d.id === dataset);
+                    const incompatibility = backendCompatibility(activeDataset, b, s);
+                    const disabled = incompatibility !== null;
                     return (
                       <label
                         key={b.id}
                         className={`backend-card ${selected[s] === b.id ? 'selected' : ''} ${disabled ? 'disabled' : ''}`}
-                        title={b.description}
+                        title={incompatibility || b.description}
                       >
                         <input
                           type="radio"
@@ -160,6 +190,7 @@ export function NewJobPage() {
                           <span className="backend-modalities">{b.input_modalities.join('/') || '—'}</span>
                         </div>
                         <div className="backend-desc">{b.description}</div>
+                        {incompatibility ? <div className="alert alert-error">{incompatibility}</div> : null}
                       </label>
                     );
                   })}
@@ -183,7 +214,7 @@ export function NewJobPage() {
           </section>
 
           <div className="form-actions">
-            <button className="btn btn-primary btn-lg" onClick={() => void submit()} disabled={submitting}>
+            <button className="btn btn-primary btn-lg" onClick={() => void submit()} disabled={submitting || STAGE_ORDER.some((stage) => !selected[stage])}>
               {submitting ? '创建中…' : '🚀 创建任务'}
             </button>
             <button className="btn btn-ghost" onClick={() => navigate('/')} disabled={submitting}>

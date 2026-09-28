@@ -86,6 +86,8 @@ class BackendDef(BaseModel):
     preview_types: list[str] = Field(default_factory=list)
     description: str = ""
     home_url: str = ""
+    capabilities: dict[str, Any] = Field(default_factory=dict)
+    unavailable_reason: str = ""
 
 
 class BackendStageResponse(BaseModel):

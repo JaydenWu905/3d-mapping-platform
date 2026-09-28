@@ -31,6 +31,7 @@ class DatasetDefinition:
     files: dict[str, str]
     surface: dict[str, Any]
     integrity: dict[str, Any]
+    rgbd: dict[str, Any]
 
     def source_file(self, key: str) -> Path:
         rel = self.files.get(key, "")
@@ -44,7 +45,12 @@ class DatasetDefinition:
 
     def validate(self) -> list[str]:
         errors: list[str] = []
-        if self.kind == "external":
+        if self.kind == "external" and self.rgbd:
+            # Imported lazily to keep the registry model independent of the
+            # Surface implementation while sharing one authoritative validator.
+            from app.services.surface_input_service import validate_rgbd_dataset
+            errors.extend(validate_rgbd_dataset(self, strict_hashes=True))
+        elif self.kind == "external":
             if not self.source_dir.is_dir():
                 errors.append("configured source directory is unavailable")
             for key in ("bag", "poses"):
@@ -75,6 +81,15 @@ class DatasetService:
     def __init__(self, config_dir: Path | None = None, demo_dir: Path | None = None):
         self.config_dir = config_dir or DATASETS_CONFIG_DIR
         self.demo_dir = demo_dir or DEMO_JOBS_DIR
+        # Strict hashing is performed once when a registry entry is first
+        # loaded by this service. Launch validation then uses index hashes and
+        # per-file existence/size checks instead of re-hashing image corpora.
+        self._validation_cache: dict[str, list[str]] = {}
+
+    def validation_errors(self, definition: DatasetDefinition) -> list[str]:
+        if definition.id not in self._validation_cache:
+            self._validation_cache[definition.id] = definition.validate()
+        return list(self._validation_cache[definition.id])
 
     def get(self, dataset_id: str) -> DatasetDefinition:
         defs = {d.id: d for d in self.definitions()}
@@ -93,7 +108,7 @@ class DatasetService:
                     id=folder.name, name=manifest.get("name", folder.name),
                     description=manifest.get("description", ""), kind="demo",
                     execution="mock", input_manifest=manifest, source_dir=folder,
-                    files={}, surface={}, integrity={},
+                    files={}, surface={}, integrity={}, rgbd={},
                 ))
         if self.config_dir.exists():
             for path in sorted(self.config_dir.glob("*.json")):
@@ -115,16 +130,17 @@ class DatasetService:
                     kind=raw.get("kind", "external"), execution=raw.get("execution", "real"),
                     input_manifest=dict(raw.get("input_manifest", {})), source_dir=source_dir,
                     files=dict(raw.get("files", {})), surface=dict(raw.get("surface", {})),
-                    integrity=dict(raw.get("integrity", {})),
+                    integrity=dict(raw.get("integrity", {})), rgbd=dict(raw.get("rgbd", {})),
                 ))
         return out
 
     def list_public(self) -> list[dict[str, Any]]:
         result = []
         for definition in self.definitions():
-            errors = definition.validate()
+            errors = self.validation_errors(definition)
             manifest = dict(definition.input_manifest)
             manifest["execution"] = definition.execution
+            manifest["surface_backend"] = definition.surface.get("backend")
             manifest["available"] = not errors
             if errors:
                 manifest["availability_message"] = "; ".join(errors)

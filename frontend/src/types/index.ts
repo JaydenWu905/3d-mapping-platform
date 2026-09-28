@@ -18,6 +18,8 @@ export interface BackendDef {
   preview_types: string[];
   description: string;
   home_url: string;
+  capabilities: Record<string, unknown>;
+  unavailable_reason: string;
 }
 
 export interface BackendsResponse {
@@ -34,7 +36,7 @@ export interface DatasetInfo {
 
 export interface ArtifactInfo {
   artifact_id: string;
-  role: 'preview' | 'data';
+  role: 'preview' | 'data' | 'trajectory';
   path: string; // 服务器端相对路径，仅用于展示；真正取文件一律经过 artifact_id
   content_type: string;
   download?: boolean;

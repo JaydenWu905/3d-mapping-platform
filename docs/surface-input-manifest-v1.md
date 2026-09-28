@@ -1,6 +1,7 @@
 # Pose → Surface Input Manifest v1
 
-Status: implemented for `registered_pose_import → mrhash_lidar`.
+Status: implemented for `registered_pose_import → mrhash_lidar`; RGB-D contract/validation is
+prepared but `mrhash_rgbd` real execution remains unavailable and unaccepted.
 
 This document defines both sides of the boundary between the Pose producer and Surface
 consumer. The platform has validated this hand-off with a registered precomputed Oxford Pose.
@@ -103,9 +104,12 @@ Preparation and launch implement these rules:
 3. Recompute size and SHA-256 against the Pose manifest and dataset registry.
 4. Re-parse Pose rows and reject malformed columns, non-finite values, non-increasing time,
    invalid quaternion norm, missing semantics, or an empty trajectory.
-5. Write with a temporary file and atomic replacement. Unchanged preparation is idempotent;
+5. Require `pose_semantics == T_world_lidar`, `translation_unit == meter`, quaternion order
+   `qx qy qz qw`, a non-empty LiDAR topic, and a timestamp-basis object with a non-empty
+   `lookup_key`.
+6. Write with a temporary file and atomic replacement. Unchanged preparation is idempotent;
    changed input is revalidated.
-6. Repeat containment, existence, size, and SHA-256 checks immediately before MrHash starts.
+7. Repeat containment, existence, size, and SHA-256 checks immediately before MrHash starts.
 
 Errors block Surface and are reported in progress/log state. A reliable count mismatch is a
 warning if registered associations remain usable. Oxford records 3,111 Pose rows for 3,123 bag
@@ -115,14 +119,20 @@ messages, with 12 missing/skipped and status `compatible_with_warnings`; it is n
 an absolute runtime path. Job manifests and run directories are excluded from Git, and examples
 must not contain a private server path.
 
-## Future RGB-D fields
+## RGB-D extension
 
-An RGB-D preparation strategy must add, without inventing unavailable calibration:
+RGB-D extends this same schema through modality-specific artifacts rather than introducing a
+second manifest family. The machine-readable fields, sequence-index integrity model, confirmed
+upstream behavior, Pose conversion responsibilities, handoff checklist, and remaining TBD are
+specified in [MrHash RGB-D interface preparation](mrhash-rgbd-interface.md).
+
+The RGB-D preparation strategy adds, without inventing unavailable calibration:
 
 - color/depth artifacts and timestamp association;
 - camera model, dimensions, intrinsics (`fx`, `fy`, `cx`, `cy`), and distortion;
 - depth encoding and scale/unit converting stored values to metres;
-- an unambiguously directed camera/LiDAR transform such as `T_lidar_camera`;
+- the provisional, unambiguously directed RGB-to-Depth transform `T_depth_rgb` when the streams
+  are not already registered;
 - calibration artifact/reference, version, size, and SHA-256;
 - color/depth/Pose match and skip statistics.
 
