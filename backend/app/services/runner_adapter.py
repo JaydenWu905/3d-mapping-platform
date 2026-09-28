@@ -76,7 +76,7 @@ class SubprocessRunnerAdapter(RunnerAdapter):
         self._last_progress_emit: dict[tuple[str, str], float] = {}
 
     async def run_stage(self, job_id: str, stage: str, backend: str) -> StageResult:
-        if (stage, backend) not in (("pose", "registered_pose_import"), ("surface", "mrhash_lidar")):
+        if (stage, backend) not in (("pose", "registered_pose_import"), ("surface", "mrhash_lidar"), ("surface", "mrhash_rgbd")):
             return await self._fail(job_id, stage, backend, "No real adapter for this stage/backend", 2)
         if self._mode not in ("demo", "full"):
             return await self._fail(job_id, stage, backend, f"Invalid runner mode: {self._mode}", 2)

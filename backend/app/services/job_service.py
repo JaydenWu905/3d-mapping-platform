@@ -85,7 +85,8 @@ class JobService:
             registry.ensure_runnable(stage, backends[stage])
 
         dataset_def = self.datasets.get(dataset)
-        errors = dataset_def.validate()
+        validator = getattr(self.datasets, "validation_errors", None)
+        errors = validator(dataset_def) if validator else dataset_def.validate()
         if errors:
             raise ValueError(f"Dataset '{dataset}' is unavailable: {'; '.join(errors)}")
         if dataset_def.execution == "real" and backends.get("surface") != dataset_def.surface.get("backend"):
@@ -95,6 +96,15 @@ class JobService:
             )
         if dataset_def.execution == "real" and backends.get("pose") != "registered_pose_import":
             raise ValueError("Real registered datasets require pose backend 'registered_pose_import'")
+        surface_def = registry.find("surface", backends.get("surface", ""))
+        if dataset_def.execution == "real" and surface_def:
+            available = set(dataset_def.input_manifest.get("modalities", []))
+            required = {"pose" if item == "camera_pose" else item for item in surface_def.input_modalities}
+            if not required.issubset(available):
+                raise ValueError(
+                    f"Dataset '{dataset}' modalities {sorted(available)} are incompatible with "
+                    f"surface backend '{surface_def.id}' requiring {sorted(required)}"
+                )
 
         job = new_job(dataset, backends, fail_stage, job_id=job_id, preview_job=preview_job)
         job_dir = self.job_dir(job["job_id"])
@@ -113,9 +123,10 @@ class JobService:
             manifest = dict(dataset_def.input_manifest)
             manifest.update({"execution": dataset_def.execution, "dataset_kind": dataset_def.kind})
             atomic_write_json(input_dir / "input_manifest.json", manifest)
-            # Stable names keep algorithm adapters independent from source filenames.
-            (input_dir / "source.bag").symlink_to(dataset_def.source_file("bag"))
-            (input_dir / "poses.txt").symlink_to(dataset_def.source_file("poses"))
+            if not dataset_def.rgbd:
+                # Stable names keep the existing LiDAR adapter independent from source filenames.
+                (input_dir / "source.bag").symlink_to(dataset_def.source_file("bag"))
+                (input_dir / "poses.txt").symlink_to(dataset_def.source_file("poses"))
 
         self.save_job(job)
         return job
@@ -249,7 +260,7 @@ class JobService:
                     return False, "Real registered datasets require registered_pose_import"
             elif stage == "distance":
                 return False, "No real Distance runner is integrated yet"
-            elif stage != "surface" or backend_id != "mrhash_lidar":
+            elif stage != "surface" or backend_id not in ("mrhash_lidar", "mrhash_rgbd"):
                 return False, f"No real runner is available for {stage}/{backend_id}"
         dep = stage_dependency_satisfied(job, stage)
         if not dep:

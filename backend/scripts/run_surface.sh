@@ -23,6 +23,9 @@ case "$BACKEND" in
   mrhash_lidar)
     exec "$PLATFORM_PYTHON" "$SCRIPT_DIR/mrhash_surface_adapter.py" --job-dir "$JOB_DIR" --mode "$MODE"
     ;;
+  mrhash_rgbd)
+    exec "$PLATFORM_PYTHON" "$SCRIPT_DIR/mrhash_rgbd_surface_adapter.py" --job-dir "$JOB_DIR" --mode "$MODE"
+    ;;
   *)
     echo "No real Surface adapter is available for backend '$BACKEND'." >&2
     exit 2

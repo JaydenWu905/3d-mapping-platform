@@ -12,8 +12,9 @@ import shutil
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.api import backends, events, jobs, stages
 from app.config import CORS_ORIGINS, DEMO_JOBS_DIR, JOBS_DIR, SEED_DEMO_JOB_ON_START, STAGES
@@ -21,6 +22,7 @@ from app.services.artifact_service import ArtifactService
 from app.services.event_service import EventService, get_event_service
 from app.services.job_service import JobService, get_job_service
 from app.services.runner_service import RunnerService
+from app.services.registry_service import BackendDisabledError, BackendNotFoundError
 
 
 def _seed_demo_job(jobs: JobService) -> None:
@@ -61,6 +63,17 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="3D Mapping Platform", version="0.1.0", lifespan=lifespan)
+
+
+async def backend_selection_error_handler(
+    _request: Request, exc: BackendDisabledError | BackendNotFoundError
+) -> JSONResponse:
+    """Map expected backend-selection domain errors to FastAPI's detail shape."""
+    return JSONResponse(status_code=422, content={"detail": str(exc)})
+
+
+app.add_exception_handler(BackendDisabledError, backend_selection_error_handler)
+app.add_exception_handler(BackendNotFoundError, backend_selection_error_handler)
 
 app.add_middleware(
     CORSMiddleware,

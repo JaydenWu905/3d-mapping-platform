@@ -80,6 +80,24 @@ The third module must choose one primary representation:
 
 `surface_model` must remain preview-only in either option.
 
+## Cross-backend artifact rules
+
+LiDAR and RGB-D Surface backends may reuse the standard artifact IDs `surface_mesh`,
+`voxel_points`, `hash_points`, `surface_model`, and `run_config`. Reusing an ID means only that
+the platform role is the same; it does **not** assert identical algorithm semantics, PLY layout,
+field meaning, resolution, or configuration.
+
+Every Surface result manifest must independently register its backend ID, algorithm name,
+algorithm version/revision, input modalities, coordinate frame, unit, bounds, actual PLY encoding,
+field schema, configuration artifact, provenance, byte size, and SHA-256. These requirements are
+provisional for RGB-D until real smoke acceptance.
+
+A Distance consumer must decide compatibility from the actual backend and declared field
+semantics in that manifest. It must not accept an artifact merely because its ID matches a known
+LiDAR artifact. `surface_model` remains a browser preview only and is never a formal Distance
+input; the authoritative choice remains `surface_mesh` or `voxel_points` as decided by the third
+module.
+
 ## Minimal draft example
 
 This example is proposed shape, not the current emitted manifest. It intentionally contains no

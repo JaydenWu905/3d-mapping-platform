@@ -17,7 +17,7 @@ from app.services.mock_runner import MockRunnerAdapter
 from app.services.registry_service import get_registry
 from app.services.runner_adapter import RunnerAdapter
 from app.services.runner_adapter import SubprocessRunnerAdapter
-from app.services.surface_input_service import prepare_mrhash_lidar_input
+from app.services.surface_input_service import prepare_surface_input
 
 
 class JobBusyError(Exception):
@@ -56,9 +56,9 @@ class RunnerService:
         if not self._jobs.stage_detail(job, stage, registry, labels).get("can_run"):
             raise StartStageError(_block_reason(job, stage))
 
-        if stage == "surface" and job.get("backends", {}).get("surface") == "mrhash_lidar":
+        if stage == "surface" and job.get("backends", {}).get("surface") in ("mrhash_lidar", "mrhash_rgbd"):
             try:
-                prepare_mrhash_lidar_input(job_id, self._jobs)
+                prepare_surface_input(job_id, self._jobs)
             except Exception as exc:
                 raise StartStageError(f"Surface input preparation failed: {exc}") from exc
 
@@ -85,9 +85,9 @@ class RunnerService:
                     await events.publish(job_id, "stage.log",
                                          {"stage": stage, "line": f"[run-all] {stage} already completed, skipped"})
                     continue
-                if stage == "surface" and job.get("backends", {}).get("surface") == "mrhash_lidar":
+                if stage == "surface" and job.get("backends", {}).get("surface") in ("mrhash_lidar", "mrhash_rgbd"):
                     try:
-                        prepared = prepare_mrhash_lidar_input(job_id, jobs)
+                        prepared = prepare_surface_input(job_id, jobs)
                         warnings = prepared["compatibility"]["warnings"]
                         await events.publish(job_id, "stage.log", {"stage": stage, "line":
                             "[run-all] Surface input prepared" + (f" with {len(warnings)} warning(s)" if warnings else "")})
@@ -181,7 +181,7 @@ class RunnerService:
         definition = self._jobs.datasets.get(job.get("dataset", ""))
         if definition.execution == "mock":
             return self.mock_adapter
-        if (stage, backend) in (("pose", "registered_pose_import"), ("surface", "mrhash_lidar")):
+        if (stage, backend) in (("pose", "registered_pose_import"), ("surface", "mrhash_lidar"), ("surface", "mrhash_rgbd")):
             return self.subprocess_adapter
         raise StartStageError(f"No real runner is available for {stage}/{backend}")
 

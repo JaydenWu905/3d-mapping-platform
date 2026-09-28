@@ -18,6 +18,7 @@
   "input_manifest": {
     "schema_version": "0.1",
     "dataset_id": "oxford_mrhash_lidar",
+    "modalities": ["lidar", "pose"],
     "sensor": {"type": "lidar", "topic": "/hesai/pandar"},
     "frame_count": 3111,
     "bag_message_count": 3123,

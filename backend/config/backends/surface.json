@@ -14,10 +14,16 @@
     {
       "id": "mrhash_rgbd",
       "display_name": "MrHash (RGB-D)",
-      "status": "ready",
+      "status": "disabled",
       "input_modalities": ["rgb", "depth", "camera_pose"],
       "preview_types": ["mesh"],
-      "description": "Mock demo only; MrHash RGB-D is not integrated in the real runner.",
+      "description": "RGB-D input contract and validation are prepared; real handoff and execution remain unaccepted.",
+      "unavailable_reason": "No validated real RGB-D dataset registry or accepted standard-manifest adapter is installed.",
+      "capabilities": {
+        "contract_schema": "surface-input-manifest/1.0",
+        "sequence_index": true,
+        "real_execution": false
+      },
       "home_url": "https://github.com/ghosticcb/MrHash"
     },
     {
