@@ -17,6 +17,7 @@ from __future__ import annotations
 import abc
 import asyncio
 import os
+import re
 import signal
 import time
 from pathlib import Path
@@ -58,6 +59,11 @@ class SubprocessRunnerAdapter(RunnerAdapter):
     _LOG_RECORD_LIMIT = 16 * 1024
     _EVENT_QUEUE_SIZE = 256
     _TERMINATE_GRACE_SEC = 8.0
+    _PROGRESS_EVENT_INTERVAL_SEC = 0.25
+    _TQDM_RE = re.compile(
+        r"\bprocessing:\s*(?P<percent>\d{1,3})%.*?"
+        r"(?P<current>\d+)\s*/\s*(?P<total>\d+)\b"
+    )
 
     def __init__(self, job_service, event_service, mode: str | None = None):
         self._jobs = job_service
@@ -65,6 +71,9 @@ class SubprocessRunnerAdapter(RunnerAdapter):
         self._mode = mode or os.environ.get("MAPPING_SURFACE_MODE", "full")
         self._processes: dict[tuple[str, str], asyncio.subprocess.Process] = {}
         self._cancel_requested: set[tuple[str, str]] = set()
+        self._progress_locks: dict[tuple[str, str], asyncio.Lock] = {}
+        self._progress_states: dict[tuple[str, str], dict] = {}
+        self._last_progress_emit: dict[tuple[str, str], float] = {}
 
     async def run_stage(self, job_id: str, stage: str, backend: str) -> StageResult:
         if (stage, backend) not in (("pose", "registered_pose_import"), ("surface", "mrhash_lidar")):
@@ -84,6 +93,8 @@ class SubprocessRunnerAdapter(RunnerAdapter):
                         total=0, unit="", message="Starting real MrHash process",
                         elapsed_sec=0.0, updated_at=time.strftime("%Y-%m-%dT%H:%M:%S"))
         atomic_write_json(stage_dir / "progress.json", progress)
+        self._progress_states[key] = dict(progress)
+        self._progress_locks[key] = asyncio.Lock()
         await self._emit_progress(job_id, stage, progress)
 
         # A cancel request can arrive after RunnerService creates this task but
@@ -234,16 +245,16 @@ class SubprocessRunnerAdapter(RunnerAdapter):
                             if byte == 10:
                                 continue
                         if byte in (10, 13):
-                            self._write_log_record(log, pending, enqueue)
+                            await self._write_log_record(job_id, stage, log, pending, enqueue)
                             pending.clear()
                             skip_lf = byte == 13
                         else:
                             pending.append(byte)
                             if len(pending) >= self._LOG_RECORD_LIMIT:
-                                self._write_log_record(log, pending, enqueue)
+                                await self._write_log_record(job_id, stage, log, pending, enqueue)
                                 pending.clear()
                 if pending:
-                    self._write_log_record(log, pending, enqueue)
+                    await self._write_log_record(job_id, stage, log, pending, enqueue)
                 log.flush()
             while queue.full():
                 queue.get_nowait()
@@ -254,13 +265,49 @@ class SubprocessRunnerAdapter(RunnerAdapter):
                 publisher.cancel()
             await asyncio.gather(publisher, return_exceptions=True)
 
-    @staticmethod
-    def _write_log_record(log, raw: bytearray, enqueue) -> None:
+    async def _write_log_record(self, job_id: str, stage: str, log,
+                                raw: bytearray, enqueue) -> None:
         line = raw.decode("utf-8", errors="replace")
         timestamped = f"[{time.strftime('%H:%M:%S')}] {line}"
         log.write(timestamped + "\n")
         log.flush()
         enqueue(timestamped)
+        match = self._TQDM_RE.search(line)
+        if match:
+            await self._record_tqdm_progress(
+                job_id, stage, int(match["percent"]),
+                int(match["current"]), int(match["total"])
+            )
+
+    async def _record_tqdm_progress(self, job_id: str, stage: str, percent: int,
+                                    current: int, total: int) -> None:
+        key = (job_id, stage)
+        lock = self._progress_locks.setdefault(key, asyncio.Lock())
+        async with lock:
+            progress = dict(self._progress_states.get(key) or load_progress(
+                self._jobs.stage_dir(job_id, stage), stage, "mrhash_lidar"
+            ))
+            old_current = int(progress.get("current") or 0)
+            old_total = int(progress.get("total") or 0)
+            old_percent = float(progress.get("progress") or 0.0)
+            if total <= 0 or current < old_current:
+                return
+            progress.update(
+                status="running", phase="mapping",
+                current=max(old_current, min(current, total)),
+                total=max(old_total, total),
+                progress=max(old_percent, min(float(percent), 100.0)),
+                unit="messages", message="MrHash processing LiDAR messages",
+                updated_at=time.strftime("%Y-%m-%dT%H:%M:%S"),
+            )
+            self._progress_states[key] = progress
+            atomic_write_json(
+                self._jobs.stage_dir(job_id, stage) / "progress.json", progress
+            )
+            now = time.monotonic()
+            if now - self._last_progress_emit.get(key, 0.0) >= self._PROGRESS_EVENT_INTERVAL_SEC:
+                await self._emit_progress(job_id, stage, progress)
+                self._last_progress_emit[key] = now
 
     async def _publish_logs(self, job_id: str, stage: str,
                             queue: asyncio.Queue[str | None]) -> None:
@@ -276,9 +323,18 @@ class SubprocessRunnerAdapter(RunnerAdapter):
                              process: asyncio.subprocess.Process, started: float) -> None:
         last = None
         while process.returncode is None:
-            progress = load_progress(self._jobs.stage_dir(job_id, stage), stage, backend)
-            progress["elapsed_sec"] = round(time.monotonic() - started, 1)
-            atomic_write_json(self._jobs.stage_dir(job_id, stage) / "progress.json", progress)
+            key = (job_id, stage)
+            lock = self._progress_locks.setdefault(key, asyncio.Lock())
+            async with lock:
+                disk = load_progress(self._jobs.stage_dir(job_id, stage), stage, backend)
+                cached = self._progress_states.get(key, {})
+                if int(cached.get("current") or 0) > int(disk.get("current") or 0):
+                    disk.update({name: cached.get(name) for name in
+                                 ("current", "total", "progress", "unit")})
+                progress = disk
+                progress["elapsed_sec"] = round(time.monotonic() - started, 1)
+                self._progress_states[key] = progress
+                atomic_write_json(self._jobs.stage_dir(job_id, stage) / "progress.json", progress)
             snapshot = repr(sorted(progress.items()))
             if snapshot != last:
                 await self._emit_progress(job_id, stage, progress)
@@ -296,17 +352,23 @@ class SubprocessRunnerAdapter(RunnerAdapter):
         stage_dir = self._jobs.stage_dir(job_id, stage)
         if status != "completed":
             (stage_dir / "result_manifest.json").unlink(missing_ok=True)
-        progress = load_progress(stage_dir, stage, backend)
+        key = (job_id, stage)
+        progress = dict(self._progress_states.get(key) or load_progress(stage_dir, stage, backend))
         progress.update(status=status, phase=status, message=message,
                         elapsed_sec=round(time.monotonic() - started, 1),
                         updated_at=time.strftime("%Y-%m-%dT%H:%M:%S"))
         if status == "completed":
             progress["progress"] = 100.0
+            if int(progress.get("total") or 0) > 0:
+                progress["current"] = progress["total"]
         atomic_write_json(stage_dir / "progress.json", progress)
         job = self._jobs.load_job(job_id)
         self._jobs.set_stage_status(job, stage, status)
         await self._emit_progress(job_id, stage, progress)
         await self._events.publish(job_id, "stage.result", {"stage": stage, "status": status})
+        self._progress_states.pop(key, None)
+        self._progress_locks.pop(key, None)
+        self._last_progress_emit.pop(key, None)
         return StageResult(stage, status, "" if status == "completed" else message, exit_code)
 
     async def _fail(self, job_id: str, stage: str, backend: str, message: str,

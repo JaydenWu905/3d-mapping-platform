@@ -67,6 +67,8 @@ export function useJob(jobId: string | undefined): JobState {
     if (!jobId) return undefined;
     const es = new EventSource(api.eventsUrl(jobId));
     let closed = false;
+    const terminal = (status: string | undefined) =>
+      status === 'completed' || status === 'failed' || status === 'cancelled';
 
     es.addEventListener('open', () => {
       if (!closed) setConnected(true);
@@ -89,6 +91,7 @@ export function useJob(jobId: string | undefined): JobState {
       try {
         const data = JSON.parse(ev.data) as JobStatusEvent;
         setJob((prev) => (prev ? { ...prev, status: data.status } : prev));
+        if (terminal(data.status)) void refresh();
       } catch {
         /* ignore */
       }
@@ -104,6 +107,7 @@ export function useJob(jobId: string | undefined): JobState {
             message: data.message,
           });
         });
+        if (terminal(data.status)) void refresh();
       } catch {
         /* ignore */
       }
@@ -133,6 +137,8 @@ export function useJob(jobId: string | undefined): JobState {
     es.addEventListener('stage.result', (ev: MessageEvent) => {
       try {
         const data = JSON.parse(ev.data) as StageResultEvent;
+        // Terminal truth lives on disk (progress + manifest). Re-fetching also
+        // repairs any coalesced/dropped live progress frame.
         if (data && data.stage) void refresh();
       } catch {
         /* ignore */

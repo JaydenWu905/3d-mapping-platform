@@ -9,6 +9,7 @@ import unittest
 from pathlib import Path
 
 from app.services.runner_adapter import SubprocessRunnerAdapter
+from app.services.event_service import EventService
 
 
 class FakeJobs:
@@ -99,6 +100,73 @@ sys.stdout.flush()
         log_events = [item for item in events.items if item[0] == "stage.log"]
         self.assertLess(len(log_events), 2000)
         self.assertNotIn(("test-job", "surface"), runner._processes)
+
+    async def test_tqdm_progress_survives_slow_bounded_sse_consumer(self) -> None:
+        code = r'''
+import json, pathlib, sys
+stage = pathlib.Path(sys.argv[1]) / "stage2_surface"
+stage.mkdir(parents=True, exist_ok=True)
+for i in range(3123):
+    percent = round(i * 100 / 3123)
+    sep = "\r\n" if i == 100 else ("\n" if i == 200 else "\r")
+    sys.stdout.write(f"processing: {percent:3d}%|bar| {i}/3123 [00:01<00:01]{sep}")
+sys.stdout.flush()
+print("FINAL OUTPUT", flush=True)
+(stage / "result_manifest.json").write_text(json.dumps({"status": "completed"}))
+'''
+        events = EventService(queue_size=32)
+        queue = events.subscribe("test-job")
+        runner = CommandRunner(self.jobs, events, code)
+        runner._PROGRESS_EVENT_INTERVAL_SEC = 0.0
+        result = await asyncio.wait_for(
+            runner.run_stage("test-job", "surface", "mrhash_lidar"), timeout=20
+        )
+        self.assertEqual(result.status, "completed")
+        self.assertLessEqual(queue.qsize(), 32)
+
+        progress = json.loads(
+            self.jobs.stage_dir("test-job", "surface").joinpath("progress.json").read_text()
+        )
+        self.assertEqual(progress["current"], 3123)
+        self.assertEqual(progress["total"], 3123)
+        self.assertEqual(progress["progress"], 100.0)
+
+        log = self.jobs.stage_dir("test-job", "surface").joinpath("run.log").read_text()
+        self.assertIn("0/3123", log)
+        self.assertIn("3122/3123", log)
+        self.assertIn("FINAL OUTPUT", log)
+        queued = []
+        while not queue.empty():
+            queued.append(queue.get_nowait())
+        self.assertTrue(any(
+            item["type"] == "stage.progress"
+            and item["data"].get("progress") == 100.0
+            and item["data"].get("current") == 3123
+            for item in queued
+        ))
+        self.assertTrue(any(
+            item["type"] == "stage.result"
+            and item["data"].get("status") == "completed"
+            for item in queued
+        ))
+
+    async def test_terminal_events_are_not_displaced_by_logs(self) -> None:
+        for terminal in ("completed", "failed", "cancelled"):
+            events = EventService(queue_size=12)
+            queue = events.subscribe(terminal)
+            for i in range(1000):
+                await events.publish(terminal, "stage.log", {"stage": "surface", "line": str(i)})
+            await events.publish(
+                terminal, "stage.result", {"stage": "surface", "status": terminal}
+            )
+            for i in range(1000, 2000):
+                await events.publish(terminal, "stage.log", {"stage": "surface", "line": str(i)})
+            self.assertLessEqual(queue.qsize(), 12)
+            self.assertTrue(any(
+                item["type"] == "stage.result"
+                and item["data"].get("status") == terminal
+                for item in list(queue._queue)
+            ))
 
     async def test_event_failure_reaps_process_group(self) -> None:
         pid_file = self.jobs.job_dir("test-job") / "child.pid"

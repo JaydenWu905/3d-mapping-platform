@@ -70,6 +70,10 @@ export const api = {
     request<{ offset: number; total: number; lines: string[] }>(
       `${stageUrl(jobId, stage)}/logs?offset=${offset}&limit=${limit}`,
     ),
+  getLogTail: (jobId: string, stage: string, limit = 2000) =>
+    request<{ offset: number; total: number; lines: string[] }>(
+      `${stageUrl(jobId, stage)}/logs?tail=true&limit=${limit}`,
+    ),
 
   // 任意 preview 文件（JSON）读取，前端自带时填充图/轨迹用。
   getPreviewJson: async (jobId: string, stage: string, artifactId: string): Promise<unknown> => {
