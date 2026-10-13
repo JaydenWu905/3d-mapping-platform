@@ -25,6 +25,7 @@ from pathlib import Path
 from app.config import BACKEND_ROOT
 from app.models.manifest import load_manifest
 from app.models.progress import atomic_write_json, load_progress
+from app.services.backend_runtime import has_real_runner, missing_runner_reason, runner_script
 
 
 class StageResult:
@@ -76,8 +77,8 @@ class SubprocessRunnerAdapter(RunnerAdapter):
         self._last_progress_emit: dict[tuple[str, str], float] = {}
 
     async def run_stage(self, job_id: str, stage: str, backend: str) -> StageResult:
-        if (stage, backend) not in (("pose", "registered_pose_import"), ("surface", "mrhash_lidar"), ("surface", "mrhash_rgbd")):
-            return await self._fail(job_id, stage, backend, "No real adapter for this stage/backend", 2)
+        if not has_real_runner(stage, backend):
+            return await self._fail(job_id, stage, backend, missing_runner_reason(stage, backend), 2)
         if self._mode not in ("demo", "full"):
             return await self._fail(job_id, stage, backend, f"Invalid runner mode: {self._mode}", 2)
 
@@ -165,7 +166,7 @@ class SubprocessRunnerAdapter(RunnerAdapter):
         return await self._finish(job_id, stage, backend, "completed", "Completed", 0, started)
 
     def _build_command(self, job_id: str, stage: str, backend: str) -> list[str]:
-        script = BACKEND_ROOT / "scripts" / ("run_pose.sh" if stage == "pose" else "run_surface.sh")
+        script = BACKEND_ROOT / "scripts" / runner_script(stage, backend)
         return [str(script), "--job-dir", str(self._jobs.job_dir(job_id)),
                 "--backend", backend, "--mode", self._mode]
 

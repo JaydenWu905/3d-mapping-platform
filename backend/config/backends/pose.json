@@ -15,9 +15,17 @@
       "id": "glim",
       "display_name": "GLIM",
       "status": "ready",
-      "input_modalities": ["rgb", "depth", "imu"],
+      "input_modalities": ["lidar", "imu"],
       "preview_types": ["trajectory"],
-      "description": "Mock demo backend; real Oxford jobs use a validated import of an externally completed GLIM result.",
+      "description": "Real GLIM LiDAR-inertial Pose backend: isolated ROS2 subprocess driven by a ROS1 Livox bridge. Topics, frames and calibration come from the dataset registry; output is normalised to T_world_lidar and associated to the Surface lookup clock.",
+      "capabilities": {
+        "real_execution": true,
+        "produces_pose": true,
+        "requires_pose_spec": true,
+        "pose_semantics": "T_world_lidar",
+        "native_timestamp": "physical LiDAR sensor/header timestamp",
+        "timestamp_adapter": "bag_record"
+      },
       "home_url": "https://github.com/koide3/glim"
     },
     {

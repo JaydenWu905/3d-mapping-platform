@@ -12,6 +12,7 @@ from typing import Any
 
 from app.config import STAGES
 from app.models.progress import default_progress, atomic_write_json
+from app.services.backend_runtime import has_real_runner, missing_runner_reason
 from app.services.job_service import collect_backend_labels
 from app.services.mock_runner import MockRunnerAdapter
 from app.services.registry_service import get_registry
@@ -181,9 +182,9 @@ class RunnerService:
         definition = self._jobs.datasets.get(job.get("dataset", ""))
         if definition.execution == "mock":
             return self.mock_adapter
-        if (stage, backend) in (("pose", "registered_pose_import"), ("surface", "mrhash_lidar"), ("surface", "mrhash_rgbd")):
+        if has_real_runner(stage, backend):
             return self.subprocess_adapter
-        raise StartStageError(f"No real runner is available for {stage}/{backend}")
+        raise StartStageError(missing_runner_reason(stage, backend))
 
     def _running_stages(self, job_id: str) -> list[str]:
         out = []

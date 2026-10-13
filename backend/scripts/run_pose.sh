@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
-# Phase 2 适配器骨架 — Pose/SLAM 阶段（GLIM / fast_livo2 / lio_sam 等）。
-#
-# Phase 1 尚未接入本脚本：当前阶段由后端内置 MockRunner 演示，此文件仅
-# 定义 Phase 2 真实算法的统一 CLI 契约（占位），执行后立即退出 1 以表明
-# 该算法链路尚未实现——绝不把未实现的功能伪装成已完成。
+# Pose/SLAM 阶段适配器入口（registered_pose_import / glim）。
 #
 # 契约（与 run_surface.sh / run_esdf.sh 一致）：
 #   run_pose.sh --job-dir <JOB_DIR> --backend <backend_id> --mode demo|full
@@ -19,6 +15,11 @@
 #
 # 后端代码本身绝不 import 任何算法 Python 包；算法环境（Conda/容器等）
 # 由本脚本自备，与平台隔离。
+#
+# 已接入的真实 backend：
+#   registered_pose_import  校验并导入数据集注册的预计算 Pose（不运行 SLAM）
+#   glim                    启动 GLIM（ROS2）+ ROS1 Livox bridge，产出 canonical Pose
+# 其余 backend 明确拒绝执行，绝不伪装成已完成。
 set -euo pipefail
 
 usage() { echo "usage: $0 --job-dir DIR --backend ID --mode demo|full" >&2; exit 2; }
@@ -39,5 +40,6 @@ PLATFORM_PYTHON="$SCRIPT_DIR/../.venv/bin/python"
 [[ -x "$PLATFORM_PYTHON" ]] || PLATFORM_PYTHON=python3
 case "$BACKEND" in
   registered_pose_import) exec "$PLATFORM_PYTHON" "$SCRIPT_DIR/import_pose.py" --job-dir "$JOB_DIR" ;;
+  glim) exec "$PLATFORM_PYTHON" "$SCRIPT_DIR/glim_pose_adapter.py" --job-dir "$JOB_DIR" --backend glim --mode "$MODE" ;;
   *) echo "No real Pose adapter is available for backend '$BACKEND'." >&2; exit 2 ;;
 esac

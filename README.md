@@ -6,7 +6,9 @@
 平台同时支持两类执行路径：`demo_room` 使用 Mock Runner 演示完整三阶段；注册的 Oxford
 LiDAR 数据使用真实子进程链路，执行
 `registered_pose_import → Surface input preparation → MrHash-LiDAR`。其中 Pose backend
-只验证并导入数据集已注册的预计算 Pose，**不是本次运行 GLIM**。真实 GLIM、H3-Mapping 和
+只验证并导入数据集已注册的预计算 Pose，**不是本次运行 GLIM**。真实 **GLIM** Pose backend
+已接入：注册的 LiDAR+IMU 数据集可以直接创建 GLIM Pose Job，由后端启动 GLIM（ROS2）+ ROS1
+Livox bridge，产出 canonical `stage1_pose/poses.txt`，并可交给 MrHash Surface。H3-Mapping 和
 真实 ESDF Runner 尚未接入。MrHash RGB-D 官方入口已经确认，平台侧接口和校验框架已经准备，
 但运行时映射仍为 disabled / Not Ready。
 
@@ -198,9 +200,23 @@ backend/scripts/run_esdf.sh    --job-dir <JOB_DIR> --backend <backend_id> --mode
 - `--mode full` 时算法可加载自有环境（容器/Conda 等），但**后端代码本身不 import
    任何算法 Python 包**，算法环境与平台环境隔离。
 
-`run_pose.sh` 已支持 `registered_pose_import`；`run_surface.sh` 当前唯一可运行的真实 backend 是
-`mrhash_lidar`。`mrhash_rgbd` 仅注册用于接口校验并保持 disabled；`run_esdf.sh` 和其他尚未接入的
-真实 backend 会明确拒绝运行。
+`run_pose.sh` 已支持 `registered_pose_import` 与 `glim`；`run_surface.sh` 当前唯一可运行的真实
+backend 是 `mrhash_lidar`。`mrhash_rgbd` 仅注册用于接口校验并保持 disabled；`run_esdf.sh` 和其他
+尚未接入的真实 backend 会明确拒绝运行。
+
+### GLIM Pose backend
+
+`real dataset → GLIM Pose Job → runner 启动 GLIM → canonical Pose artifact → Surface 校验` 的
+完整链路、数据集 schema、时间戳归一化规则（native sensor clock ↔ MrHash bag record clock）、
+GLIM 全局锁与进程生命周期、以及本地/AutoDL 运行与测试方法见
+[docs/glim-pose-integration.md](docs/glim-pose-integration.md)。契约文件：
+[Pose 阶段契约](docs/pose-stage-contract.md)、
+[Pose 时间戳契约](docs/pose-timestamp-contract.md)、
+[INS dataset profile](docs/ins-glim-dataset-profile.md)、
+[GLIM 集成验收标准](docs/glim-integration-acceptance.md)。
+
+当前状态：`CODE TESTED`，但 **`GPU INTEGRATION NOT VERIFIED`** —— 开发机没有 ROS2/GLIM/CUDA
+与 17 GB INS bag，真实端到端运行需在 AutoDL 上完成。
 
 ### Oxford → MrHash-LiDAR
 
@@ -254,7 +270,7 @@ size/SHA-256 与路径完整性校验、modality/backend compatibility，以及 
 | MrHash-LiDAR | 已接入；真实子进程 smoke/full verified |
 | MrHash RGB-D interface | 已准备且测试通过；契约仍为 provisional |
 | MrHash RGB-D runtime | 未接入；backend disabled / Not Ready，不可启动 |
-| Real GLIM runner | 未接入；Oxford 当前使用 Registered Pose Import |
+| Real GLIM runner | 已接入（ROS2 子进程 + ROS1 Livox bridge + 时间戳归一化 + 全局锁）；Oxford 仍使用 Registered Pose Import。代码级测试通过，GPU 端到端未验证 |
 | H3-Mapping | 未接入 |
 | Distance/ESDF | 未接入；当前只有 Surface → Distance v0 draft |
 | 分布式服务器部署 | 未实施；阶段契约使用受控引用，不要求浏览器提供同机绝对路径 |
@@ -265,7 +281,7 @@ size/SHA-256 与路径完整性校验、modality/backend compatibility，以及 
 
 以下内容**未实现**，也不会伪装成已完成：
 
-- 真实 GLIM Runner；Oxford 当前只导入并验证数据集注册的预计算 Pose；
+- 真实 GLIM Runner 的 GPU 端到端验证（AutoDL 上执行）；Oxford 当前只导入并验证数据集注册的预计算 Pose；
 - MrHash RGB-D runtime、H3-Mapping 及真实 ESDF/Distance runner；
 - MrHash RGB-D 原生输入布局生成、runtime 启动、真实产物接入及真实数据 smoke/full 验收；
 - 除已接入 MrHash 的 Pixi 子进程环境外，其他算法环境管理；
