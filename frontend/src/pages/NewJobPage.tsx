@@ -13,18 +13,61 @@ export function datasetModalities(ds: DatasetInfo | undefined): Set<string> {
   return new Set();
 }
 
-export function backendCompatibility(ds: DatasetInfo | undefined, backend: BackendDef, stage: StageKey): string | null {
+function asString(value: unknown): string | null {
+  return typeof value === 'string' && value ? value : null;
+}
+
+/** Registry modality names -> dataset modality names (mirrors the backend). */
+function requiredModalities(backend: BackendDef): string[] {
+  return backend.input_modalities.map((item) =>
+    item === 'camera_pose' || item === 'registered_pose' ? 'pose' : item);
+}
+
+/** Backend capabilities drive the UI; no backend id is special-cased here. */
+function hasCapability(backend: BackendDef | undefined, name: string): boolean {
+  return backend?.capabilities?.[name] === true;
+}
+
+/**
+ * Whether the dataset can run this backend for this stage.
+ *
+ * `poseBackend` is the currently selected Pose backend: a SLAM Pose backend
+ * declares the `produces_pose` capability, and the trajectory it estimates is
+ * what the Surface stage consumes.
+ */
+export function backendCompatibility(
+  ds: DatasetInfo | undefined,
+  backend: BackendDef,
+  stage: StageKey,
+  poseBackend?: BackendDef,
+): string | null {
   if (backend.status === 'disabled') return backend.unavailable_reason || '该后端当前不可用';
   if (!ds || ds.input_manifest?.execution !== 'real') return null;
-  if (stage === 'pose' && backend.id !== 'registered_pose_import') return '真实注册数据集仅支持 registered_pose_import';
-  if (stage !== 'surface') return null;
-  const registeredBackend = ds.input_manifest.surface_backend;
-  if (typeof registeredBackend === 'string' && registeredBackend && backend.id !== registeredBackend) {
-    return `数据集仅注册用于 ${registeredBackend}`;
+  // Distance has no real runner yet; the backend reports that with its own
+  // message when the chain reaches it, so selection stays permissive here.
+  if (stage === 'distance') return null;
+
+  const declaredPoseBackend = asString(ds.input_manifest.pose_backend);
+  if (stage === 'pose') {
+    if (declaredPoseBackend && declaredPoseBackend !== backend.id) {
+      return `数据集注册的 Pose 后端为 ${declaredPoseBackend}`;
+    }
+    if (!declaredPoseBackend && hasCapability(backend, 'requires_pose_spec')) {
+      return '数据集未注册该 Pose 后端所需的传感器与配置';
+    }
+  }
+  if (stage === 'surface') {
+    const registeredBackend = asString(ds.input_manifest.surface_backend);
+    if (registeredBackend && backend.id !== registeredBackend) {
+      return `数据集仅注册用于 ${registeredBackend}`;
+    }
   }
   const available = datasetModalities(ds);
-  const required = backend.input_modalities.map((item) => item === 'camera_pose' ? 'pose' : item);
-  const missing = required.filter((item) => !available.has(item));
+  if (stage === 'surface' && hasCapability(poseBackend, 'produces_pose')) {
+    // The Pose stage of this very job estimates the trajectory Surface reads.
+    available.add('pose');
+  }
+  const missing = requiredModalities(backend).filter((item) => !available.has(item));
   return missing.length ? `数据集缺少所需模态：${missing.join(', ')}` : null;
 }
 
@@ -32,12 +75,19 @@ export function defaultBackendsForDataset(
   ds: DatasetInfo | undefined,
   backends: BackendsResponse,
 ): Record<StageKey, string | null> {
-  return Object.fromEntries(STAGE_ORDER.map((stage) => {
+  const chosen: Record<StageKey, string | null> = { pose: null, surface: null, distance: null };
+  // Pose first: its capabilities decide whether Surface can expect a pose at all.
+  const poseMatch = (backends.groups.pose ?? []).find(
+    (backend) => backendCompatibility(ds, backend, 'pose') === null,
+  );
+  chosen.pose = poseMatch?.id ?? null;
+  for (const stage of ['surface', 'distance'] as StageKey[]) {
     const match = (backends.groups[stage] ?? []).find(
-      (backend) => backendCompatibility(ds, backend, stage) === null,
+      (backend) => backendCompatibility(ds, backend, stage, poseMatch) === null,
     );
-    return [stage, match?.id ?? null];
-  })) as Record<StageKey, string | null>;
+    chosen[stage] = match?.id ?? null;
+  }
+  return chosen;
 }
 
 export function NewJobPage() {
@@ -83,8 +133,11 @@ export function NewJobPage() {
     setError(null);
     try {
       const activeDataset = datasets?.find((item) => item.id === dataset);
+      const poseBackend = backends?.groups.pose?.find((item) => item.id === selected.pose);
       const missing = STAGE_ORDER.filter((s) => !backends?.groups[s]?.some(
-        (definition) => definition.id === selected[s] && backendCompatibility(activeDataset, definition, s) === null,
+        (definition) =>
+          definition.id === selected[s]
+          && backendCompatibility(activeDataset, definition, s, poseBackend) === null,
       ));
       if (missing.length > 0) throw new Error(`以下阶段未选择可用算法：${missing.join(', ')}`);
       const body = {
@@ -168,7 +221,10 @@ export function NewJobPage() {
                 <div className="backend-grid">
                   {backends.groups[s].map((b: BackendDef) => {
                     const activeDataset = datasets.find((d) => d.id === dataset);
-                    const incompatibility = backendCompatibility(activeDataset, b, s);
+                    const selectedPoseBackend = backends.groups.pose.find(
+                      (item) => item.id === selected.pose,
+                    );
+                    const incompatibility = backendCompatibility(activeDataset, b, s, selectedPoseBackend);
                     const disabled = incompatibility !== null;
                     return (
                       <label

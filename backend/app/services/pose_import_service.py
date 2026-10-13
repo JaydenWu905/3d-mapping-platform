@@ -85,6 +85,11 @@ def import_registered_pose(job_id: str, jobs) -> dict[str, Any]:
     ]}
     atomic_write_json(stage_dir / "trajectory_preview.json", preview)
     run_id = "pose_import_" + time.strftime("%Y%m%d_%H%M%S")
+    timebase = dict(definition.input_manifest.get("timebase") or {})
+    timestamp_basis = dict(timebase)
+    timestamp_basis.setdefault("clock", "unknown")
+    timestamp_basis.setdefault("unit", "second")
+    required_lookup_key = (getattr(definition, "surface", None) or {}).get("pose_lookup_key")
     manifest = build_manifest(job_id, "pose", "registered_pose_import", 0, {
         "pose_count": len(rows), "timestamp_start": rows[0][0], "timestamp_end": rows[-1][0],
         "trajectory_length_m": round(sum(math.dist(rows[i-1][1:4], rows[i][1:4]) for i in range(1, len(rows))), 3),
@@ -94,9 +99,17 @@ def import_registered_pose(job_id: str, jobs) -> dict[str, Any]:
          "size_bytes": imported.stat().st_size, "sha256": actual},
     ], backend_details={
         "mock_backend": False, "result_origin": "validated import of dataset-registered precomputed Pose",
-        "run_id": run_id, "dataset_id": definition.id, "timestamp_basis": definition.input_manifest.get("timebase"),
+        "run_id": run_id, "dataset_id": definition.id, "timestamp_basis": timestamp_basis,
         "pose_semantics": definition.input_manifest.get("pose_semantics"), "translation_unit": definition.input_manifest.get("unit"),
         "quaternion_order": "qx qy qz qw", "source_pose_sha256": actual,
+        # The registered Pose is authoritative and already in the dataset's
+        # declared lookup convention; the Pose -> Surface gate re-checks it
+        # against the Surface requirement before Surface may start.
+        "surface_handoff": {
+            "compatible": True, "reason": None,
+            "required_lookup_key": required_lookup_key,
+            "association_method": "dataset registry (pre-associated)",
+        },
         "note": "This backend validates and imports an existing result; it does not estimate poses.",
     })
     atomic_write_json(stage_dir / "result_manifest.json", manifest)

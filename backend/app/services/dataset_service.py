@@ -13,6 +13,11 @@ from typing import Any
 
 from app.config import DATASETS_CONFIG_DIR, DEMO_JOBS_DIR, PROJECT_ROOT
 from app.models.progress import read_json
+from app.services.pose_spec import (
+    cross_check_lookup_keys,
+    resolve_workspace,
+    validate_dataset_pose,
+)
 
 
 class DatasetError(ValueError):
@@ -29,6 +34,8 @@ class DatasetDefinition:
     input_manifest: dict[str, Any]
     source_dir: Path
     files: dict[str, str]
+    pose: dict[str, Any]
+    runtime: dict[str, Any]
     surface: dict[str, Any]
     integrity: dict[str, Any]
     rgbd: dict[str, Any]
@@ -53,28 +60,62 @@ class DatasetDefinition:
         elif self.kind == "external":
             if not self.source_dir.is_dir():
                 errors.append("configured source directory is unavailable")
+            # A raw sensor input (the ROS bag) is ALWAYS required for a real
+            # dataset.  Only the precomputed Pose file is optional, because a
+            # SLAM-producing Pose backend (e.g. GLIM) may estimate the
+            # trajectory at runtime.  The two files are therefore handled
+            # separately on purpose: 'bag' can never become optional through
+            # the 'poses' relaxation.
+            if "bag" not in self.files:
+                errors.append("dataset registry does not declare a required 'bag' file")
             for key in ("bag", "poses"):
+                if key not in self.files:
+                    continue
                 try:
                     path = self.source_file(key)
                 except DatasetError as exc:
                     errors.append(str(exc))
                     continue
                 if not path.is_file():
-                    errors.append(f"required {key} file is unavailable")
+                    errors.append(
+                        "required bag file is unavailable" if key == "bag"
+                        else "registered poses file is unavailable"
+                    )
             if not errors:
                 bag = self.source_file("bag")
-                poses = self.source_file("poses")
                 if self.integrity.get("bag_size_bytes") != bag.stat().st_size:
                     errors.append("bag size does not match the registered dataset")
-                if self.integrity.get("poses_size_bytes") != poses.stat().st_size:
-                    errors.append("poses size does not match the registered dataset")
-                expected = self.integrity.get("poses_sha256")
-                if expected and expected != _sha256(poses):
-                    errors.append("poses SHA-256 does not match the registered dataset")
                 bag_expected = self.integrity.get("bag_sha256")
                 if not bag_expected or bag_expected != _sha256(bag):
                     errors.append("bag SHA-256 is missing or does not match the registered dataset")
+                if "poses" in self.files:
+                    poses = self.source_file("poses")
+                    if self.integrity.get("poses_size_bytes") != poses.stat().st_size:
+                        errors.append("poses size does not match the registered dataset")
+                    expected = self.integrity.get("poses_sha256")
+                    if expected and expected != _sha256(poses):
+                        errors.append("poses SHA-256 does not match the registered dataset")
+            errors.extend(self.validate_pose())
+            modalities = set(self.input_manifest.get("modalities") or [])
+            if "pose" in modalities and "poses" not in self.files and not self.pose:
+                errors.append(
+                    "dataset declares the 'pose' modality but registers neither a 'poses' file "
+                    "nor a Pose backend that can estimate it"
+                )
         return errors
+
+    def validate_pose(self) -> list[str]:
+        """Errors that make the declared Pose backend unexecutable."""
+        if not self.pose:
+            return []
+        backend = self.pose.get("backend")
+        runtime_block = self.runtime.get(backend) if isinstance(backend, str) else None
+        return validate_dataset_pose(
+            self.pose,
+            runtime_block=runtime_block,
+            workspace=resolve_workspace(PROJECT_ROOT),
+            declared_files=self.files,
+        ) + cross_check_lookup_keys(self.pose, self.surface)
 
 
 class DatasetService:
@@ -108,7 +149,7 @@ class DatasetService:
                     id=folder.name, name=manifest.get("name", folder.name),
                     description=manifest.get("description", ""), kind="demo",
                     execution="mock", input_manifest=manifest, source_dir=folder,
-                    files={}, surface={}, integrity={}, rgbd={},
+                    files={}, pose={}, runtime={}, surface={}, integrity={}, rgbd={},
                 ))
         if self.config_dir.exists():
             for path in sorted(self.config_dir.glob("*.json")):
@@ -129,7 +170,9 @@ class DatasetService:
                     description=raw.get("description", ""),
                     kind=raw.get("kind", "external"), execution=raw.get("execution", "real"),
                     input_manifest=dict(raw.get("input_manifest", {})), source_dir=source_dir,
-                    files=dict(raw.get("files", {})), surface=dict(raw.get("surface", {})),
+                    files=dict(raw.get("files", {})), pose=dict(raw.get("pose", {})),
+                    runtime=dict(raw.get("runtime", {})),
+                    surface=dict(raw.get("surface", {})),
                     integrity=dict(raw.get("integrity", {})), rgbd=dict(raw.get("rgbd", {})),
                 ))
         return out
@@ -140,6 +183,7 @@ class DatasetService:
             errors = self.validation_errors(definition)
             manifest = dict(definition.input_manifest)
             manifest["execution"] = definition.execution
+            manifest["pose_backend"] = definition.pose.get("backend")
             manifest["surface_backend"] = definition.surface.get("backend")
             manifest["available"] = not errors
             if errors:

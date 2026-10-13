@@ -269,6 +269,24 @@ def prepare_mrhash_lidar_input(job_id: str, jobs) -> dict[str, Any]:
         raise SurfaceInputError("Pose translation_unit must be meter")
     if details["quaternion_order"] != "qx qy qz qw":
         raise SurfaceInputError("Pose quaternion_order must be qx qy qz qw")
+    # Timestamp gate (docs/pose-timestamp-contract.md §11).  A valid Pose result
+    # may still be unusable by Surface: the two stages exchange poses on a
+    # declared clock, and matching the files by column alone would attach the
+    # wrong pose to every frame.
+    handoff = details.get("surface_handoff")
+    if isinstance(handoff, dict) and handoff.get("compatible") is False:
+        raise SurfaceInputError(
+            "Pose result declares an incompatible Surface handoff: "
+            + str(handoff.get("reason") or "no reason recorded")
+        )
+    required_lookup_key = (definition.surface or {}).get("pose_lookup_key")
+    pose_lookup_key = details["timestamp_basis"].get("lookup_key")
+    if required_lookup_key and pose_lookup_key != required_lookup_key:
+        raise SurfaceInputError(
+            f"Pose timestamp basis '{pose_lookup_key}' does not match the Surface required "
+            f"lookup key '{required_lookup_key}'; the Pose trajectory and this Surface input "
+            "use different clock conventions, so Surface must not start"
+        )
     trajectory_artifact = _artifact(pose, "registered_trajectory", "trajectory")
     trajectory = _resolve(pose_dir, trajectory_artifact)
     rows = read_pose_rows(trajectory)
@@ -298,6 +316,12 @@ def prepare_mrhash_lidar_input(job_id: str, jobs) -> dict[str, Any]:
                                 "size_bytes": trajectory.stat().st_size, "sha256": trajectory_artifact["sha256"]},
         "timestamp_basis": details["timestamp_basis"], "pose_semantics": details["pose_semantics"],
         "translation_unit": details["translation_unit"], "quaternion_order": details["quaternion_order"],
+        "timestamp_gate": {
+            "required_pose_lookup_key": required_lookup_key,
+            "pose_lookup_key": pose_lookup_key,
+            "pose_surface_handoff": handoff if isinstance(handoff, dict) else None,
+            "pose_timestamp_association": details.get("timestamp_association"),
+        },
         "lidar_topic": lidar_topic,
         "matching": {"bag_message_count": declared, "pose_count": pose_count, "matched_count": pose_count,
                      "missing_or_skipped_count": missing_count},

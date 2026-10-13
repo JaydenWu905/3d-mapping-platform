@@ -1,0 +1,66 @@
+{
+  "_example_note": "Copy this file to backend/config/datasets/ins_longcorridor01.json on the machine that owns the raw bag. 'root' is relative to the workspace directory that contains this platform repository (PROJECT_ROOT.parent); see docs/glim-pose-integration.md.",
+  "id": "ins_longcorridor01",
+  "name": "INS indoor_long_corridor01 (Livox MID-360, GLIM)",
+  "description": "Livox MID-360 LiDAR + internal IMU with a real GLIM Pose backend. Pose is estimated at run time, so no precomputed poses file is registered.",
+  "kind": "external",
+  "execution": "real",
+  "root": "INS",
+  "files": {
+    "bag": "2024-06-04-16-24-55.bag"
+  },
+  "integrity": {
+    "bag_size_bytes": 17125894059,
+    "bag_sha256": "<sha256sum of 2024-06-04-16-24-55.bag>"
+  },
+  "input_manifest": {
+    "schema_version": "0.1",
+    "dataset_id": "ins_longcorridor01",
+    "modalities": ["lidar", "imu", "rgb", "depth"],
+    "sensor": {"type": "livox_mid360", "topic": "/livox_mid360/livox/lidar"},
+    "coordinate_frame": "world",
+    "pose_semantics": "T_world_lidar",
+    "unit": "meter",
+    "timebase": {
+      "clock": "lidar_sensor",
+      "lookup_key": "physical LiDAR sensor/header timestamp",
+      "note": "Native GLIM trajectory clock; the platform associates it to the MrHash bag record timestamp before Surface may start."
+    },
+    "tags": ["real", "lidar", "imu", "ins", "livox", "glim"]
+  },
+  "pose": {
+    "backend": "glim",
+    "bag_path": "INS/2024-06-04-16-24-55.bag",
+    "lidar_topic": "/livox_mid360/livox/lidar",
+    "imu_topic": "/livox_mid360/livox/imu",
+    "lidar_frame_id": "livox_mid360_frame",
+    "imu_frame_id": "livox_frame",
+    "acc_scale": 9.80665,
+    "perpoint_relative_time": true,
+    "perpoint_time_scale": 1e-9,
+    "T_lidar_imu": [0.011, 0.02329, -0.04412, 0.0, 0.0, 0.0, 1.0],
+    "config_path": "INS/glim_ins_config",
+    "timestamp": {
+      "native_lookup_key": "physical LiDAR sensor/header timestamp",
+      "surface_lookup_key": "ROS bag record timestamp",
+      "max_delta_sec": 0.05,
+      "min_matched_ratio": 0.98
+    },
+    "run_timeout_sec": 1200,
+    "demo": {"max_lidar_frames": 300, "max_duration_sec": 60}
+  },
+  "runtime": {
+    "glim": {
+      "rosbags_python": "envs/rosbags/bin/python",
+      "ros_setup": "/opt/ros/humble/setup.bash",
+      "ld_library_path": "/usr/local/lib",
+      "lock_path": "runtime/locks/glim.lock"
+    }
+  },
+  "surface": {
+    "backend": "mrhash_lidar",
+    "topic": "/livox_mid360/livox/lidar",
+    "pose_semantics": "T_world_lidar",
+    "pose_lookup_key": "ROS bag record timestamp"
+  }
+}
