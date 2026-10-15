@@ -17,6 +17,9 @@ backend/config/datasets/*.local.json
 
 # ---- Runtime data (regenerated on backend startup) ----
 jobs/
+uploads/
+backend/config/datasets/ins_upload_*.json
+.run/
 backend/e2e_fail.json
 backend/e2e_job.json
 backend/sse_capture.txt
@@ -29,3 +32,9 @@ Thumbs.db
 
 # ---- Logs ----
 *.log
+
+# Host-local runtime and installation history (not release sources)
+runtime/
+ops/glim_install_logs/
+ops/*.local.env
+ops/releases/*/verification.local.json

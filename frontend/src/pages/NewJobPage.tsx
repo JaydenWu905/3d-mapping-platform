@@ -99,12 +99,19 @@ export function NewJobPage() {
     distance: null,
   });
   const [dataset, setDataset] = useState<string>('');
+  const [runMode, setRunMode] = useState<'full' | 'short'>('full');
   const [failStage, setFailStage] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [profiles, setProfiles] = useState<Array<{ id: string; name: string; size_bytes: number; calibration_note: string }>>([]);
+  const [profileId, setProfileId] = useState('');
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploading, setUploading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
+    api.uploadProfiles().then((p) => { setProfiles(p); setProfileId(p[0]?.id ?? ''); }).catch((e: unknown) => setError(messageOf(e)));
     api
       .getBackends()
       .then((b) => {
@@ -123,6 +130,48 @@ export function NewJobPage() {
       .catch((e: unknown) => setError(messageOf(e)));
   }, []);
 
+  const upload = async () => {
+    if (!uploadFile || !profileId) return;
+    setUploading(true);
+    setError(null);
+    const key = `mapping-upload:${uploadFile.name}:${uploadFile.size}:${uploadFile.lastModified}:${profileId}`;
+    try {
+      let id = localStorage.getItem(key);
+      let state;
+      if (id) state = await api.uploadStatus(id);
+      else {
+        state = await api.createUpload(uploadFile.name, uploadFile.size, profileId);
+        id = state.upload_id;
+        localStorage.setItem(key, id);
+      }
+      while (state.offset < uploadFile.size) {
+        const end = Math.min(state.offset + state.max_chunk_bytes, uploadFile.size);
+        let succeeded = false;
+        for (let attempt = 0; attempt < 3 && !succeeded; attempt++) {
+          try {
+            await api.uploadChunk(id!, state.offset, uploadFile.slice(state.offset, end));
+            succeeded = true;
+          } catch (e) {
+            state = await api.uploadStatus(id!);
+            if (state.offset >= end) succeeded = true;
+            else if (attempt === 2) throw e;
+          }
+        }
+        state = await api.uploadStatus(id!);
+        setUploadProgress(Math.round(state.offset * 100 / uploadFile.size));
+      }
+      const registered = await api.finalizeUpload(id!);
+      const list = await api.getDatasets();
+      setDatasets(list);
+      setDataset(registered.dataset_id);
+      localStorage.removeItem(key);
+    } catch (e: unknown) {
+      setError(messageOf(e));
+    } finally {
+      setUploading(false);
+    }
+  };
+
   useEffect(() => {
     if (!backends || !datasets || !dataset) return;
     setSelected(defaultBackendsForDataset(datasets.find((item) => item.id === dataset), backends));
@@ -134,7 +183,9 @@ export function NewJobPage() {
     try {
       const activeDataset = datasets?.find((item) => item.id === dataset);
       const poseBackend = backends?.groups.pose?.find((item) => item.id === selected.pose);
-      const missing = STAGE_ORDER.filter((s) => !backends?.groups[s]?.some(
+      const real = activeDataset?.input_manifest?.execution === 'real';
+      const stages = real ? STAGE_ORDER.slice(0, 2) : STAGE_ORDER;
+      const missing = stages.filter((s) => !backends?.groups[s]?.some(
         (definition) =>
           definition.id === selected[s]
           && backendCompatibility(activeDataset, definition, s, poseBackend) === null,
@@ -142,12 +193,15 @@ export function NewJobPage() {
       if (missing.length > 0) throw new Error(`以下阶段未选择可用算法：${missing.join(', ')}`);
       const body = {
         dataset,
+        ...(Array.isArray(activeDataset?.input_manifest?.run_modes) ? { run_mode: runMode } : {}),
         backends: Object.fromEntries(
-          STAGE_ORDER.map((s) => [s, selected[s]!]),
+          stages.map((s) => [s, selected[s]!]),
         ) as Record<string, string>,
-        fail_stage: failStage || null,
+        fail_stage: real ? null : failStage || null,
+        requested_stages: stages,
       };
       const job = await api.createJob(body);
+      if (real) await api.runPlanned(job.job_id);
       navigate(`/jobs/${job.job_id}`);
     } catch (e: unknown) {
       setError(messageOf(e));
@@ -176,6 +230,14 @@ export function NewJobPage() {
         <div className="new-job">
           <section className="form-section">
             <h3>① 选择数据集</h3>
+            <div className="field">
+              <span className="field-label">上传已验证的 INS/Livox 原始 .bag</span>
+              <input type="file" accept=".bag" onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)} />
+              <select value={profileId} onChange={(e) => setProfileId(e.target.value)}>{profiles.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+              <span className="field-hint">{profiles.find((p) => p.id === profileId)?.calibration_note}</span>
+              <button className="btn btn-primary" disabled={!uploadFile || uploading || !profileId || uploadFile.size !== profiles.find((p) => p.id === profileId)?.size_bytes} onClick={() => void upload()}>{uploading ? `上传与预检中 ${uploadProgress}%` : '上传、预检并自动注册'}</button>
+              {uploadFile && uploadFile.size !== profiles.find((p) => p.id === profileId)?.size_bytes ? <span className="alert alert-error">文件大小与受控 profile 不符，不能注册。</span> : null}
+            </div>
             <div className="dataset-list">
               {datasets.map((ds) => (
                 <label key={ds.id} className={`dataset-card ${ds.id === dataset ? 'selected' : ''} ${ds.input_manifest?.available === false ? 'disabled' : ''}`}>
@@ -210,10 +272,9 @@ export function NewJobPage() {
           <section className="form-section">
             <h3>② 为每个阶段选择算法</h3>
             <p className="form-tip">
-              阶段固定为 Pose / Surface / Distance 三步串行；三种算法的最终导出格式一致，
-              只需替换后端 adapter，前端与产物结构无需改动。
+              真实数据执行 Pose / Surface 两阶段；Distance 未接入。演示数据保留三阶段。
             </p>
-            {STAGE_ORDER.map((s) => (
+            {(datasets.find((d) => d.id === dataset)?.input_manifest?.execution === 'real' ? STAGE_ORDER.slice(0, 2) : STAGE_ORDER).map((s) => (
               <div className="backend-group" key={s}>
                 <div className="backend-group-label">
                   {s === 'pose' ? 'Pose / SLAM' : s === 'surface' ? 'Surface Mapping' : 'Distance / ESDF'}
@@ -255,7 +316,17 @@ export function NewJobPage() {
             ))}
           </section>
 
-          <section className="form-section">
+          {Array.isArray(datasets.find(d => d.id === dataset)?.input_manifest?.run_modes) ? <section className="form-section">
+            <h3>③ 运行范围</h3>
+            <label className="field"><span className="field-label">范围模式</span>
+              <select aria-label="运行范围" value={runMode} onChange={e => setRunMode(e.target.value as 'full' | 'short')}>
+                <option value="full">完整运行</option><option value="short">短段验证</option>
+              </select>
+            </label>
+            <p>{runMode === 'full' ? '完整运行：新运行 GLIM 处理完整序列，再自动将本 Job 的新轨迹交给完整 Surface；不限制前 100 帧。' : '短段验证：新运行 GLIM 处理完整序列，Surface 仅处理原始第 1–100 帧，沿用已验证策略。'}</p>
+            <p>Pose 时间关联门限保持 98%。仅适用于已验证 INS profile；外参及 IMU 单位依据待确认。Distance 未接入，本轮不验收建图精度。</p>
+          </section> : null}
+          {datasets.find(d => d.id === dataset)?.input_manifest?.execution !== 'real' ? <section className="form-section">
             <h3>③ 演示选项（仅 Mock Runner）</h3>
             <label className="field">
               <span className="field-label">在哪个阶段模拟失败？</span>
@@ -267,11 +338,11 @@ export function NewJobPage() {
               </select>
               <span className="field-hint">用于演示阶段失败 / 取消 / 重跑流程；真实算法接入后自动忽略。</span>
             </label>
-          </section>
+          </section> : null}
 
           <div className="form-actions">
-            <button className="btn btn-primary btn-lg" onClick={() => void submit()} disabled={submitting || STAGE_ORDER.some((stage) => !selected[stage])}>
-              {submitting ? '创建中…' : '🚀 创建任务'}
+            <button className="btn btn-primary btn-lg" onClick={() => void submit()} disabled={submitting || (datasets.find((d) => d.id === dataset)?.input_manifest?.execution === 'real' ? STAGE_ORDER.slice(0, 2) : STAGE_ORDER).some((stage) => !selected[stage])}>
+              {submitting ? '创建中…' : datasets.find((d) => d.id === dataset)?.input_manifest?.execution === 'real' ? '🚀 创建并一键运行' : '🚀 创建任务'}
             </button>
             <button className="btn btn-ghost" onClick={() => navigate('/')} disabled={submitting}>
               取消

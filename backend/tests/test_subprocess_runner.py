@@ -6,6 +6,7 @@ import os
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from app.services.runner_adapter import SubprocessRunnerAdapter
@@ -74,6 +75,9 @@ class SubprocessRunnerTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
+        isolation = patch("app.services.runner_adapter.PROJECT_ROOT", Path(self.temp.name))
+        isolation.start()
+        self.addCleanup(isolation.stop)
         self.jobs = FakeJobs(Path(self.temp.name))
 
     async def test_carriage_returns_and_long_unterminated_output(self) -> None:
@@ -112,7 +116,7 @@ for i in range(3123):
     sys.stdout.write(f"processing: {percent:3d}%|bar| {i}/3123 [00:01<00:01]{sep}")
 sys.stdout.flush()
 print("FINAL OUTPUT", flush=True)
-(stage / "result_manifest.json").write_text(json.dumps({"status": "completed"}))
+(stage / "result_manifest.json").write_text(json.dumps({"status": "completed", "metrics": {"selected_frames": 100, "fused_frames": 89, "skipped_no_pose_frames": 11}}))
 '''
         events = EventService(queue_size=32)
         queue = events.subscribe("test-job")
@@ -127,8 +131,8 @@ print("FINAL OUTPUT", flush=True)
         progress = json.loads(
             self.jobs.stage_dir("test-job", "surface").joinpath("progress.json").read_text()
         )
-        self.assertEqual(progress["current"], 3123)
-        self.assertEqual(progress["total"], 3123)
+        self.assertEqual(progress["current"], 89)
+        self.assertEqual(progress["total"], 100)
         self.assertEqual(progress["progress"], 100.0)
 
         log = self.jobs.stage_dir("test-job", "surface").joinpath("run.log").read_text()
@@ -141,7 +145,7 @@ print("FINAL OUTPUT", flush=True)
         self.assertTrue(any(
             item["type"] == "stage.progress"
             and item["data"].get("progress") == 100.0
-            and item["data"].get("current") == 3123
+            and item["data"].get("current") == 89
             for item in queued
         ))
         self.assertTrue(any(
@@ -210,6 +214,23 @@ time.sleep(60)
         await asyncio.sleep(0.1)
         self.assertFalse(pid_exists(child_pid))
         self.assertNotIn(("test-job", "surface"), runner._processes)
+
+    async def test_timeout_reaps_process_group_and_fails_stage(self) -> None:
+        pid_file = self.jobs.job_dir("test-job") / "timeout_child.pid"
+        code = r'''
+import pathlib, subprocess, sys, time
+p = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+(pathlib.Path(sys.argv[1]) / "timeout_child.pid").write_text(str(p.pid))
+time.sleep(60)
+'''
+        runner = CommandRunner(self.jobs, Events(), code)
+        runner._STAGE_TIMEOUT_SEC = {"surface": 0.25}
+        result = await asyncio.wait_for(runner.run_stage("test-job", "surface", "mrhash_lidar"), timeout=5)
+        self.assertEqual(result.status, "failed")
+        self.assertIn("timeout", result.error)
+        child_pid = int(pid_file.read_text())
+        await asyncio.sleep(0.1)
+        self.assertFalse(pid_exists(child_pid))
 
 
 if __name__ == "__main__":

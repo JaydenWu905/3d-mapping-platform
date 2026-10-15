@@ -1,0 +1,759 @@
+{
+  "captured_utc": "2026-10-15T13:20:04.945393+00:00",
+  "os_release": "PRETTY_NAME=\"Ubuntu 22.04.5 LTS\"\nNAME=\"Ubuntu\"\nVERSION_ID=\"22.04\"\nVERSION=\"22.04.5 LTS (Jammy Jellyfish)\"\nVERSION_CODENAME=jammy\nID=ubuntu\nID_LIKE=debian\nHOME_URL=\"https://www.ubuntu.com/\"\nSUPPORT_URL=\"https://help.ubuntu.com/\"\nBUG_REPORT_URL=\"https://bugs.launchpad.net/ubuntu/\"\nPRIVACY_POLICY_URL=\"https://www.ubuntu.com/legal/terms-and-policies/privacy-policy\"\nUBUNTU_CODENAME=jammy\n",
+  "python_environments": {
+    "platform": {
+      "root": "/root/autodl-tmp/3d-mapping-platform-deploy/backend/.venv",
+      "python": "3.12.3 | packaged by Anaconda, Inc. | (main, May  6 2024, 19:46:43) [GCC 11.2.0]",
+      "site_packages": "/root/autodl-tmp/3d-mapping-platform-deploy/backend/.venv/lib/python3.12/site-packages",
+      "packages": [
+        {
+          "name": "annotated-doc",
+          "version": "0.0.5"
+        },
+        {
+          "name": "annotated-types",
+          "version": "0.8.0"
+        },
+        {
+          "name": "anyio",
+          "version": "4.15.1"
+        },
+        {
+          "name": "click",
+          "version": "8.5.0"
+        },
+        {
+          "name": "fast_simplification",
+          "version": "0.2.0"
+        },
+        {
+          "name": "fastapi",
+          "version": "0.143.0"
+        },
+        {
+          "name": "h11",
+          "version": "0.16.0"
+        },
+        {
+          "name": "httptools",
+          "version": "0.9.0"
+        },
+        {
+          "name": "idna",
+          "version": "3.20"
+        },
+        {
+          "name": "numpy",
+          "version": "2.5.4"
+        },
+        {
+          "name": "opentelemetry-api",
+          "version": "1.45.1"
+        },
+        {
+          "name": "pillow",
+          "version": "12.3.0"
+        },
+        {
+          "name": "pip",
+          "version": "24.0"
+        },
+        {
+          "name": "pydantic",
+          "version": "2.14.1"
+        },
+        {
+          "name": "pydantic_core",
+          "version": "2.50.1"
+        },
+        {
+          "name": "python-dotenv",
+          "version": "1.2.4"
+        },
+        {
+          "name": "PyYAML",
+          "version": "6.0.3"
+        },
+        {
+          "name": "scipy",
+          "version": "1.18.1"
+        },
+        {
+          "name": "starlette",
+          "version": "1.8.0"
+        },
+        {
+          "name": "trimesh",
+          "version": "5.1.1"
+        },
+        {
+          "name": "typing-inspection",
+          "version": "0.4.4"
+        },
+        {
+          "name": "typing_extensions",
+          "version": "4.16.0"
+        },
+        {
+          "name": "uvicorn",
+          "version": "0.54.0"
+        },
+        {
+          "name": "uvloop",
+          "version": "0.23.0"
+        },
+        {
+          "name": "watchfiles",
+          "version": "1.3.0"
+        },
+        {
+          "name": "websockets",
+          "version": "17.2"
+        }
+      ],
+      "site_packages_resolved": "/root/autodl-tmp/3d-mapping-platform-deploy/backend/.venv/lib/python3.12/site-packages"
+    },
+    "bridge": {
+      "root": "/root/autodl-tmp/envs/glim_bridge",
+      "python": "3.10.12 (main, Aug 31 2026, 10:18:17) [GCC 11.4.0]",
+      "site_packages": "/root/autodl-tmp/envs/glim_bridge/lib/python3.10/site-packages",
+      "packages": [
+        {
+          "name": "apsw",
+          "version": "3.54.0.0"
+        },
+        {
+          "name": "lz4",
+          "version": "4.4.5"
+        },
+        {
+          "name": "numpy",
+          "version": "2.2.6"
+        },
+        {
+          "name": "pip",
+          "version": "22.0.2"
+        },
+        {
+          "name": "rosbags",
+          "version": "0.11.5"
+        },
+        {
+          "name": "ruamel.yaml",
+          "version": "0.19.1"
+        },
+        {
+          "name": "setuptools",
+          "version": "59.6.0"
+        },
+        {
+          "name": "typing_extensions",
+          "version": "4.16.0"
+        },
+        {
+          "name": "zstandard",
+          "version": "0.25.0"
+        }
+      ],
+      "site_packages_resolved": "/root/autodl-tmp/envs/glim_bridge/lib/python3.10/site-packages"
+    },
+    "mrhash": {
+      "root": "/root/autodl-tmp/mrhash/.pixi/envs/default",
+      "python": "3.11.13 | packaged by conda-forge | (main, Jun  4 2025, 14:48:23) [GCC 13.3.0]",
+      "site_packages": "/root/autodl-tmp/mrhash/.pixi/envs/default/lib/python3.1/site-packages",
+      "packages": [
+        {
+          "name": "addict",
+          "version": "2.4.0"
+        },
+        {
+          "name": "asttokens",
+          "version": "3.0.0"
+        },
+        {
+          "name": "attrs",
+          "version": "25.4.0"
+        },
+        {
+          "name": "blinker",
+          "version": "1.9.0"
+        },
+        {
+          "name": "certifi",
+          "version": "2025.4.26"
+        },
+        {
+          "name": "charset-normalizer",
+          "version": "3.4.2"
+        },
+        {
+          "name": "click",
+          "version": "8.2.1"
+        },
+        {
+          "name": "comm",
+          "version": "0.2.3"
+        },
+        {
+          "name": "ConfigArgParse",
+          "version": "1.7.1"
+        },
+        {
+          "name": "contourpy",
+          "version": "1.3.2"
+        },
+        {
+          "name": "cycler",
+          "version": "0.12.1"
+        },
+        {
+          "name": "dash",
+          "version": "3.0.4"
+        },
+        {
+          "name": "decorator",
+          "version": "5.2.1"
+        },
+        {
+          "name": "exceptiongroup",
+          "version": "1.3.0"
+        },
+        {
+          "name": "executing",
+          "version": "2.2.1"
+        },
+        {
+          "name": "fastjsonschema",
+          "version": "2.21.1"
+        },
+        {
+          "name": "filelock",
+          "version": "3.18.0"
+        },
+        {
+          "name": "Flask",
+          "version": "3.0.3"
+        },
+        {
+          "name": "fonttools",
+          "version": "4.58.2"
+        },
+        {
+          "name": "fsspec",
+          "version": "2025.5.1"
+        },
+        {
+          "name": "gmpy2",
+          "version": "2.2.1"
+        },
+        {
+          "name": "h5py",
+          "version": "3.14.0"
+        },
+        {
+          "name": "idna",
+          "version": "3.10"
+        },
+        {
+          "name": "importlib_metadata",
+          "version": "8.7.0"
+        },
+        {
+          "name": "importlib_resources",
+          "version": "6.5.2"
+        },
+        {
+          "name": "ipython",
+          "version": "9.7.0"
+        },
+        {
+          "name": "ipython_pygments_lexers",
+          "version": "1.1.1"
+        },
+        {
+          "name": "ipywidgets",
+          "version": "8.1.8"
+        },
+        {
+          "name": "itsdangerous",
+          "version": "2.2.0"
+        },
+        {
+          "name": "jedi",
+          "version": "0.19.2"
+        },
+        {
+          "name": "Jinja2",
+          "version": "3.1.6"
+        },
+        {
+          "name": "joblib",
+          "version": "1.5.1"
+        },
+        {
+          "name": "jsonschema",
+          "version": "4.24.0"
+        },
+        {
+          "name": "jsonschema-specifications",
+          "version": "2025.4.1"
+        },
+        {
+          "name": "jupyter_core",
+          "version": "5.8.1"
+        },
+        {
+          "name": "jupyterlab_widgets",
+          "version": "3.0.16"
+        },
+        {
+          "name": "kiwisolver",
+          "version": "1.4.8"
+        },
+        {
+          "name": "lz4",
+          "version": "4.4.4"
+        },
+        {
+          "name": "markdown-it-py",
+          "version": "3.0.0"
+        },
+        {
+          "name": "MarkupSafe",
+          "version": "3.0.2"
+        },
+        {
+          "name": "matplotlib",
+          "version": "3.10.3"
+        },
+        {
+          "name": "matplotlib-inline",
+          "version": "0.2.1"
+        },
+        {
+          "name": "mdurl",
+          "version": "0.1.2"
+        },
+        {
+          "name": "mpmath",
+          "version": "1.3.0"
+        },
+        {
+          "name": "mrhash",
+          "version": "0.0.1"
+        },
+        {
+          "name": "narwhals",
+          "version": "1.42.0"
+        },
+        {
+          "name": "natsort",
+          "version": "8.4.0"
+        },
+        {
+          "name": "nbformat",
+          "version": "5.10.4"
+        },
+        {
+          "name": "nest-asyncio",
+          "version": "1.6.0"
+        },
+        {
+          "name": "networkx",
+          "version": "3.5"
+        },
+        {
+          "name": "numpy",
+          "version": "2.3.0"
+        },
+        {
+          "name": "open3d",
+          "version": "0.18.0"
+        },
+        {
+          "name": "opencv-python",
+          "version": "4.11.0"
+        },
+        {
+          "name": "opencv-python-headless",
+          "version": "4.11.0"
+        },
+        {
+          "name": "optree",
+          "version": "0.16.0"
+        },
+        {
+          "name": "packaging",
+          "version": "25.0"
+        },
+        {
+          "name": "pandas",
+          "version": "2.3.0"
+        },
+        {
+          "name": "parso",
+          "version": "0.8.5"
+        },
+        {
+          "name": "pathspec",
+          "version": "0.12.1"
+        },
+        {
+          "name": "pexpect",
+          "version": "4.9.0"
+        },
+        {
+          "name": "pillow",
+          "version": "12.0.0"
+        },
+        {
+          "name": "pip",
+          "version": "25.1.1"
+        },
+        {
+          "name": "platformdirs",
+          "version": "4.3.8"
+        },
+        {
+          "name": "plotly",
+          "version": "6.1.2"
+        },
+        {
+          "name": "prompt_toolkit",
+          "version": "3.0.52"
+        },
+        {
+          "name": "ptyprocess",
+          "version": "0.7.0"
+        },
+        {
+          "name": "pure_eval",
+          "version": "0.2.3"
+        },
+        {
+          "name": "pyarrow",
+          "version": "22.0.0"
+        },
+        {
+          "name": "pybind11",
+          "version": "2.13.6"
+        },
+        {
+          "name": "pybind11_global",
+          "version": "2.13.6"
+        },
+        {
+          "name": "Pygments",
+          "version": "2.19.2"
+        },
+        {
+          "name": "pyparsing",
+          "version": "3.2.3"
+        },
+        {
+          "name": "pyquaternion",
+          "version": "0.9.9"
+        },
+        {
+          "name": "python-dateutil",
+          "version": "2.9.0.post0"
+        },
+        {
+          "name": "pytz",
+          "version": "2025.2"
+        },
+        {
+          "name": "PyYAML",
+          "version": "6.0.2"
+        },
+        {
+          "name": "referencing",
+          "version": "0.36.2"
+        },
+        {
+          "name": "requests",
+          "version": "2.32.4"
+        },
+        {
+          "name": "rerun-sdk",
+          "version": "0.24.1"
+        },
+        {
+          "name": "retrying",
+          "version": "1.3.4"
+        },
+        {
+          "name": "rich",
+          "version": "14.0.0"
+        },
+        {
+          "name": "rosbags",
+          "version": "0.10.10"
+        },
+        {
+          "name": "rpds-py",
+          "version": "0.25.1"
+        },
+        {
+          "name": "ruamel.yaml",
+          "version": "0.18.14"
+        },
+        {
+          "name": "ruamel.yaml.clib",
+          "version": "0.2.12"
+        },
+        {
+          "name": "scikit-learn",
+          "version": "1.7.0"
+        },
+        {
+          "name": "scikit_build_core",
+          "version": "0.11.4"
+        },
+        {
+          "name": "scipy",
+          "version": "1.15.3"
+        },
+        {
+          "name": "setuptools",
+          "version": "75.8.2"
+        },
+        {
+          "name": "shellingham",
+          "version": "1.5.4"
+        },
+        {
+          "name": "six",
+          "version": "1.17.0"
+        },
+        {
+          "name": "stack-data",
+          "version": "0.6.3"
+        },
+        {
+          "name": "sympy",
+          "version": "1.14.0"
+        },
+        {
+          "name": "threadpoolctl",
+          "version": "3.6.0"
+        },
+        {
+          "name": "tomli",
+          "version": "2.2.1"
+        },
+        {
+          "name": "torch",
+          "version": "2.7.0"
+        },
+        {
+          "name": "tqdm",
+          "version": "4.67.1"
+        },
+        {
+          "name": "traitlets",
+          "version": "5.14.3"
+        },
+        {
+          "name": "triton",
+          "version": "3.3.0+gitd9a1100d"
+        },
+        {
+          "name": "typer",
+          "version": "0.16.0"
+        },
+        {
+          "name": "typing_extensions",
+          "version": "4.14.0"
+        },
+        {
+          "name": "tzdata",
+          "version": "2025.2"
+        },
+        {
+          "name": "urllib3",
+          "version": "2.4.0"
+        },
+        {
+          "name": "wcwidth",
+          "version": "0.2.14"
+        },
+        {
+          "name": "Werkzeug",
+          "version": "3.0.6"
+        },
+        {
+          "name": "wheel",
+          "version": "0.45.1"
+        },
+        {
+          "name": "widgetsnbextension",
+          "version": "4.0.15"
+        },
+        {
+          "name": "zipp",
+          "version": "3.23.0"
+        },
+        {
+          "name": "zstandard",
+          "version": "0.23.0"
+        }
+      ],
+      "site_packages_resolved": "/root/autodl-tmp/mrhash/.pixi/envs/default/lib/python3.11/site-packages"
+    }
+  },
+  "node": "v24.21.0",
+  "npm": "11.19.0",
+  "pixi": "pixi 0.79.0",
+  "gpu": "NVIDIA GeForce RTX 4090, 595.71.05, 24564 MiB",
+  "system_cuda_resolved": "/usr/local/cuda-12.8",
+  "mrhash_nvcc": "nvcc: NVIDIA (R) Cuda compiler driver\nCopyright (c) 2005-2025 NVIDIA Corporation\nBuilt on Wed_Jan_15_19:20:09_PST_2025\nCuda compilation tools, release 12.8, V12.8.61\nBuild cuda_12.8.r12.8/compiler.35404655_0",
+  "ros_glim_packages": "ros-humble-glim-cuda12.6\t1.2.2-0jammy\nros-humble-glim-ros-cuda12.6\t1.2.2-0jammy\nros-humble-rclpy\t3.3.22-1jammy.20260907.213431\nros-humble-ros-base\t0.10.0-1jammy.20260915.225919",
+  "native_extension": {
+    "path": "/root/autodl-tmp/mrhash/.pixi/envs/default/lib/python3.1/site-packages/mrhash/src/pygeowrapper.cpython-311-x86_64-linux-gnu.so",
+    "resolved_path": "/root/autodl-tmp/mrhash/.pixi/envs/default/lib/python3.11/site-packages/mrhash/src/pygeowrapper.cpython-311-x86_64-linux-gnu.so",
+    "size_bytes": 37099208,
+    "mtime_ns": 1791622593814096501,
+    "sha256": "d4d8da277b29836746eb01c1bc0f7b1d16189071fd2b8f8cbd161f4fd6d89267"
+  },
+  "extension_ldd": {
+    "exit_code": 0,
+    "stdout": "linux-vdso.so.1 (0x00007fff90d40000)\n\tlibtorch_cpu.so => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/libtorch_cpu.so (0x00007f3ab679b000)\n\tlibtorch_cuda.so => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/libtorch_cuda.so (0x00007f3a5088c000)\n\tlibc10.so => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/libc10.so (0x00007f3a50778000)\n\tlibtorch.so => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/libtorch.so (0x00007f3a50773000)\n\tlibopencv_core.so.411 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/libopencv_core.so.411 (0x00007f3a4fa41000)\n\tlibcudart.so.12 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/libcudart.so.12 (0x00007f3a4f600000)\n\tlibpthread.so.0 => /usr/lib/x86_64-linux-gnu/libpthread.so.0 (0x00007f3a4fa2a000)\n\tlibdl.so.2 => /usr/lib/x86_64-linux-gnu/libdl.so.2 (0x00007f3a4fa25000)\n\tlibstdc++.so.6 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/libstdc++.so.6 (0x00007f3a4f413000)\n\tlibm.so.6 => /usr/lib/x86_64-linux-gnu/libm.so.6 (0x00007f3a4f93e000)\n\tlibgcc_s.so.1 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/libgcc_s.so.1 (0x00007f3a4f91d000)\n\tlibc.so.6 => /usr/lib/x86_64-linux-gnu/libc.so.6 (0x00007f3a4f1ea000)\n\t/lib64/ld-linux-x86-64.so.2 (0x00007f3ac5ec3000)\n\tlibrt.so.1 => /usr/lib/x86_64-linux-gnu/librt.so.1 (0x00007f3a4f918000)\n\tlibmkl_intel_lp64.so.2 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libmkl_intel_lp64.so.2 (0x00007f3a4e270000)\n\tlibmkl_gnu_thread.so.2 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libmkl_gnu_thread.so.2 (0x00007f3a4c947000)\n\tlibmkl_core.so.2 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libmkl_core.so.2 (0x00007f3a488ef000)\n\tlibsleef.so.3 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libsleef.so.3 (0x00007f3a486c3000)\n\tlibomp.so => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libomp.so (0x00007f3a485ba000)\n\tlibcupti.so.12 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libcupti.so.12 (0x00007f3a47e48000)\n\tlibprotobuf.so.29.3.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libprotobuf.so.29.3.0 (0x00007f3a47b4a000)\n\tlibabsl_log_internal_check_op.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_log_internal_check_op.so.2501.0.0 (0x00007f3a4f90d000)\n\tlibabsl_die_if_null.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_die_if_null.so.2501.0.0 (0x00007f3a4f906000)\n\tlibabsl_log_internal_conditions.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_log_internal_conditions.so.2501.0.0 (0x00007f3a4f901000)\n\tlibabsl_log_internal_message.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_log_internal_message.so.2501.0.0 (0x00007f3a4f8f3000)\n\tlibabsl_log_internal_nullguard.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_log_internal_nullguard.so.2501.0.0 (0x00007f3a4f8ee000)\n\tlibabsl_examine_stack.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_examine_stack.so.2501.0.0 (0x00007f3a4f8e9000)\n\tlibabsl_log_internal_format.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_log_internal_format.so.2501.0.0 (0x00007f3a4f8e1000)\n\tlibabsl_log_internal_structured_proto.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_log_internal_structured_proto.so.2501.0.0 (0x00007f3a4f8dc000)\n\tlibabsl_log_internal_proto.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_log_internal_proto.so.2501.0.0 (0x00007f3a4f8d7000)\n\tlibabsl_log_internal_log_sink_set.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_log_internal_log_sink_set.so.2501.0.0 (0x00007f3a4f8d1000)\n\tlibabsl_log_sink.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_log_sink.so.2501.0.0 (0x00007f3a4f8cc000)\n\tlibabsl_log_entry.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_log_entry.so.2501.0.0 (0x00007f3a4f8c5000)\n\tlibabsl_flags_internal.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_flags_internal.so.2501.0.0 (0x00007f3a4f8ba000)\n\tlibabsl_flags_marshalling.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_flags_marshalling.so.2501.0.0 (0x00007f3a47b3e000)\n\tlibabsl_flags_reflection.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_flags_reflection.so.2501.0.0 (0x00007f3a47b32000)\n\tlibabsl_flags_config.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_flags_config.so.2501.0.0 (0x00007f3a47b2b000)\n\tlibabsl_flags_program_name.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_flags_program_name.so.2501.0.0 (0x00007f3a47b24000)\n\tlibabsl_flags_private_handle_accessor.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_flags_private_handle_accessor.so.2501.0.0 (0x00007f3a47b1f000)\n\tlibabsl_flags_commandlineflag.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_flags_commandlineflag.so.2501.0.0 (0x00007f3a47b1a000)\n\tlibabsl_flags_commandlineflag_internal.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_flags_commandlineflag_internal.so.2501.0.0 (0x00007f3a47b15000)\n\tlibabsl_log_initialize.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_log_initialize.so.2501.0.0 (0x00007f3a47b10000)\n\tlibabsl_log_internal_globals.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_log_internal_globals.so.2501.0.0 (0x00007f3a47b09000)\n\tlibabsl_log_globals.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_log_globals.so.2501.0.0 (0x00007f3a47b03000)\n\tlibabsl_vlog_config_internal.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_vlog_config_internal.so.2501.0.0 (0x00007f3a47afb000)\n\tlibabsl_log_internal_fnmatch.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_log_internal_fnmatch.so.2501.0.0 (0x00007f3a47af6000)\n\tlibabsl_raw_hash_set.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_raw_hash_set.so.2501.0.0 (0x00007f3a47af0000)\n\tlibabsl_hash.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_hash.so.2501.0.0 (0x00007f3a47ae9000)\n\tlibabsl_city.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_city.so.2501.0.0 (0x00007f3a47ae4000)\n\tlibabsl_low_level_hash.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_low_level_hash.so.2501.0.0 (0x00007f3a47adf000)\n\tlibabsl_hashtablez_sampler.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_hashtablez_sampler.so.2501.0.0 (0x00007f3a47ad9000)\n\tlibabsl_random_distributions.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_random_distributions.so.2501.0.0 (0x00007f3a47ad4000)\n\tlibabsl_random_seed_sequences.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_random_seed_sequences.so.2501.0.0 (0x00007f3a47acd000)\n\tlibabsl_random_internal_pool_urbg.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_random_internal_pool_urbg.so.2501.0.0 (0x00007f3a47ac6000)\n\tlibabsl_random_internal_randen.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_random_internal_randen.so.2501.0.0 (0x00007f3a47ac1000)\n\tlibabsl_random_internal_randen_hwaes.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_random_internal_randen_hwaes.so.2501.0.0 (0x00007f3a47abc000)\n\tlibabsl_random_internal_randen_hwaes_impl.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_random_internal_randen_hwaes_impl.so.2501.0.0 (0x00007f3a47ab7000)\n\tlibabsl_random_internal_randen_slow.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_random_internal_randen_slow.so.2501.0.0 (0x00007f3a47aaf000)\n\tlibabsl_random_internal_platform.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_random_internal_platform.so.2501.0.0 (0x00007f3a47aa9000)\n\tlibabsl_random_internal_seed_material.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_random_internal_seed_material.so.2501.0.0 (0x00007f3a47aa4000)\n\tlibabsl_random_seed_gen_exception.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_random_seed_gen_exception.so.2501.0.0 (0x00007f3a47a9f000)\n\tlibabsl_statusor.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_statusor.so.2501.0.0 (0x00007f3a47a99000)\n\tlibabsl_status.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_status.so.2501.0.0 (0x00007f3a47a8b000)\n\tlibabsl_cord.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_cord.so.2501.0.0 (0x00007f3a47a68000)\n\tlibabsl_cordz_info.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_cordz_info.so.2501.0.0 (0x00007f3a47a61000)\n\tlibabsl_cord_internal.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_cord_internal.so.2501.0.0 (0x00007f3a47a4c000)\n\tlibabsl_cordz_functions.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_cordz_functions.so.2501.0.0 (0x00007f3a47a47000)\n\tlibabsl_exponential_biased.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_exponential_biased.so.2501.0.0 (0x00007f3a47a40000)\n\tlibabsl_cordz_handle.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_cordz_handle.so.2501.0.0 (0x00007f3a47a3a000)\n\tlibabsl_crc_cord_state.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_crc_cord_state.so.2501.0.0 (0x00007f3a47a32000)\n\tlibabsl_crc32c.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_crc32c.so.2501.0.0 (0x00007f3a47a2c000)\n\tlibabsl_crc_internal.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_crc_internal.so.2501.0.0 (0x00007f3a47a25000)\n\tlibabsl_crc_cpu_detect.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_crc_cpu_detect.so.2501.0.0 (0x00007f3a47a1e000)\n\tlibabsl_bad_optional_access.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_bad_optional_access.so.2501.0.0 (0x00007f3a47a19000)\n\tlibabsl_leak_check.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_leak_check.so.2501.0.0 (0x00007f3a47a14000)\n\tlibabsl_strerror.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_strerror.so.2501.0.0 (0x00007f3a47a0f000)\n\tlibabsl_str_format_internal.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_str_format_internal.so.2501.0.0 (0x00007f3a479f1000)\n\tlibabsl_synchronization.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_synchronization.so.2501.0.0 (0x00007f3a479de000)\n\tlibabsl_stacktrace.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_stacktrace.so.2501.0.0 (0x00007f3a479d9000)\n\tlibabsl_symbolize.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_symbolize.so.2501.0.0 (0x00007f3a479d1000)\n\tlibabsl_debugging_internal.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_debugging_internal.so.2501.0.0 (0x00007f3a479ca000)\n\tlibabsl_demangle_internal.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_demangle_internal.so.2501.0.0 (0x00007f3a479b9000)\n\tlibabsl_demangle_rust.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_demangle_rust.so.2501.0.0 (0x00007f3a479b0000)\n\tlibabsl_decode_rust_punycode.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_decode_rust_punycode.so.2501.0.0 (0x00007f3a479ab000)\n\tlibabsl_utf8_for_code_point.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_utf8_for_code_point.so.2501.0.0 (0x00007f3a479a6000)\n\tlibabsl_graphcycles_internal.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_graphcycles_internal.so.2501.0.0 (0x00007f3a4799d000)\n\tlibabsl_kernel_timeout_internal.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_kernel_timeout_internal.so.2501.0.0 (0x00007f3a47997000)\n\tlibabsl_malloc_internal.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_malloc_internal.so.2501.0.0 (0x00007f3a4798e000)\n\tlibabsl_tracing_internal.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_tracing_internal.so.2501.0.0 (0x00007f3a47989000)\n\tlibabsl_time.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_time.so.2501.0.0 (0x00007f3a47972000)\n\tlibabsl_civil_time.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_civil_time.so.2501.0.0 (0x00007f3a4796a000)\n\tlibabsl_time_zone.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_time_zone.so.2501.0.0 (0x00007f3a4794a000)\n\tlibabsl_bad_variant_access.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_bad_variant_access.so.2501.0.0 (0x00007f3a47943000)\n\tlibabsl_strings.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_strings.so.2501.0.0 (0x00007f3a4791f000)\n\tlibabsl_int128.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_int128.so.2501.0.0 (0x00007f3a47918000)\n\tlibabsl_strings_internal.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_strings_internal.so.2501.0.0 (0x00007f3a47912000)\n\tlibabsl_string_view.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_string_view.so.2501.0.0 (0x00007f3a4790d000)\n\tlibabsl_base.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_base.so.2501.0.0 (0x00007f3a47905000)\n\tlibabsl_spinlock_wait.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_spinlock_wait.so.2501.0.0 (0x00007f3a47900000)\n\tlibabsl_throw_delegate.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_throw_delegate.so.2501.0.0 (0x00007f3a478f9000)\n\tlibabsl_raw_logging_internal.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_raw_logging_internal.so.2501.0.0 (0x00007f3a478f4000)\n\tlibabsl_log_severity.so.2501.0.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libabsl_log_severity.so.2501.0.0 (0x00007f3a478ef000)\n\tlibc10_cuda.so => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libc10_cuda.so (0x00007f3a4783e000)\n\tlibcusparse.so.12 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libcusparse.so.12 (0x00007f3a30000000)\n\tlibcufft.so.11 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libcufft.so.11 (0x00007f3a1ee00000)\n\tlibcufile.so.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libcufile.so.0 (0x00007f3a1eb03000)\n\tlibcudss.so.0 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libcudss.so.0 (0x00007f3a1ac00000)\n\tlibcurand.so.10 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libcurand.so.10 (0x00007f3a12000000)\n\tlibcublas.so.12 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libcublas.so.12 (0x00007f3a0ae00000)\n\tlibcublasLt.so.12 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libcublasLt.so.12 (0x00007f39d7000000)\n\tlibcudnn.so.9 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libcudnn.so.9 (0x00007f39d6c00000)\n\tlibnccl.so.2 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libnccl.so.2 (0x00007f39be395000)\n\tlibz.so.1 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libz.so.1 (0x00007f3a4781f000)\n\tliblapack.so.3 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./liblapack.so.3 (0x00007f39bd6f1000)\n\tlibutil.so.1 => /usr/lib/x86_64-linux-gnu/libutil.so.1 (0x00007f3a4781a000)\n\tlibutf8_validity.so => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/././libutf8_validity.so (0x00007f3a47815000)\n\tlibnvJitLink.so.12 => /root/autodl-tmp/mrhash/.pixi/envs/default/lib/./libnvJitLink.so.12 (0x00007f39b7c0e000)",
+    "stderr": ""
+  },
+  "extension_rpath": "[/root/autodl-tmp/mrhash/.pixi/envs/default/lib:/root/autodl-tmp/mrhash/mrhash/third_party/libtorch/lib:/lib/intel64:/lib/intel64_win:/lib/win-x64]",
+  "external_libraries": [
+    {
+      "path": "/opt/ros/humble/lib/glim_ros/glim_rosnode",
+      "resolved_path": "/opt/ros/humble/lib/glim_ros/glim_rosnode",
+      "size_bytes": 31056,
+      "mtime_ns": 1783810648000000000,
+      "sha256": "987725a1685e2225fcc333e57a2cd8cc05e440edbff533f5c10ced4e03cbe598"
+    },
+    {
+      "path": "/usr/local/lib/libgtsam.so.4.3a1",
+      "resolved_path": "/usr/local/lib/libgtsam.so.4.3a1",
+      "size_bytes": 8723880,
+      "mtime_ns": 1783781570000000000,
+      "sha256": "4e0c9bc6922b3fd760f72ff35cdf1d3ac6101eeabcf406a042e00522560c7b08"
+    },
+    {
+      "path": "/usr/local/lib/libgtsam_points.so.1.2.2",
+      "resolved_path": "/usr/local/lib/libgtsam_points.so.1.2.2",
+      "size_bytes": 3800880,
+      "mtime_ns": 1783810017000000000,
+      "sha256": "9780010729ca2491a93c15714d01df9850d297fe5310e136080fd573f537feb5"
+    },
+    {
+      "path": "/usr/local/lib/libgtsam_points_cuda.so.1.2.2",
+      "resolved_path": "/usr/local/lib/libgtsam_points_cuda.so.1.2.2",
+      "size_bytes": 15202464,
+      "mtime_ns": 1783809911000000000,
+      "sha256": "ba3f910ae29dac4e56bbecd3abe3a79407c7cc869540adbd6b11ee887adc2438"
+    },
+    {
+      "path": "/opt/ros/humble/lib/libglim.so",
+      "resolved_path": "/opt/ros/humble/lib/libglim.so",
+      "size_bytes": 4500256,
+      "mtime_ns": 1783810385000000000,
+      "sha256": "cdf70cfa0e2eb1da8b236ec11e6a82c7d447fbc197ccbba2396d31ca2f47d4e8"
+    },
+    {
+      "path": "/opt/ros/humble/lib/libglim_ros.so",
+      "resolved_path": "/opt/ros/humble/lib/libglim_ros.so",
+      "size_bytes": 808056,
+      "mtime_ns": 1783810648000000000,
+      "sha256": "1eaa4cc087a758d984ee23afb2e2ec0d19db44ac6620375059da769f82b70c48"
+    }
+  ],
+  "glim_node_ldd": {
+    "exit_code": 0,
+    "stdout": "linux-vdso.so.1 (0x00007ffcc75fe000)\n\tlibglim_ros.so => not found\n\tlibrclcpp.so => not found\n\tlibrcutils.so => not found\n\tlibstdc++.so.6 => /usr/lib/x86_64-linux-gnu/libstdc++.so.6 (0x00007f09c65ad000)\n\tlibgcc_s.so.1 => /usr/lib/x86_64-linux-gnu/libgcc_s.so.1 (0x00007f09c658d000)\n\tlibc.so.6 => /usr/lib/x86_64-linux-gnu/libc.so.6 (0x00007f09c6362000)\n\tlibm.so.6 => /usr/lib/x86_64-linux-gnu/libm.so.6 (0x00007f09c627b000)\n\t/lib64/ld-linux-x86-64.so.2 (0x00007f09c67f6000)",
+    "stderr": ""
+  },
+  "build_cache_fingerprint": {
+    "path": "/root/autodl-tmp/mrhash/build/cp311-cp311-linux_x86_64/CMakeCache.txt",
+    "resolved_path": "/root/autodl-tmp/mrhash/build/cp311-cp311-linux_x86_64/CMakeCache.txt",
+    "size_bytes": 89925,
+    "mtime_ns": 1791622577374528983,
+    "sha256": "d612aa9654a5c9bd2aaf66ba53d0322f2872641aa193a3083c94c5fb33b19569"
+  },
+  "selected_cmake_cache": [
+    "CMAKE_BUILD_TYPE:STRING=Release",
+    "CMAKE_CUDA_ARCHITECTURES:STRING=52",
+    "CMAKE_CUDA_COMPILER:STRING=/root/autodl-tmp/mrhash/.pixi/envs/default/bin/nvcc",
+    "CMAKE_CUDA_FLAGS:STRING=",
+    "CMAKE_CXX_COMPILER:FILEPATH=/root/autodl-tmp/mrhash/.pixi/envs/default/bin/x86_64-conda-linux-gnu-c++",
+    "CMAKE_CXX_FLAGS:STRING=-fvisibility-inlines-hidden -fmessage-length=0 -march=nocona -mtune=haswell -ftree-vectorize -fPIC -fstack-protector-strong -fno-plt -O2 -ffunction-sections -pipe -isystem /root/autodl-tmp/mrhash/.pixi/envs/default/include  -I/root/autodl-tmp/mrhash/.pixi/envs/default/targets/x86_64-linux/include  -L/root/autodl-tmp/mrhash/.pixi/envs/default/targets/x86_64-linux/lib -L/root/autodl-tmp/mrhash/.pixi/envs/default/targets/x86_64-linux/lib/stubs",
+    "CUDAToolkit_ROOT:PATH=/root/autodl-tmp/mrhash/.pixi/envs/default",
+    "Torch_DIR:PATH=/root/autodl-tmp/mrhash/.pixi/envs/default/share/cmake/Torch"
+  ],
+  "ninja_cuda_flags": "FLAGS = -diag-suppress 20012 -diag-suppress 20014 -lineinfo -DONNX_NAMESPACE=onnx_c2 -gencode arch=compute_53,code=sm_53 -gencode arch=compute_60,code=sm_60 -gencode arch=compute_61,code=sm_61 -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75 -gencode arch=compute_80,code=sm_80 -gencode arch=compute_86,code=sm_86 -gencode arch=compute_86,code=compute_86 -Xcudafe --diag_suppress=cc_clobber_ignored,--diag_suppress=field_without_dll_interface,--diag_suppress=base_class_has_different_dll_interface,--diag_suppress=dll_interface_conflict_none_assumed,--diag_suppress=dll_interface_conflict_dllexport_assumed,--diag_suppress=bad_friend_decl --expt-relaxed-constexpr --expt-extended-lambda -O3 -DNDEBUG -std=c++17 -Xcompiler=-fPIC -lineinfo -v -g --expt-relaxed-constexpr -D_GLIBCXX_USE_CXX11_ABI=1",
+  "build_ninja_fingerprint": {
+    "path": "/root/autodl-tmp/mrhash/build/cp311-cp311-linux_x86_64/build.ninja",
+    "resolved_path": "/root/autodl-tmp/mrhash/build/cp311-cp311-linux_x86_64/build.ninja",
+    "size_bytes": 6876099,
+    "mtime_ns": 1791622578802491372,
+    "sha256": "fbea583abbeab7b71518d368552518ec956b412c10b5c84eacec1c582a83bff5"
+  },
+  "fetched_source_commits": [
+    {
+      "path": "/root/autodl-tmp/mrhash/build/cp311-cp311-linux_x86_64/_deps/eigen-src",
+      "commit": "3147391d946bb4b6c68edd901f2add6ac1f31f8c"
+    },
+    {
+      "path": "/root/autodl-tmp/mrhash/build/cp311-cp311-linux_x86_64/_deps/glm-src",
+      "commit": "a532f5b1cf27d6a3c099437e6959cf7e398a0a67"
+    },
+    {
+      "path": "/root/autodl-tmp/mrhash/build/cp311-cp311-linux_x86_64/_deps/nanobind-src",
+      "commit": "44ad9a9e5729abda24ef8dc9d76233d801e651e9"
+    },
+    {
+      "path": "/root/autodl-tmp/mrhash/build/cp311-cp311-linux_x86_64/_deps/yaml-cpp-src",
+      "commit": "1e0876c671268661deb2628040e3959e1e9d6e69"
+    }
+  ],
+  "mrhash_submodules": "114200a9ad5fe06c8dea76e15d92325695cf3e34 mrhash/third_party/args (6.2.2-62-g114200a)\n a0e9fb1e638cfbb5b8b556b7c51eaa81977bad48 mrhash/third_party/json (v3.11.2-351-ga0e9fb1e6)\n ab9c7c63aecbe78f20020fa3ba58924bc1c990d1 mrhash/third_party/tinyply (heads/master)",
+  "build_provenance_limitation": "Native source geowrapper.cpp is newer than the installed extension; CMakeCache architecture 52 and build.ninja gencode list disagree. This is an observed environment fingerprint, NOT proof of an exact source-to-binary mapping. No import/algorithm/build was run.",
+  "editable_binding": {
+    "path": "/root/autodl-tmp/mrhash/.pixi/envs/default/lib/python3.1/site-packages/_editable_skbc_mrhash.py",
+    "resolved_path": "/root/autodl-tmp/mrhash/.pixi/envs/default/lib/python3.11/site-packages/_editable_skbc_mrhash.py",
+    "size_bytes": 41892,
+    "mtime_ns": 1791622593814096501,
+    "sha256": "a3d5b753c631996ed0eef8f988f8848062b4f289be823f03ce498431250ec502"
+  },
+  "editable_rebuild_on_import": false,
+  "running_service_loading_paths": {
+    "backend": {
+      "pid_at_capture": 59823,
+      "cwd": "/root/autodl-tmp/3d-mapping-platform-deploy/backend",
+      "executable": "/root/miniconda3/bin/python3.12",
+      "argv": [
+        "/root/autodl-tmp/3d-mapping-platform-deploy/backend/.venv/bin/python",
+        "/root/autodl-tmp/3d-mapping-platform-deploy/backend/.venv/bin/uvicorn",
+        "app.main:app",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8000"
+      ]
+    },
+    "frontend": {
+      "pid_at_capture": 59841,
+      "cwd": "/root/autodl-tmp/3d-mapping-platform-deploy/frontend",
+      "executable": "/root/.nvm/versions/node/v24.21.0/bin/node",
+      "argv": [
+        "/root/.nvm/versions/node/v24.21.0/bin/node",
+        "/root/autodl-tmp/3d-mapping-platform-deploy/frontend/node_modules/vite/bin/vite.js",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "5173",
+        "--strictPort"
+      ]
+    },
+    "mrhash_trace_enabled_in_backend": false
+  }
+}

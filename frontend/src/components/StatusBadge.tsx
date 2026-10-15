@@ -3,6 +3,8 @@ import type { StageStatus } from '../types';
 export const STATUS_LABELS: Record<string, string> = {
   created: '已创建',
   waiting: '等待中',
+  queued: 'GPU 排队中',
+  not_integrated: '未接入',
   running: '运行中',
   cancelling: '取消中',
   completed: '已完成',

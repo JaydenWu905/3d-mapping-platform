@@ -496,6 +496,7 @@ class CanonicalOutputTests(unittest.TestCase):
             integrity={"bag_size_bytes": bag.stat().st_size, "bag_sha256": sha256(bag)},
             input_manifest={"bag_message_count": len(self.sensor_times)},
             surface={"backend": "mrhash_lidar", "topic": "/livox_mid360/livox/lidar",
+                     "mrhash_profile": "ins_livox_mid360_custom",
                      **({"pose_lookup_key": pose_lookup_key} if pose_lookup_key else {})},
         )
         return FailedJobs(self.root, "ins_longcorridor01", bag, definition)
@@ -660,7 +661,7 @@ class RetryStaleArtifactTests(unittest.TestCase):
         env = self.fx.env()
         env["GLIM_NODE_COMMAND"] = str(node)
         env["GLIM_ROS_SETUP"] = str(self.fx.workspace / "ros_setup.sh")
-        completed = self.fx.run_adapter_inprocess("--glim-startup-grace-sec", "0.2", env=env)
+        completed = self.fx.run_adapter_inprocess("--glim-startup-grace-sec", "1.0", env=env)
         # The run failed (behaviour, not message text).
         self.assertNotEqual(completed.returncode, 0, completed.stdout)
         self.assertNotEqual(completed.returncode, adapter.TIMEOUT_EXIT_CODE)

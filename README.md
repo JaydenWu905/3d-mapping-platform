@@ -1,7 +1,12 @@
+> 当前已验收版本的保存、恢复与迁移统一入口：[INS 两阶段部署说明](docs/DEPLOYMENT_INS_RELEASE.md)。精确依赖与验收绑定见 `ops/releases/ins-two-stage-20261015/`。
+
 # 三模块三维建图系统
 
 三维建图平台：**位姿估计（Pose/SLAM）→ 稠密建面（Surface）→ 距离场（ESDF）** 三阶段流水线的
 **网页展示 + 轻量调度** 框架。
+
+当前部署的真实 INS/Livox 链路按 **Pose → Surface 两阶段**运行；Distance/ESDF 显示“未接入”，
+不参与真实 Job 的完成判定。`demo_room` 仍保留三阶段 Run All。
 
 平台同时支持两类执行路径：`demo_room` 使用 Mock Runner 演示完整三阶段；注册的 Oxford
 LiDAR 数据使用真实子进程链路，执行
@@ -101,6 +106,14 @@ run_frontend.bat
 `demo_room` 只需平台 Python 与 Node.js。真实 Oxford → MrHash-LiDAR 还要求服务器已注册数据、
 可用的 MrHash/Pixi 环境以及算法所需的 ROS/CUDA 依赖；这些依赖始终与 FastAPI 环境隔离。
 
+本 Linux 部署使用 `ops/platform.sh start|status|stop|logs`，后端监听 `127.0.0.1:8000`，
+前端监听 `127.0.0.1:5173`。后端 venv 安装 `backend/requirements.txt`，其中
+`scipy>=1.13,<2` 与 `fast-simplification>=0.2.0` 是 Surface GLB 自动封装依赖。
+首次部署先执行 `backend/.venv/bin/pip install -r backend/requirements.txt` 和
+`cd frontend && npm install`，再从仓库根目录执行 `ops/platform.sh start`。
+GLIM 及桥接环境配置见 `ops/GLIM_ENVIRONMENT_SETUP.md`；不要把 ROS 环境变量注入
+FastAPI 进程。
+
 ---
 
 ## 四、操作流程
@@ -129,12 +142,30 @@ run_frontend.bat
 
 1. 在新建任务页选择 `oxford_mrhash_lidar`。页面会限制组合为 Pose
    `registered_pose_import` 和 Surface `mrhash_lidar`；RGB-D Surface backend 不可选。
-2. 创建 Job 后只点击一次 **Run All**。平台依次验证并导入已注册 Pose、生成
+2. 创建 Job 后点击 **运行 Pose → Surface**。平台依次验证并导入已注册 Pose、生成
    `stage2_surface/input/surface_input_manifest.json`、再次校验输入并启动 MrHash-LiDAR。
-3. `MAPPING_SURFACE_MODE=demo` 是真实短序列 smoke，帧上限由服务器环境变量
-   `MRHASH_SMOKE_END_FRAME` 控制；`MAPPING_SURFACE_MODE=full` 使用完整可关联序列。
-4. Surface 完成后，因真实 Distance backend 尚未接入，Run All 明确停在
-   “Distance backend unavailable”；已完成的 Pose/Surface 不会被标记为失败。
+3. 真实 Job 的 Pose 范围与 Surface 范围分别由受控数据集配置决定；Oxford 当前使用注册的
+   Pose 与可关联的完整 Surface 范围。全局 demo 开关仅保留给演示路径。
+4. Surface 完成后真实 Job 进入 `completed`；Distance 显示“未接入”。
+
+### 已验证 INS/Livox bag 上传与工程验收
+
+1. 打开 `http://127.0.0.1:5173` → **新建任务**，选择单个原始 `.bag` 文件与
+   `INS / Livox MID-360 已验证原始 bag` profile，点击 **上传、预检并自动注册**。
+   当前受控 profile 只接受大小为 17,125,894,059 字节且 SHA-256 为
+   `b7a0e7b20e8f447ff6f49be9470b812ded678e28d96f943f7f9b97fd40250c7f` 的
+   这份原始 bag。断线后重新选择同一文件，页面按服务端 offset 续传；文件校验、topic/
+   消息类型/数量与必需字段预检通过后才会出现在数据集列表。
+2. 选择自动注册的数据集与运行范围，再点击 **创建并一键运行**。
+   **完整运行**新运行完整 GLIM，再自动使用本 Job 新轨迹执行整份 bag 的 Surface；
+   **短段验证**新运行完整 GLIM，Surface 使用原始第 1–100 帧，沿用已验证策略。
+   两者保持 98% 时间关联门限和算法参数，自动登记 mesh/voxel/hash/GLB 与下载；
+   GPU 由跨 Job 文件锁串行调度。范围选择持久化至新 Job，不修改已有基线。
+   已验证 INS profile 的完整浏览器一键工程验收见
+   [完整两阶段验收报告](docs/job_1792068244_bb9c22-ins-full-one-click-acceptance.md)。
+3. 在任务详情页查看各阶段进度、日志、选中/关联/融合/跳过数量与产物。
+   前 100 帧 Surface 只属于工程验收范围，不能代表完整场景重建或精度验收。
+   外参与 IMU 加速度比例来自交接配置，原始标定及单位依据待负责人确认。
 
 ---
 
@@ -215,8 +246,9 @@ GLIM 全局锁与进程生命周期、以及本地/AutoDL 运行与测试方法�
 [INS dataset profile](docs/ins-glim-dataset-profile.md)、
 [GLIM 集成验收标准](docs/glim-integration-acceptance.md)。
 
-当前状态：`CODE TESTED`，但 **`GPU INTEGRATION NOT VERIFIED`** —— 开发机没有 ROS2/GLIM/CUDA
-与 17 GB INS bag，真实端到端运行需在 AutoDL 上完成。
+当前部署已完成受控 INS bag/profile 的真实 GLIM 与完整 Pose→Surface 浏览器一键工程验收。
+此结论仅适用于已验证 INS profile，不表示任意 bag 兼容或建图精度通过；外参和 IMU 单位依据仍待确认。
+详见[本次验收报告](docs/job_1792068244_bb9c22-ins-full-one-click-acceptance.md)。
 
 ### Oxford → MrHash-LiDAR
 
@@ -270,7 +302,7 @@ size/SHA-256 与路径完整性校验、modality/backend compatibility，以及 
 | MrHash-LiDAR | 已接入；真实子进程 smoke/full verified |
 | MrHash RGB-D interface | 已准备且测试通过；契约仍为 provisional |
 | MrHash RGB-D runtime | 未接入；backend disabled / Not Ready，不可启动 |
-| Real GLIM runner | 已接入（ROS2 子进程 + ROS1 Livox bridge + 时间戳归一化 + 全局锁）；Oxford 仍使用 Registered Pose Import。代码级测试通过，GPU 端到端未验证 |
+| Real GLIM runner | 已接入（ROS2 子进程 + ROS1 Livox bridge + 时间戳归一化 + 全局锁）；Oxford 仍使用 Registered Pose Import。受控 INS profile 完整浏览器 Pose→Surface 一键工程验收通过；其他 profile 与建图精度未验收 |
 | H3-Mapping | 未接入 |
 | Distance/ESDF | 未接入；当前只有 Surface → Distance v0 draft |
 | 分布式服务器部署 | 未实施；阶段契约使用受控引用，不要求浏览器提供同机绝对路径 |
@@ -281,7 +313,7 @@ size/SHA-256 与路径完整性校验、modality/backend compatibility，以及 
 
 以下内容**未实现**，也不会伪装成已完成：
 
-- 真实 GLIM Runner 的 GPU 端到端验证（AutoDL 上执行）；Oxford 当前只导入并验证数据集注册的预计算 Pose；
+- 其他 bag/profile 的完整流程验证与建图精度验收；Oxford 当前只导入数据集注册的预计算 Pose；
 - MrHash RGB-D runtime、H3-Mapping 及真实 ESDF/Distance runner；
 - MrHash RGB-D 原生输入布局生成、runtime 启动、真实产物接入及真实数据 smoke/full 验收；
 - 除已接入 MrHash 的 Pixi 子进程环境外，其他算法环境管理；

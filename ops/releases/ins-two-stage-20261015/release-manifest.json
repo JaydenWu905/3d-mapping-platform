@@ -1,0 +1,44 @@
+{
+  "release_id": "ins-two-stage-20261015",
+  "platform": {
+    "branch": "release/ins-two-stage-20261015",
+    "base_commit": "56c448d27a53f389267a2cc099e743051b8f2e7d",
+    "commit_reference": "commit containing this file, pinned by local annotated tag ins-two-stage-20261015; exact final HEAD in external release-lock.json and bundle"
+  },
+  "mrhash": {
+    "branch": "release/ins-two-stage-20261015",
+    "commit": "23c98bb09eaf1fe06f54153b046b506303ce599d",
+    "native_dependency_snapshot_commit": "b08903397621c7cc769809e5b88e5e35aa2cd1a6",
+    "base_commit": "f284cf6cf90d91f9e0be92de8c8c8c02d051bcb0",
+    "installed_extension": {
+      "path": "/root/autodl-tmp/mrhash/.pixi/envs/default/lib/python3.1/site-packages/mrhash/src/pygeowrapper.cpython-311-x86_64-linux-gnu.so",
+      "resolved_path": "/root/autodl-tmp/mrhash/.pixi/envs/default/lib/python3.11/site-packages/mrhash/src/pygeowrapper.cpython-311-x86_64-linux-gnu.so",
+      "size_bytes": 37099208,
+      "mtime_ns": 1791622593814096501,
+      "sha256": "d4d8da277b29836746eb01c1bc0f7b1d16189071fd2b8f8cbd161f4fd6d89267"
+    },
+    "binary_source_provenance_verified": false
+  },
+  "acceptance_job": "job_1792068244_bb9c22",
+  "preserved_baselines": [
+    "job_1792052071_70692b",
+    "job_1792067103_dab12b"
+  ],
+  "reports": [
+    "docs/job_1792068244_bb9c22-ins-full-one-click-acceptance.md",
+    "docs/job_1792067103_dab12b-full-surface-verification.md",
+    "docs/job_1792052071_70692b-visualization-repair.md"
+  ],
+  "source_only_backup": "/root/autodl-tmp/deployment-preservation/20261015T131737Z",
+  "excludes": [
+    "bags/datasets/uploads",
+    "Job artifacts",
+    "runtime files",
+    "logs",
+    "environments",
+    "compiled libraries/build/dist",
+    "secrets"
+  ],
+  "migration_status": "source restorable; same-host runtime retained; clean-machine/native binary reproduction not verified; external system libraries and data must be supplied separately",
+  "commit_identity": "Deployment Snapshot <deployment-snapshot@localhost> (per command; global identity unchanged)"
+}

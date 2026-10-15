@@ -16,7 +16,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import backends, events, jobs, stages
+from app.api import backends, events, jobs, stages, uploads
 from app.config import CORS_ORIGINS, DEMO_JOBS_DIR, JOBS_DIR, SEED_DEMO_JOB_ON_START, STAGES
 from app.services.artifact_service import ArtifactService
 from app.services.event_service import EventService, get_event_service
@@ -87,6 +87,7 @@ app.include_router(backends.router, prefix="/api")
 app.include_router(jobs.router, prefix="/api")
 app.include_router(stages.router, prefix="/api")
 app.include_router(events.router, prefix="/api")
+app.include_router(uploads.router, prefix="/api")
 
 
 @app.get("/api/health")

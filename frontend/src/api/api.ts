@@ -53,12 +53,29 @@ export const api = {
 
   listJobs: () => request<JobSummary[]>('/jobs'),
   getJob: (jobId: string) => request<JobDetail>(jobUrl(jobId)),
-  createJob: (body: { dataset: string; backends: Record<string, string>; fail_stage?: string | null }) =>
+  createJob: (body: { run_mode?: string; dataset: string; backends: Record<string, string>; fail_stage?: string | null; requested_stages?: string[] }) =>
     request<JobDetail>('/jobs', { method: 'POST', body: JSON.stringify(body) }),
   deleteJob: (jobId: string) => request<void>(jobUrl(jobId), { method: 'DELETE' }),
 
   runAll: (jobId: string) =>
     request<{ status: string }>(`${jobUrl(jobId)}/run-all`, { method: 'POST' }),
+  runPlanned: (jobId: string) =>
+    request<{ status: string }>(`${jobUrl(jobId)}/run-planned`, { method: 'POST' }),
+  uploadProfiles: () => request<Array<{ id: string; name: string; size_bytes: number; calibration_note: string }>>('/uploads/profiles'),
+  createUpload: (filename: string, size_bytes: number, profile_id: string) =>
+    request<{ upload_id: string; offset: number; max_chunk_bytes: number }>('/uploads', {
+      method: 'POST', body: JSON.stringify({ filename, size_bytes, profile_id }),
+    }),
+  uploadStatus: (id: string) => request<{ upload_id: string; offset: number; status: string; dataset_id?: string; max_chunk_bytes: number }>(`/uploads/${encodeURIComponent(id)}`),
+  uploadChunk: async (id: string, offset: number, blob: Blob): Promise<void> => {
+    const hash = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
+    const hex = Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, '0')).join('');
+    const res = await fetch(`${BASE}/uploads/${encodeURIComponent(id)}/chunk`, {
+      method: 'PUT', headers: { 'X-Offset': String(offset), 'X-Chunk-Sha256': hex }, body: blob,
+    });
+    if (!res.ok) throw new Error(`上传分块失败：${res.status} ${await res.text()}`);
+  },
+  finalizeUpload: (id: string) => request<{ dataset_id: string; preflight: Record<string, unknown> }>(`/uploads/${encodeURIComponent(id)}/finalize`, { method: 'POST' }),
   startStage: (jobId: string, stage: string) =>
     request<{ status: string }>(`${stageUrl(jobId, stage)}/start`, { method: 'POST' }),
   cancelStage: (jobId: string, stage: string) =>

@@ -38,7 +38,8 @@ def build_preview_glb(mesh_path: Path, output: Path,
     source_vertices = len(mesh.vertices)
     source_faces = len(mesh.faces)
     source_bounds = mesh.bounds.tolist()
-    mesh.merge_vertices()
+    vertices, inverse = np.unique(mesh.vertices, axis=0, return_inverse=True)
+    mesh = trimesh.Trimesh(vertices=vertices, faces=inverse[mesh.faces], process=False)
     welded_vertices = len(mesh.vertices)
     if len(mesh.faces) > target_faces:
         mesh = mesh.simplify_quadric_decimation(
@@ -49,19 +50,21 @@ def build_preview_glb(mesh_path: Path, output: Path,
 
     # MrHash's current mesh RGB values are all zero. A neutral PBR material
     # keeps the geometry legible while generated normals provide real shading.
-    mesh.visual.material = PBRMaterial(
+    mesh.visual = trimesh.visual.texture.TextureVisuals(material=PBRMaterial(
         name="Surface preview",
-        baseColorFactor=[176, 193, 204, 255],
+        baseColorFactor=[184, 184, 184, 255],
         metallicFactor=0.0,
         roughnessFactor=0.9,
         doubleSided=True,
-    )
+    ))
     glb = trimesh.exchange.gltf.export_glb(mesh, include_normals=True)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_bytes(glb)
     validated = validate_preview_glb(output)
     return {
-        "preview_method": "exact-vertex-weld+quadric-edge-collapse",
+        "preview_method": "exact-vertex-weld+quadric-edge-collapse" if source_faces > target_faces else "exact-vertex-weld-only",
+        "preview_simplification_applied": source_faces > target_faces,
+        "preview_vertex_colors": False,
         "preview_target_faces": target_faces,
         "preview_vertices": validated["vertices"],
         "preview_faces": validated["faces"],

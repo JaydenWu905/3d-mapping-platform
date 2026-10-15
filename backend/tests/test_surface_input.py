@@ -20,7 +20,8 @@ class Jobs:
         self.bag = source / "source.bag"; self.bag.write_bytes(b"bag")
         self.definition = SimpleNamespace(id="ox", source_dir=source,
             source_file=lambda key: self.bag, integrity={"bag_size_bytes": 3, "bag_sha256": digest(self.bag)},
-            input_manifest={"bag_message_count": 3123}, surface={"topic": "/lidar"})
+            input_manifest={"bag_message_count": 3123}, surface={"topic": "/hesai/pandar",
+                "mrhash_profile": "oxford_hesai_pointcloud2"})
         self.datasets = SimpleNamespace(get=lambda _id: self.definition)
         pose = self.stage_dir("j", "pose"); pose.mkdir(parents=True)
         trajectory = pose / "poses.txt"

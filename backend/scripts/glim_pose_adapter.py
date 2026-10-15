@@ -798,13 +798,16 @@ def main(argv: list[str] | None = None) -> int:
         deadline = time.monotonic() + runtime.dump_wait_sec
         while time.monotonic() < deadline:
             supervisor.raise_if_cancelled()
-            dump_dir = discover_dump_dir(dump_candidates, trajectory_filename)
-            if dump_dir is not None:
-                break
+            dump_dir = discover_dump_dir(dump_candidates, trajectory_filename) or dump_dir
             if glim is not None and glim.poll() is not None:
                 break
             time.sleep(0.5)
         dump_dir = dump_dir or discover_dump_dir(dump_candidates, trajectory_filename)
+        if glim is not None and glim.poll() is None:
+            raise GlimPoseError(
+                f"GLIM did not exit within {runtime.dump_wait_sec:g}s after SIGINT; "
+                "the dump may be incomplete"
+            )
         if dump_dir is None:
             exit_code = glim.returncode if glim is not None else None
             raise GlimPoseError(
@@ -812,9 +815,12 @@ def main(argv: list[str] | None = None) -> int:
                 f"{', '.join(str(path) for path in dump_candidates)} "
                 f"(GLIM exit code {exit_code}); the native trajectory is required"
             )
-        if glim is not None and glim.poll() is None:
-            terminate_tree(glim, grace=GLIM_EXIT_GRACE_SEC)
         glim_exit_code = glim.returncode if glim is not None else None
+        if glim_exit_code != 0:
+            raise GlimPoseError(
+                f"GLIM exited with code {glim_exit_code} after SIGINT; "
+                "refusing to accept a potentially incomplete dump"
+            )
         log(f"native trajectory found: {dump_dir / trajectory_filename} "
             f"(GLIM exit code {glim_exit_code})")
 

@@ -37,6 +37,7 @@
   "surface": {
     "backend": "mrhash_lidar",
     "topic": "/hesai/pandar",
+    "mrhash_profile": "oxford_hesai_pointcloud2",
     "reference_config": "oxford_hesai_corrected_full.cfg"
   }
 }
