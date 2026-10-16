@@ -402,7 +402,7 @@ def prepare_mrhash_rgbd_input(job_id: str, jobs) -> dict[str, Any]:
         },
         "frame_count": spec["frame_count"], "timestamp": spec["timestamp"],
         "association": spec["association"], "missing_frame_policy": spec["missing_frame_policy"],
-        "camera": spec["camera"], "depth": spec["depth"] | {"mrhash_depth_scaling": mrhash_depth_scaling(spec["depth"]["scale_to_meters"])},
+        "camera": spec["camera"], "depth": {**spec["depth"], "mrhash_depth_scaling": mrhash_depth_scaling(spec["depth"]["scale_to_meters"])},
         "registration": spec["registration"],
         "pose": spec["pose"], "source_pose": spec["provenance"],
         "prepared_at": time.strftime("%Y-%m-%dT%H:%M:%S"),

@@ -91,8 +91,10 @@ class JobService:
         for stage in requested_stages:
             registry.ensure_runnable(stage, backends[stage])
 
-        if dataset_def.execution == "real" and requested_stages != ["pose", "surface"]:
-            raise ValueError("Real datasets support only Pose and Surface; Distance is not integrated")
+        if dataset_def.execution == "real" and requested_stages not in (["pose", "surface"], list(STAGES)):
+            raise ValueError(
+                "Real datasets support Pose+Surface or Pose+Surface+Distance plans"
+            )
         if dataset_def.execution == "mock" and requested_stages != list(STAGES):
             raise ValueError("Demo jobs retain all three stages")
         validator = getattr(self.datasets, "validation_errors", None)
@@ -314,7 +316,8 @@ class JobService:
                 if not ok:
                     return False, reason
             elif stage == "distance":
-                return False, missing_runner_reason(stage, backend_id)
+                if not has_real_runner(stage, backend_id):
+                    return False, missing_runner_reason(stage, backend_id)
         dep = stage_dependency_satisfied(job, stage)
         if not dep:
             label = {"pose": "Pose", "surface": "Surface", "distance": "Distance"}[stage]

@@ -19,6 +19,7 @@ REAL_RUNNERS: dict[tuple[str, str], str] = {
     ("pose", "glim"): "run_pose.sh",
     ("surface", "mrhash_lidar"): "run_surface.sh",
     ("surface", "mrhash_rgbd"): "run_surface.sh",
+    ("distance", "voxel_esdf"): "run_esdf.sh",
 }
 
 #: Fallback adapter per stage (used only for a stage that has a real runner).
@@ -29,9 +30,7 @@ STAGE_SCRIPTS: dict[str, str] = {
 }
 
 #: Stages whose real runner is not integrated at all yet.
-UNAVAILABLE_STAGE_REASON = {
-    "distance": "No real Distance runner is integrated yet",
-}
+UNAVAILABLE_STAGE_REASON = {}
 
 
 def has_real_runner(stage: str, backend: str) -> bool:

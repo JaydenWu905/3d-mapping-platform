@@ -61,7 +61,7 @@ class SubprocessRunnerAdapter(RunnerAdapter):
     _LOG_RECORD_LIMIT = 16 * 1024
     _EVENT_QUEUE_SIZE = 256
     _TERMINATE_GRACE_SEC = 8.0
-    _STAGE_TIMEOUT_SEC = {"pose": 1500.0, "surface": 900.0}
+    _STAGE_TIMEOUT_SEC = {"pose": 1500.0, "surface": 900.0, "distance": 1200.0}
     _PROGRESS_EVENT_INTERVAL_SEC = 0.25
     _TQDM_RE = re.compile(
         r"\bprocessing:\s*(?P<percent>\d{1,3})%.*?"
