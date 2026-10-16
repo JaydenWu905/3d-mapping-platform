@@ -46,6 +46,8 @@ class RunnerService:
     # ------------------------------------------------------------- lifecycle
     def start_stage(self, job_id: str, stage: str) -> None:
         self._guard_stage_arg(stage)
+        if job_id in self._job_tasks and not self._job_tasks[job_id].done():
+            raise JobBusyError("A planned chain is active for this job")
         if (job_id, stage) in self._stage_tasks and not self._stage_tasks[(job_id, stage)].done():
             raise JobBusyError(f"Stage '{stage}' is already running")
         if any(self._running_stages(job_id)):
@@ -66,6 +68,18 @@ class RunnerService:
         self._launch(job_id, stage)
 
     def start_run_all(self, job_id: str) -> None:
+        job = self._jobs.load_job(job_id)
+        if job.get("requested_stages", STAGES) != STAGES:
+            raise StartStageError("Real two-stage jobs use run-planned; Distance is not integrated")
+        self._start_chain(job_id, STAGES)
+
+    def start_run_planned(self, job_id: str) -> None:
+        job = self._jobs.load_job(job_id)
+        if job.get("requested_stages", STAGES) != ["pose", "surface"]:
+            raise StartStageError("run-planned requires a two-stage job")
+        self._start_chain(job_id, ["pose", "surface"])
+
+    def _start_chain(self, job_id: str, stages: list[str]) -> None:
         if job_id in self._job_tasks and not self._job_tasks[job_id].done():
             raise JobBusyError("Run All is already in progress")
         running = self._running_stages(job_id)
@@ -79,7 +93,7 @@ class RunnerService:
         async def _run_all():
             job = jobs.load_job(job_id)
             await events.job_status(job_id, {"status": "running"})
-            for stage in STAGES:
+            for stage in stages:
                 job = jobs.load_job(job_id)
                 status = job["stages"].get(stage, {}).get("status", "waiting")
                 if status == "completed":
@@ -88,7 +102,7 @@ class RunnerService:
                     continue
                 if stage == "surface" and job.get("backends", {}).get("surface") in ("mrhash_lidar", "mrhash_rgbd"):
                     try:
-                        prepared = prepare_surface_input(job_id, jobs)
+                        prepared = await asyncio.to_thread(prepare_surface_input, job_id, jobs)
                         warnings = prepared["compatibility"]["warnings"]
                         await events.publish(job_id, "stage.log", {"stage": stage, "line":
                             "[run-all] Surface input prepared" + (f" with {len(warnings)} warning(s)" if warnings else "")})
@@ -138,9 +152,17 @@ class RunnerService:
 
     def retry_stage(self, job_id: str, stage: str) -> None:
         self._guard_stage_arg(stage)
+        if job_id in self._job_tasks and not self._job_tasks[job_id].done():
+            raise JobBusyError("A planned chain is active for this job")
         self._guard_retryable(job_id, stage)
         if any(self._running_stages(job_id)):
             raise JobBusyError("Another stage of this job is already running")
+        if stage == "pose":
+            job = self._jobs.load_job(job_id)
+            if job["stages"]["surface"]["status"] == "completed":
+                # A new Pose invalidates every Surface result tied to its old SHA.
+                self._reset_progress(job_id, "surface")
+                (self._jobs.stage_dir(job_id, "surface") / "result_manifest.json").unlink(missing_ok=True)
         # Clear stale outputs so viewers do not show an old completed manifest.
         stage_dir = self._jobs.stage_dir(job_id, stage)
         for name in ("result_manifest.json", "progress.json"):
@@ -200,6 +222,8 @@ class RunnerService:
 
     def _guard_retryable(self, job_id: str, stage: str) -> None:
         job = self._jobs.load_job(job_id)
+        if stage not in job.get("requested_stages", STAGES):
+            raise StartStageError("Stage is not integrated in this job")
         status = job["stages"].get(stage, {}).get("status")
         if status not in ("failed", "cancelled", "completed"):
             raise StartStageError(f"Stage '{stage}' status is '{status}'; only failed/cancelled/completed stages can be retried")

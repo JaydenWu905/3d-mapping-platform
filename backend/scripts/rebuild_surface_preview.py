@@ -54,8 +54,9 @@ def rebuild(job_id: str, target_faces: int) -> dict:
         metrics = build_preview_glb(mesh, candidate, target_faces)
         updated.setdefault("metrics", {}).update(metrics)
         preview["note"] = (
-            "Topology-preserving QEM preview from the complete native mesh; "
-            "exact duplicate vertices are welded before simplification."
+            ("QEM simplified preview; " if metrics["preview_simplification_applied"] else
+             "All native triangles retained; no simplification; ") +
+            "only exact duplicate positions welded; neutral gray material without vertex colors."
         )
         updated_preview = next(
             item for item in updated["artifacts"]

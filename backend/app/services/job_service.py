@@ -75,17 +75,26 @@ class JobService:
         registry: BackendRegistry | None = None,
         preview_job: bool = False,
         job_id: str | None = None,
+        requested_stages: list[str] | None = None,
+        run_mode: str | None = None,
     ) -> dict[str, Any]:
         from app.services.registry_service import get_registry
 
         registry = registry or get_registry()
-        missing = [s for s in STAGES if s not in backends]
+        dataset_def = self.datasets.get(dataset)
+        requested_stages = requested_stages or (["pose", "surface"] if dataset_def.execution == "real" else list(STAGES))
+        if requested_stages not in (list(STAGES), ["pose", "surface"]):
+            raise ValueError("requested_stages must be Pose/Surface or all three demo stages")
+        missing = [s for s in requested_stages if s not in backends]
         if missing:
             raise ValueError(f"Missing backend selection for stage(s): {', '.join(missing)}")
-        for stage in STAGES:
+        for stage in requested_stages:
             registry.ensure_runnable(stage, backends[stage])
 
-        dataset_def = self.datasets.get(dataset)
+        if dataset_def.execution == "real" and requested_stages != ["pose", "surface"]:
+            raise ValueError("Real datasets support only Pose and Surface; Distance is not integrated")
+        if dataset_def.execution == "mock" and requested_stages != list(STAGES):
+            raise ValueError("Demo jobs retain all three stages")
         validator = getattr(self.datasets, "validation_errors", None)
         errors = validator(dataset_def) if validator else dataset_def.validate()
         if errors:
@@ -105,7 +114,18 @@ class JobService:
         if not surface_ok:
             raise ValueError(surface_reason)
 
-        job = new_job(dataset, backends, fail_stage, job_id=job_id, preview_job=preview_job)
+        if run_mode is not None:
+            if run_mode not in ("full", "short") or dataset_def.surface.get("mrhash_profile") != "ins_livox_mid360_custom" or backends.get("pose") != "glim":
+                raise ValueError("Explicit full/short modes require the verified INS GLIM/MrHash profile")
+
+        job = new_job(dataset, backends, fail_stage, job_id=job_id, preview_job=preview_job,
+                      requested_stages=requested_stages)
+        job["run_scope"] = {"pose": "full" if backends.get("pose") == "glim" else "registered", "surface_start_frame": 1,
+                            "surface_end_frame": dataset_def.surface.get("integration_end_frame") if dataset_def.execution == "real" else None}
+        if run_mode is not None:
+            job["run_mode"] = run_mode
+            job["run_scope"].update(pose="full", surface_end_frame=None if run_mode == "full" else 100)
+            job["validation_scope"] = "ins_full_pose_surface" if run_mode == "full" else "ins_short_pose_surface"
         job_dir = self.job_dir(job["job_id"])
         if job_dir.exists():
             await self._ensure_remove(job_dir)
@@ -150,8 +170,24 @@ class JobService:
         job = read_json(path, None)
         if not isinstance(job, dict):
             raise JobNotFoundError(f"Unknown job: {job_id}")
+        self._normalize_legacy_plan(job)
         job["status"] = derive_job_status(job)
         return job
+
+    def _normalize_legacy_plan(self, job: dict[str, Any]) -> None:
+        if "requested_stages" in job:
+            return
+        try:
+            real = self.datasets.get(job.get("dataset", "")).execution == "real"
+        except Exception:
+            real = False
+        job["requested_stages"] = ["pose", "surface"] if real else list(STAGES)
+        if real and job.get("stages", {}).get("distance", {}).get("status") == "waiting":
+            job["stages"]["distance"]["status"] = "not_integrated"
+        if real and "run_scope" not in job:
+            definition = self.datasets.get(job.get("dataset", ""))
+            job["run_scope"] = {"pose": "full" if job.get("backends", {}).get("pose") == "glim" else "registered", "surface_start_frame": 1,
+                                "surface_end_frame": definition.surface.get("integration_end_frame")}
 
     def save_job(self, job: dict[str, Any]) -> None:
         job["status"] = derive_job_status(job)
@@ -167,6 +203,7 @@ class JobService:
             job = read_json(folder / "job.json", None)
             if not isinstance(job, dict):
                 continue
+            self._normalize_legacy_plan(job)
             job["status"] = derive_job_status(job)
             jobs.append(job)
         jobs.sort(key=lambda j: j.get("created_at", ""), reverse=True)
@@ -254,7 +291,9 @@ class JobService:
         registry: BackendRegistry,
         backend_id: str,
     ) -> tuple[bool, str]:
-        if status == "running":
+        if stage not in job.get("requested_stages", STAGES):
+            return False, "第三模块未接入此真实任务"
+        if status in ("running", "queued"):
             return False, "Stage already running"
         if status in ("completed",):
             return False, "Stage already completed"
@@ -294,7 +333,7 @@ class JobService:
         for job in self.list_jobs():
             dirty = False
             for stage, state in job.get("stages", {}).items():
-                if state.get("status") != "running":
+                if state.get("status") not in ("running", "queued"):
                     continue
                 state["status"] = "failed"
                 state["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
@@ -319,6 +358,11 @@ class JobService:
             "dataset": job.get("dataset", ""),
             "backends": job.get("backends", {}),
             "preview_job": job.get("preview_job", False),
+            "requested_stages": job.get("requested_stages", STAGES),
+            "run_scope": job.get("run_scope"),
+            "run_mode": job.get("run_mode"),
+            "pose_reuse": job.get("pose_reuse"),
+            "validation_scope": job.get("validation_scope"),
             "fail_stage": job.get("fail_stage"),
             "stages": {
                 stage: self.stage_detail(job, stage, registry, backend_labels)

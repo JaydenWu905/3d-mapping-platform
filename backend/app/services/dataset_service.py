@@ -185,6 +185,10 @@ class DatasetService:
             manifest["execution"] = definition.execution
             manifest["pose_backend"] = definition.pose.get("backend")
             manifest["surface_backend"] = definition.surface.get("backend")
+            manifest["run_scope"] = {"pose": "full" if definition.pose.get("backend") == "glim" else "registered", "surface_start_frame": 1,
+                                     "surface_end_frame": definition.surface.get("integration_end_frame")}
+            if definition.surface.get("mrhash_profile") == "ins_livox_mid360_custom" and definition.pose.get("backend") == "glim":
+                manifest["run_modes"] = ["full", "short"]
             manifest["available"] = not errors
             if errors:
                 manifest["availability_message"] = "; ".join(errors)

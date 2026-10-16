@@ -300,6 +300,22 @@ def prepare_mrhash_lidar_input(job_id: str, jobs) -> dict[str, Any]:
     lidar_topic = definition.surface.get("topic")
     if not isinstance(lidar_topic, str) or not lidar_topic.strip():
         raise SurfaceInputError("LiDAR topic must be a non-empty string")
+    profile = definition.surface.get("mrhash_profile") or (
+        "oxford_hesai_pointcloud2" if lidar_topic == "/hesai/pandar" else None)
+    allowed_profiles = {
+        "oxford_hesai_pointcloud2": "/hesai/pandar",
+        "ins_livox_mid360_custom": "/livox_mid360/livox/lidar",
+    }
+    if profile not in allowed_profiles or lidar_topic != allowed_profiles[profile]:
+        raise SurfaceInputError("Surface LiDAR topic does not match a controlled MrHash profile")
+    frame_limit = definition.surface.get("integration_end_frame")
+    if job.get("run_mode") in ("full", "short"):
+        expected = None if job["run_mode"] == "full" else 100
+        if definition.surface.get("mrhash_profile") != "ins_livox_mid360_custom" or job.get("run_scope", {}).get("surface_end_frame") != expected:
+            raise SurfaceInputError("Persisted run mode/scope is inconsistent with the verified INS profile")
+        frame_limit = expected
+    if frame_limit is not None and (not isinstance(frame_limit, int) or frame_limit < 1):
+        raise SurfaceInputError("integration_end_frame must be a positive raw bag frame number")
     declared = definition.input_manifest.get("bag_message_count")
     pose_count = len(rows)
     warnings: list[dict[str, str]] = []
@@ -323,9 +339,11 @@ def prepare_mrhash_lidar_input(job_id: str, jobs) -> dict[str, Any]:
             "pose_timestamp_association": details.get("timestamp_association"),
         },
         "lidar_topic": lidar_topic,
+        "mrhash_profile": profile,
+        "integration_end_frame": frame_limit,
         "matching": {"bag_message_count": declared, "pose_count": pose_count, "matched_count": pose_count,
                      "missing_or_skipped_count": missing_count},
-        "source_pose": {"backend": pose.get("backend"), "run_id": details.get("run_id"), "origin": details.get("result_origin")},
+        "source_pose": {"backend": pose.get("backend"), "run_id": details.get("run_id"), "origin": details.get("result_origin"), "pose_reuse": details.get("pose_reuse")},
         "camera": None, "prepared_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "compatibility": {"status": "compatible_with_warnings" if warnings else "compatible", "errors": [], "warnings": warnings},
     }

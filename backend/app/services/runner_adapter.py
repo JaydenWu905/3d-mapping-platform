@@ -16,13 +16,14 @@ from __future__ import annotations
 
 import abc
 import asyncio
+import fcntl
 import os
 import re
 import signal
 import time
 from pathlib import Path
 
-from app.config import BACKEND_ROOT
+from app.config import BACKEND_ROOT, PROJECT_ROOT
 from app.models.manifest import load_manifest
 from app.models.progress import atomic_write_json, load_progress
 from app.services.backend_runtime import has_real_runner, missing_runner_reason, runner_script
@@ -60,6 +61,7 @@ class SubprocessRunnerAdapter(RunnerAdapter):
     _LOG_RECORD_LIMIT = 16 * 1024
     _EVENT_QUEUE_SIZE = 256
     _TERMINATE_GRACE_SEC = 8.0
+    _STAGE_TIMEOUT_SEC = {"pose": 1500.0, "surface": 900.0}
     _PROGRESS_EVENT_INTERVAL_SEC = 0.25
     _TQDM_RE = re.compile(
         r"\bprocessing:\s*(?P<percent>\d{1,3})%.*?"
@@ -77,6 +79,44 @@ class SubprocessRunnerAdapter(RunnerAdapter):
         self._last_progress_emit: dict[tuple[str, str], float] = {}
 
     async def run_stage(self, job_id: str, stage: str, backend: str) -> StageResult:
+        """Reserve the single GPU across jobs and backend processes."""
+        key = (job_id, stage)
+        lock_path = PROJECT_ROOT / "runtime" / "locks" / "gpu_pipeline.lock"
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+        acquired = False
+        try:
+            while not acquired:
+                if key in self._cancel_requested:
+                    self._cancel_requested.discard(key)
+                    job = self._jobs.load_job(job_id)
+                    self._jobs.set_stage_status(job, stage, "cancelled")
+                    await self._events.publish(job_id, "stage.status", {"stage": stage, "status": "cancelled"})
+                    await self._events.publish(job_id, "stage.result", {"stage": stage, "status": "cancelled"})
+                    return StageResult(stage, "cancelled")
+                try:
+                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    acquired = True
+                except BlockingIOError:
+                    job = self._jobs.load_job(job_id)
+                    if job["stages"][stage]["status"] != "queued":
+                        self._jobs.set_stage_status(job, stage, "queued")
+                        await self._events.publish(job_id, "stage.status", {"stage": stage, "status": "queued"})
+                    await asyncio.sleep(0.5)
+            return await self._run_stage_locked(job_id, stage, backend)
+        except asyncio.CancelledError:
+            if not acquired:
+                job = self._jobs.load_job(job_id)
+                self._jobs.set_stage_status(job, stage, "cancelled")
+            raise
+        except Exception as exc:
+            return await self._fail(job_id, stage, backend, f"GPU reservation or runner failed: {exc}", 1)
+        finally:
+            if acquired:
+                fcntl.flock(fd, fcntl.LOCK_UN)
+            os.close(fd)
+
+    async def _run_stage_locked(self, job_id: str, stage: str, backend: str) -> StageResult:
         if not has_real_runner(stage, backend):
             return await self._fail(job_id, stage, backend, missing_runner_reason(stage, backend), 2)
         if self._mode not in ("demo", "full"):
@@ -135,7 +175,12 @@ class SubprocessRunnerAdapter(RunnerAdapter):
             # FIRST_EXCEPTION makes reader/progress/event failures immediately
             # enter the process-group cleanup path. On success it waits for all
             # three tasks, including complete pipe drainage after process exit.
-            done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_EXCEPTION)
+            done, pending = await asyncio.wait(
+                tasks, timeout=self._STAGE_TIMEOUT_SEC.get(stage, 900.0),
+                return_when=asyncio.FIRST_EXCEPTION,
+            )
+            if pending:
+                raise TimeoutError(f"{stage} stage exceeded its configured timeout")
             for task in done:
                 task.result()
             await asyncio.gather(*tasks)
@@ -167,8 +212,10 @@ class SubprocessRunnerAdapter(RunnerAdapter):
 
     def _build_command(self, job_id: str, stage: str, backend: str) -> list[str]:
         script = BACKEND_ROOT / "scripts" / runner_script(stage, backend)
+        job = self._jobs.load_job(job_id) if hasattr(self._jobs, "load_job") else {}
+        mode = "full" if job.get("requested_stages") == ["pose", "surface"] else self._mode
         return [str(script), "--job-dir", str(self._jobs.job_dir(job_id)),
-                "--backend", backend, "--mode", self._mode]
+                "--backend", backend, "--mode", mode]
 
     def cancel(self, job_id: str, stage: str) -> None:
         key = (job_id, stage)
@@ -297,8 +344,8 @@ class SubprocessRunnerAdapter(RunnerAdapter):
                 status="running", phase="mapping",
                 current=max(old_current, min(current, total)),
                 total=max(old_total, total),
-                progress=max(old_percent, min(float(percent), 100.0)),
-                unit="messages", message="MrHash processing LiDAR messages",
+                progress=max(old_percent, min(float(percent) * 0.9, 90.0)),
+                unit="已完成融合调用 / 全包 LiDAR", message="tqdm 计数为已完成融合调用；分母是全包消息数，选中与跳过以最终帧统计为准",
                 updated_at=time.strftime("%Y-%m-%dT%H:%M:%S"),
             )
             self._progress_states[key] = progress
@@ -351,6 +398,7 @@ class SubprocessRunnerAdapter(RunnerAdapter):
     async def _finish(self, job_id: str, stage: str, backend: str, status: str,
                       message: str, exit_code: int, started: float) -> StageResult:
         stage_dir = self._jobs.stage_dir(job_id, stage)
+        stage_dir.mkdir(parents=True, exist_ok=True)
         if status != "completed":
             (stage_dir / "result_manifest.json").unlink(missing_ok=True)
         key = (job_id, stage)
@@ -360,7 +408,12 @@ class SubprocessRunnerAdapter(RunnerAdapter):
                         updated_at=time.strftime("%Y-%m-%dT%H:%M:%S"))
         if status == "completed":
             progress["progress"] = 100.0
-            if int(progress.get("total") or 0) > 0:
+            if stage == "surface" and backend == "mrhash_lidar":
+                metrics = (load_manifest(stage_dir) or {}).get("metrics", {})
+                progress.update(current=metrics.get("fused_frames", 0),
+                                total=metrics.get("selected_frames", 0), unit="融合 / 选中帧",
+                                message=f"阶段完成；选中 {metrics.get('selected_frames', '—')} 帧，融合 {metrics.get('fused_frames', '—')} 帧，跳过无 Pose {metrics.get('skipped_no_pose_frames', '—')} 帧；100% 表示阶段完成")
+            elif int(progress.get("total") or 0) > 0:
                 progress["current"] = progress["total"]
         atomic_write_json(stage_dir / "progress.json", progress)
         job = self._jobs.load_job(job_id)

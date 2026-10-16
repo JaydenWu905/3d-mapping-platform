@@ -7,7 +7,7 @@ export function Sidebar() {
         <div className="brand-mark">🗺️</div>
         <div>
           <div className="brand-title">三维建图平台</div>
-          <div className="brand-sub">Phase 1 · Mock Runner</div>
+          <div className="brand-sub">Pose · Surface · 任务管理</div>
         </div>
       </div>
       <nav className="sidebar-nav">

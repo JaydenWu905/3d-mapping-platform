@@ -13,6 +13,7 @@ import type {
 
 export interface JobActions {
   runAll: () => Promise<void>;
+  runPlanned: () => Promise<void>;
   startStage: (stage: string) => Promise<void>;
   cancelStage: (stage: string) => Promise<void>;
   retryStage: (stage: string) => Promise<void>;
@@ -169,6 +170,7 @@ export function useJob(jobId: string | undefined): JobState {
 
   const actions: JobActions = {
     runAll: () => call(() => api.runAll(jobIdRef.current!)),
+    runPlanned: () => call(() => api.runPlanned(jobIdRef.current!)),
     startStage: (stage) => call(() => api.startStage(jobIdRef.current!, stage)),
     cancelStage: (stage) => call(() => api.cancelStage(jobIdRef.current!, stage)),
     retryStage: (stage) => call(() => api.retryStage(jobIdRef.current!, stage)),

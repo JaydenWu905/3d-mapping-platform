@@ -1,3 +1,4 @@
+import { progressLabel } from './progressLabel';
 import type { StageDetail } from '../types';
 import { StatusBadge } from './StatusBadge';
 import { BACKEND_STATUS_LABELS } from './PipelineView';
@@ -22,7 +23,7 @@ function formatElapsed(sec: number): string {
 }
 
 export function StageCard({ stageKey, label, detail, selected, busy, onSelect, onStart, onCancel, onRetry }: StageCardProps) {
-  const running = detail.status === 'running' || detail.status === 'cancelling';
+  const running = detail.status === 'running' || detail.status === 'cancelling' || detail.status === 'queued';
   const progress = Math.max(0, Math.min(100, detail.progress ?? 0));
 
   return (
@@ -51,9 +52,9 @@ export function StageCard({ stageKey, label, detail, selected, busy, onSelect, o
         </div>
         <div className="progress-meta">
           <span>
-            {detail.current} / {detail.total} {detail.unit || ''}
+            {progressLabel(detail)}
           </span>
-          <span>{Math.round(progress)}%</span>
+          <span>阶段 {Math.round(progress)}%</span>
         </div>
       </div>
 
@@ -94,7 +95,7 @@ function StageButton({
 }) {
   const { status, can_run, run_blocked_reason } = detail;
 
-  if (status === 'running' || status === 'cancelling') {
+  if (status === 'running' || status === 'cancelling' || status === 'queued') {
     return (
       <button className="btn btn-danger" onClick={onCancel} disabled={busy}>
         {status === 'cancelling' ? '取消中…' : '取消'}

@@ -1,0 +1,66 @@
+{
+  "version": "0.1.0",
+  "name": "mapping-platform-frontend",
+  "dependencies": {
+    "@react-three/drei": {
+      "version": "9.122.0",
+      "resolved": "https://repo.huaweicloud.com/repository/npm/@react-three/drei/-/drei-9.122.0.tgz",
+      "overridden": false
+    },
+    "@react-three/fiber": {
+      "version": "8.18.0",
+      "resolved": "https://repo.huaweicloud.com/repository/npm/@react-three/fiber/-/fiber-8.18.0.tgz",
+      "overridden": false
+    },
+    "@types/react-dom": {
+      "version": "18.3.7",
+      "resolved": "https://repo.huaweicloud.com/repository/npm/@types/react-dom/-/react-dom-18.3.7.tgz",
+      "overridden": false
+    },
+    "@types/react": {
+      "version": "18.3.31",
+      "resolved": "https://repo.huaweicloud.com/repository/npm/@types/react/-/react-18.3.31.tgz",
+      "overridden": false
+    },
+    "@types/three": {
+      "version": "0.169.0",
+      "resolved": "https://repo.huaweicloud.com/repository/npm/@types/three/-/three-0.169.0.tgz",
+      "overridden": false
+    },
+    "@vitejs/plugin-react": {
+      "version": "4.7.0",
+      "resolved": "https://repo.huaweicloud.com/repository/npm/@vitejs/plugin-react/-/plugin-react-4.7.0.tgz",
+      "overridden": false
+    },
+    "react-dom": {
+      "version": "18.3.1",
+      "resolved": "https://repo.huaweicloud.com/repository/npm/react-dom/-/react-dom-18.3.1.tgz",
+      "overridden": false
+    },
+    "react-router-dom": {
+      "version": "6.30.6",
+      "resolved": "https://repo.huaweicloud.com/repository/npm/react-router-dom/-/react-router-dom-6.30.6.tgz",
+      "overridden": false
+    },
+    "react": {
+      "version": "18.3.1",
+      "resolved": "https://repo.huaweicloud.com/repository/npm/react/-/react-18.3.1.tgz",
+      "overridden": false
+    },
+    "three": {
+      "version": "0.169.0",
+      "resolved": "https://repo.huaweicloud.com/repository/npm/three/-/three-0.169.0.tgz",
+      "overridden": false
+    },
+    "typescript": {
+      "version": "5.9.3",
+      "resolved": "https://repo.huaweicloud.com/repository/npm/typescript/-/typescript-5.9.3.tgz",
+      "overridden": false
+    },
+    "vite": {
+      "version": "5.4.21",
+      "resolved": "https://repo.huaweicloud.com/repository/npm/vite/-/vite-5.4.21.tgz",
+      "overridden": false
+    }
+  }
+}

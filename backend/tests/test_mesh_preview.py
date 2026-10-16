@@ -41,6 +41,25 @@ class MeshPreviewTests(unittest.TestCase):
         self.assertEqual(metrics["preview_faces"], 2)
         self.assertEqual(validate_preview_glb(output)["faces"], 2)
 
+    def test_black_colors_are_removed_and_nearby_vertices_stay_distinct(self) -> None:
+        mesh = trimesh.Trimesh(vertices=[[0, 0, 0], [1, 0, 0], [0, 1, 0],
+                                       [0.000000004, 0, 0]],
+                               faces=[[0, 1, 2], [3, 2, 1]], process=False)
+        mesh.visual.vertex_colors = np.tile([0, 0, 0, 255], (4, 1))
+        source = self.root / "black.ply"
+        source.write_bytes(trimesh.exchange.ply.export_ply(mesh))
+        output = self.root / "preview.glb"
+        metrics = build_preview_glb(source, output)
+        self.assertEqual(metrics["preview_vertices"], 4)
+        self.assertFalse(metrics["preview_simplification_applied"])
+        import struct
+        blob = output.read_bytes()
+        size = struct.unpack_from('<I', blob, 12)[0]
+        doc = json.loads(blob[20:20 + size])
+        attrs = doc['meshes'][0]['primitives'][0]['attributes']
+        self.assertNotIn('COLOR_0', attrs)
+        self.assertIn('NORMAL', attrs)
+
     def test_atomic_replace_restores_old_preview_when_manifest_write_fails(self) -> None:
         destination = self.root / "surface_model.glb"
         candidate = self.root / ".candidate.glb"

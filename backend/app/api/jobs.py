@@ -23,8 +23,10 @@ async def create_job(req: CreateJobRequest, request: Request) -> dict[str, Any]:
     try:
         job = await jobs.create_job(
             dataset=req.dataset,
+            run_mode=req.run_mode,
             backends=req.backends,
             fail_stage=req.fail_stage,
+            requested_stages=req.requested_stages,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))

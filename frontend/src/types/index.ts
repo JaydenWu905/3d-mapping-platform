@@ -1,7 +1,7 @@
 // 与后端 FastAPI 模型一一对应的类型（已针对真实响应验证过字段名）。
 
 export type StageKey = 'pose' | 'surface' | 'distance';
-export type StageStatus = 'waiting' | 'running' | 'cancelling' | 'completed' | 'failed' | 'cancelled';
+export type StageStatus = 'waiting' | 'queued' | 'running' | 'cancelling' | 'completed' | 'failed' | 'cancelled' | 'not_integrated';
 export type BackendStatus = 'ready' | 'experimental' | 'disabled';
 
 /** SSE 事件里 stage 字段是普通 string，这里做运行时校验后收窄成 StageKey。 */
@@ -84,6 +84,11 @@ export interface JobDetail {
   dataset: string;
   backends: Partial<Record<StageKey, string>>;
   preview_job: boolean;
+  requested_stages: StageKey[];
+  pose_reuse?: { label: string; source_job_id: string; sha256: string; glim_executed_this_job: boolean };
+  validation_scope?: string;
+  run_mode?: 'full' | 'short';
+  run_scope?: { pose: string; surface_start_frame: number; surface_end_frame: number | null };
   fail_stage: string | null;
   stages: Record<StageKey, StageDetail>;
 }

@@ -1,9 +1,10 @@
+import { progressLabel } from '../components/progressLabel';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/api';
 import { useJob } from '../hooks/useJob';
 import { isStageKey } from '../types';
-import type { Manifest, StageDetail, StageKey } from '../types';
+import type { JobDetail, Manifest, StageDetail, StageKey } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
 import { PipelineView, STAGE_LABELS } from '../components/PipelineView';
 import { LogViewer } from '../components/LogViewer';
@@ -86,8 +87,8 @@ export function JobDetailPage() {
           <span className="job-status-big">
             <StatusBadge status={job.status} />
           </span>
-          <button className="btn btn-primary" onClick={() => run(() => actions.runAll())} disabled={busy}>
-            ▶ Run All
+          <button className="btn btn-primary" onClick={() => run(() => job.requested_stages?.length === 2 ? actions.runPlanned() : actions.runAll())} disabled={busy || job.status === 'running' || job.status === 'completed'}>
+            ▶ {job.requested_stages?.length === 2 ? '运行 Pose → Surface' : 'Run All'}
           </button>
           <button className="btn btn-ghost" onClick={() => refresh()} disabled={busy}>
             ↻ 刷新
@@ -99,6 +100,9 @@ export function JobDetailPage() {
       </div>
 
       {error ? <div className="alert alert-error">{error}</div> : null}
+      {job.requested_stages?.length === 2 ? <div className="alert">运行范围：Pose {job.run_scope?.pose === 'reused' ? '复用已有真实 Pose（本任务未运行 GLIM）' : job.run_scope?.pose === 'full' ? '完整序列' : '按注册轨迹'}；Surface 原始第 {job.run_scope?.surface_start_frame ?? 1}–{job.run_scope?.surface_end_frame ?? '末尾'} 帧。Distance 未接入。{job.validation_scope === 'ins_full_pose_surface' ? '本任务验收已验证 INS profile 的完整两阶段一键流程，不代表任意 bag 兼容或建图精度通过。外参及 IMU 单位依据待确认。' : job.validation_scope === 'full_surface_only' ? '本任务仅验收完整 Surface，不代表完整一键流程或建图精度通过。外参及 IMU 单位依据待确认。' : '短段成功不代表完整场景重建或精度验收。'}</div> : null}
+
+      {job.pose_reuse ? <div className="alert">复用已有真实 Pose · 来源 Job <code>{job.pose_reuse.source_job_id}</code> · poses.txt SHA-256 <code>{job.pose_reuse.sha256}</code></div> : null}
 
       <div className="detail-grid">
         <aside className="detail-pipeline">
@@ -114,14 +118,14 @@ export function JobDetailPage() {
         </aside>
 
         <div className="detail-main">
-          {stage ? <StagePanel jobId={job.job_id} stage={stage} running={stageRunning(stage)} /> : <div className="panel-empty">该任务没有阶段信息。</div>}
+          {stage ? <StagePanel jobId={job.job_id} stage={stage} running={stageRunning(stage)} scope={job.run_scope} /> : <div className="panel-empty">该任务没有阶段信息。</div>}
         </div>
       </div>
     </div>
   );
 }
 
-function StagePanel({ jobId, stage, running }: { jobId: string; stage: StageDetail; running: boolean }) {
+function StagePanel({ jobId, stage, running, scope }: { jobId: string; stage: StageDetail; running: boolean; scope?: JobDetail['run_scope'] }) {
   const manifest = stage.manifest as Manifest | null;
   const slices = useMemo(() => {
     const v = manifest?.metrics?.slices;
@@ -143,16 +147,20 @@ function StagePanel({ jobId, stage, running }: { jobId: string; stage: StageDeta
       </div>
       <div className="progress-meta">
         <span>
-          {stage.current} / {stage.total} {stage.unit || ''}
+          {progressLabel(stage)}
         </span>
-        <span>{Math.round(stage.progress)}% · {stage.message}</span>
+        <span>阶段 {Math.round(stage.progress)}% · {stage.message}</span>
       </div>
+      {stage.stage === 'surface' && manifest?.metrics ? <div className="stage-message">
+        全包 LiDAR {String(manifest.metrics.bag_lidar_frames ?? '—')} 帧 · 原始范围第 {scope?.surface_start_frame ?? 1}–{scope?.surface_end_frame ?? '末尾'} 帧 · 选中 {String(manifest.metrics.selected_frames ?? '—')} · 关联 {String(manifest.metrics.matched_pose_frames ?? '—')} · 融合 {String(manifest.metrics.fused_frames ?? '—')} · 跳过无 Pose {String(manifest.metrics.skipped_no_pose_frames ?? '—')}
+      </div> : null}
     </div>
   );
 
   return (
     <div className="stage-panel">
       {stageInfo}
+      {stage.stage === 'surface' && manifest?.metrics?.preview_simplification_applied === true ? <div className="alert">浏览器 GLB 预览已简化：{String(manifest.metrics.preview_source_faces)} → {String(manifest.metrics.preview_faces)} 面。简化可能改变细小分量与边界；完整原生 Mesh 可在下方下载。</div> : null}
       <StageViewer jobId={jobId} stage={stage} manifest={manifest} slices={slices} running={running} />
       <ArtifactsPanel jobId={jobId} stage={stage.stage} manifest={manifest} />
       <LogViewer jobId={jobId} stage={stage.stage} active={running} />

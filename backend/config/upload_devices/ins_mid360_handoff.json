@@ -1,0 +1,31 @@
+{
+  "id": "ins_livox_mid360_same_rig",
+  "name": "INS / Livox MID-360 同设备同采集配置（待确认标定）",
+  "scope": "仅适用于与原 INS 样本相同的物理 MID-360、IMU、安装、固件和采集配置；选择者须确认数据来源。",
+  "calibration_status": "交接配置，原始标定和 IMU 单位依据待确认",
+  "bag_format": "ROS1 bag v2.0",
+  "lidar_topic": "/livox_mid360/livox/lidar",
+  "lidar_type": "livox_ros_driver2/msg/CustomMsg",
+  "imu_topic": "/livox_mid360/livox/imu",
+  "imu_type": "sensor_msgs/msg/Imu",
+  "pose": {
+    "lidar_frame_id": "livox_mid360_frame",
+    "imu_frame_id": "livox_frame",
+    "acc_scale": 9.80665,
+    "imu_acceleration_input_unit": "g (交接配置，待确认)",
+    "perpoint_relative_time": true,
+    "perpoint_time_scale": 1e-9,
+    "perpoint_time_unit": "nanosecond relative to LiDAR header stamp",
+    "max_point_offset_ns": 1000000000,
+    "warn_point_offset_ns": 200000000,
+    "max_timebase_header_delta_ns": 50000000,
+    "T_lidar_imu": [0.011, 0.02329, -0.04412, 0.0, 0.0, 0.0, 1.0],
+    "config_path": "3d-mapping-platform-deploy/ops/glim_runtime/config"
+  },
+  "surface": {
+    "mrhash_profile": "ins_livox_mid360_custom",
+    "configuration": "mrhash/mrhash/configurations/ins_livox_mid360.cfg",
+    "min_range_m": 0.2,
+    "max_range_m": 100.0
+  }
+}

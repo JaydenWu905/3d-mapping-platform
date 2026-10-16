@@ -1,0 +1,348 @@
+{
+  "job_1792052071_70692b": {
+    "job_sha256": "e40fa73ba8b79f7d92cee3ac639dab450ac3bf33c1f4d17b3c3f1384a2286eef",
+    "dataset": "ins_upload_64cf05888616",
+    "run_scope": {
+      "pose": "full",
+      "surface_start_frame": 1,
+      "surface_end_frame": 100
+    },
+    "stages": {
+      "stage1_pose": {
+        "manifest": {
+          "path": "/root/autodl-tmp/3d-mapping-platform-deploy/jobs/job_1792052071_70692b/stage1_pose/result_manifest.json",
+          "resolved_path": "/root/autodl-tmp/3d-mapping-platform-deploy/jobs/job_1792052071_70692b/stage1_pose/result_manifest.json",
+          "size_bytes": 11792,
+          "mtime_ns": 1792052327517838865,
+          "sha256": "9eae7a4feb3efa82a8a3cd3ed8147fdf9edd047bc9aee34828ad9a044fa752b8"
+        },
+        "runtime_sec": 245.94,
+        "metrics": {
+          "pose_count": 1527,
+          "timestamp_start": 1717493096.9027765,
+          "timestamp_end": 1717493249.5026836,
+          "trajectory_length_m": 129.341,
+          "native_pose_count": 1527,
+          "bag_frame_count": 1539,
+          "matched_count": 1527,
+          "matched_ratio": 0.992203,
+          "max_delta_sec_observed": 0.0,
+          "glim_runtime_sec": 245.94,
+          "surface_handoff_compatible": true
+        },
+        "run_id": "glim_20261015_161847",
+        "configuration_artifacts": [
+          {
+            "path": "/root/autodl-tmp/3d-mapping-platform-deploy/jobs/job_1792052071_70692b/stage1_pose/native/config/config_ros.json",
+            "resolved_path": "/root/autodl-tmp/3d-mapping-platform-deploy/jobs/job_1792052071_70692b/stage1_pose/native/config/config_ros.json",
+            "size_bytes": 792,
+            "mtime_ns": 1792052081888217243,
+            "sha256": "47b3793bb2e9e0037c3925cbf61247e21b9ddbd3135f84e205c0445ed25f46d5"
+          }
+        ]
+      },
+      "stage2_surface": {
+        "manifest": {
+          "path": "/root/autodl-tmp/3d-mapping-platform-deploy/jobs/job_1792052071_70692b/stage2_surface/result_manifest.json",
+          "resolved_path": "/root/autodl-tmp/3d-mapping-platform-deploy/jobs/job_1792052071_70692b/stage2_surface/result_manifest.json",
+          "size_bytes": 3873,
+          "mtime_ns": 1792065361380572151,
+          "sha256": "56494ad4d00e5acb898f425e21506077c65cd0e1962477249f5ad691e930b60f"
+        },
+        "runtime_sec": 29.01,
+        "metrics": {
+          "vertices": 249413,
+          "faces": 199873,
+          "voxel_count": 1034493,
+          "hash_point_count": 6614,
+          "mesh_size_bytes": 11171788,
+          "voxel_size_bytes": 24828075,
+          "selected_frames": 100,
+          "matched_pose_frames": 89,
+          "skipped_no_pose_frames": 11,
+          "fused_frames": 89,
+          "preview_method": "exact-vertex-weld-only",
+          "preview_target_faces": 500000,
+          "preview_vertices": 109982,
+          "preview_faces": 199873,
+          "preview_size_bytes": 5039284,
+          "preview_bounds": [
+            [
+              -1.9249999523162842,
+              -11.672900199890137,
+              -0.824999988079071
+            ],
+            [
+              26.922399520874023,
+              4.125740051269531,
+              3.8814399242401123
+            ]
+          ],
+          "preview_source_bounds": [
+            [
+              -1.9249999523162842,
+              -11.672900199890137,
+              -0.824999988079071
+            ],
+            [
+              26.922399520874023,
+              4.125740051269531,
+              3.8814399242401123
+            ]
+          ],
+          "preview_source_vertices": 249413,
+          "preview_source_faces": 199873,
+          "preview_welded_vertices": 109982,
+          "preview_build_sec": 2.05,
+          "preview_sha256": "6e35d88416a9df5abdb52b92b419a566e4e6d7553052cf401ef8ff0a48802893",
+          "bag_lidar_frames": 1539,
+          "preview_simplification_applied": false,
+          "preview_vertex_colors": false
+        },
+        "run_id": "20261015_161923_420cdb10",
+        "configuration_artifacts": [
+          {
+            "path": "/root/autodl-tmp/3d-mapping-platform-deploy/jobs/job_1792052071_70692b/stage2_surface/runs/20261015_161923_420cdb10/mrhash.cfg",
+            "resolved_path": "/root/autodl-tmp/3d-mapping-platform-deploy/jobs/job_1792052071_70692b/stage2_surface/runs/20261015_161923_420cdb10/mrhash.cfg",
+            "size_bytes": 786,
+            "mtime_ns": 1792052363335054662,
+            "sha256": "cb750104134a10dec231b7538e902555ab25ef538d30769b34abdc608fd9e1c9"
+          }
+        ]
+      }
+    }
+  },
+  "job_1792067103_dab12b": {
+    "job_sha256": "54af6ac12b07c34dc26bffa1c104a7ae22041569b2ee3c116832263940d92709",
+    "dataset": "ins_upload_64cf05888616_surface_full",
+    "run_scope": {
+      "pose": "reused",
+      "surface_start_frame": 1,
+      "surface_end_frame": null
+    },
+    "stages": {
+      "stage1_pose": {
+        "manifest": {
+          "path": "/root/autodl-tmp/3d-mapping-platform-deploy/jobs/job_1792067103_dab12b/stage1_pose/result_manifest.json",
+          "resolved_path": "/root/autodl-tmp/3d-mapping-platform-deploy/jobs/job_1792067103_dab12b/stage1_pose/result_manifest.json",
+          "size_bytes": 12480,
+          "mtime_ns": 1792067103364044027,
+          "sha256": "ec2b1d86c7bbee3a6feab6474645e7e4b3ee5ca88c39a9b734c070e650d20341"
+        },
+        "runtime_sec": 0,
+        "metrics": {
+          "pose_count": 1527,
+          "timestamp_start": 1717493096.9027765,
+          "timestamp_end": 1717493249.5026836,
+          "trajectory_length_m": 129.341,
+          "native_pose_count": 1527,
+          "bag_frame_count": 1539,
+          "matched_count": 1527,
+          "matched_ratio": 0.992203,
+          "max_delta_sec_observed": 0.0,
+          "glim_runtime_sec": 245.94,
+          "surface_handoff_compatible": true
+        },
+        "run_id": "glim_20261015_161847",
+        "configuration_artifacts": [
+          {
+            "path": "/root/autodl-tmp/3d-mapping-platform-deploy/jobs/job_1792067103_dab12b/stage1_pose/native/config/config_ros.json",
+            "resolved_path": "/root/autodl-tmp/3d-mapping-platform-deploy/jobs/job_1792067103_dab12b/stage1_pose/native/config/config_ros.json",
+            "size_bytes": 792,
+            "mtime_ns": 1792052081888217243,
+            "sha256": "47b3793bb2e9e0037c3925cbf61247e21b9ddbd3135f84e205c0445ed25f46d5"
+          }
+        ]
+      },
+      "stage2_surface": {
+        "manifest": {
+          "path": "/root/autodl-tmp/3d-mapping-platform-deploy/jobs/job_1792067103_dab12b/stage2_surface/result_manifest.json",
+          "resolved_path": "/root/autodl-tmp/3d-mapping-platform-deploy/jobs/job_1792067103_dab12b/stage2_surface/result_manifest.json",
+          "size_bytes": 6284,
+          "mtime_ns": 1792067492384199694,
+          "sha256": "016641e1dfa48e3df147a34e00f46154cba3bc8f02086d16d76097071e1d01bf"
+        },
+        "runtime_sec": 196.49,
+        "metrics": {
+          "vertices": 3181779,
+          "faces": 2397261,
+          "voxel_count": 9620966,
+          "hash_point_count": 41364,
+          "mesh_size_bytes": 149182453,
+          "voxel_size_bytes": 230903427,
+          "bag_lidar_frames": 1539,
+          "selected_frames": 1539,
+          "matched_pose_frames": 1527,
+          "skipped_no_pose_frames": 12,
+          "fused_frames": 1527,
+          "preview_method": "exact-vertex-weld+quadric-edge-collapse",
+          "preview_simplification_applied": true,
+          "preview_vertex_colors": false,
+          "preview_target_faces": 500000,
+          "preview_vertices": 277405,
+          "preview_faces": 500000,
+          "preview_size_bytes": 12658936,
+          "preview_bounds": [
+            [
+              -4.125,
+              -15.574999809265137,
+              -1.5
+            ],
+            [
+              72.92500305175781,
+              4.285215854644775,
+              4.96435022354126
+            ]
+          ],
+          "preview_source_bounds": [
+            [
+              -4.664269924163818,
+              -15.574999809265137,
+              -1.524999976158142
+            ],
+            [
+              73.7249984741211,
+              4.287919998168945,
+              5.175000190734863
+            ]
+          ],
+          "preview_source_vertices": 3181779,
+          "preview_source_faces": 2397261,
+          "preview_welded_vertices": 1300740,
+          "preview_build_sec": 28.52,
+          "preview_sha256": "e26384a0b5656b46f2f112e7edc7582328ebba97ee5c4e071739cfe69adf04c2",
+          "head_unmatched_frames": 11,
+          "tail_unmatched_frames": 1,
+          "interior_unmatched_frames": 0,
+          "skipped_outside_range_frames": 0,
+          "fusion_wall_sec": 126.146,
+          "native_components": 4807,
+          "preview_components": 2977
+        },
+        "run_id": "20261015_202654_a54114f8",
+        "configuration_artifacts": [
+          {
+            "path": "/root/autodl-tmp/3d-mapping-platform-deploy/jobs/job_1792067103_dab12b/stage2_surface/runs/20261015_202654_a54114f8/mrhash.cfg",
+            "resolved_path": "/root/autodl-tmp/3d-mapping-platform-deploy/jobs/job_1792067103_dab12b/stage2_surface/runs/20261015_202654_a54114f8/mrhash.cfg",
+            "size_bytes": 785,
+            "mtime_ns": 1792067214074486806,
+            "sha256": "9cc5a40bf9c1e30584b8b0d3b8f78ee8e037dfad5def3bfd101e36553c991d85"
+          }
+        ]
+      }
+    }
+  },
+  "job_1792068244_bb9c22": {
+    "job_sha256": "15e69eeb560e72af8a1064f0d12902ea62cd804f81efe664834bc95589cd46b1",
+    "dataset": "ins_upload_64cf05888616",
+    "run_scope": {
+      "pose": "full",
+      "surface_start_frame": 1,
+      "surface_end_frame": null
+    },
+    "stages": {
+      "stage1_pose": {
+        "manifest": {
+          "path": "/root/autodl-tmp/3d-mapping-platform-deploy/jobs/job_1792068244_bb9c22/stage1_pose/result_manifest.json",
+          "resolved_path": "/root/autodl-tmp/3d-mapping-platform-deploy/jobs/job_1792068244_bb9c22/stage1_pose/result_manifest.json",
+          "size_bytes": 11790,
+          "mtime_ns": 1792068486349135747,
+          "sha256": "e7079937c0d8fed02253d5d745822b90511fdd3273efd814306932f8f38ca07f"
+        },
+        "runtime_sec": 241.0,
+        "metrics": {
+          "pose_count": 1527,
+          "timestamp_start": 1717493096.9027765,
+          "timestamp_end": 1717493249.5026836,
+          "trajectory_length_m": 129.333,
+          "native_pose_count": 1527,
+          "bag_frame_count": 1539,
+          "matched_count": 1527,
+          "matched_ratio": 0.992203,
+          "max_delta_sec_observed": 0.0,
+          "glim_runtime_sec": 241.0,
+          "surface_handoff_compatible": true
+        },
+        "run_id": "glim_20261015_204806",
+        "configuration_artifacts": [
+          {
+            "path": "/root/autodl-tmp/3d-mapping-platform-deploy/jobs/job_1792068244_bb9c22/stage1_pose/native/config/config_ros.json",
+            "resolved_path": "/root/autodl-tmp/3d-mapping-platform-deploy/jobs/job_1792068244_bb9c22/stage1_pose/native/config/config_ros.json",
+            "size_bytes": 792,
+            "mtime_ns": 1792068245635309317,
+            "sha256": "47b3793bb2e9e0037c3925cbf61247e21b9ddbd3135f84e205c0445ed25f46d5"
+          }
+        ]
+      },
+      "stage2_surface": {
+        "manifest": {
+          "path": "/root/autodl-tmp/3d-mapping-platform-deploy/jobs/job_1792068244_bb9c22/stage2_surface/result_manifest.json",
+          "resolved_path": "/root/autodl-tmp/3d-mapping-platform-deploy/jobs/job_1792068244_bb9c22/stage2_surface/result_manifest.json",
+          "size_bytes": 4332,
+          "mtime_ns": 1792068702952488623,
+          "sha256": "cd9658c77f17b7c34091a46c0cbb4f5e684d55f121799f9ebf51c0a0694de7aa"
+        },
+        "runtime_sec": 179.81,
+        "metrics": {
+          "vertices": 3170312,
+          "faces": 2389022,
+          "voxel_count": 9610325,
+          "hash_point_count": 41355,
+          "mesh_size_bytes": 148632675,
+          "voxel_size_bytes": 230648043,
+          "bag_lidar_frames": 1539,
+          "selected_frames": 1539,
+          "matched_pose_frames": 1527,
+          "skipped_no_pose_frames": 12,
+          "fused_frames": 1527,
+          "preview_method": "exact-vertex-weld+quadric-edge-collapse",
+          "preview_simplification_applied": true,
+          "preview_vertex_colors": false,
+          "preview_target_faces": 500000,
+          "preview_vertices": 276980,
+          "preview_faces": 500000,
+          "preview_size_bytes": 12648752,
+          "preview_bounds": [
+            [
+              -4.375,
+              -13.077899932861328,
+              -1.4278101921081543
+            ],
+            [
+              72.80282592773438,
+              4.228682518005371,
+              5.125
+            ]
+          ],
+          "preview_source_bounds": [
+            [
+              -4.675000190734863,
+              -15.824999809265137,
+              -1.475000023841858
+            ],
+            [
+              73.7750015258789,
+              4.230350017547607,
+              5.224999904632568
+            ]
+          ],
+          "preview_source_vertices": 3170312,
+          "preview_source_faces": 2389022,
+          "preview_welded_vertices": 1295284,
+          "preview_build_sec": 28.77,
+          "preview_sha256": "d3e21bb54090e5f357fed726a9e99d587b5e1c67ba0e004a6dbe5d0c49ef8db2"
+        },
+        "run_id": "20261015_204843_abe702ae",
+        "configuration_artifacts": [
+          {
+            "path": "/root/autodl-tmp/3d-mapping-platform-deploy/jobs/job_1792068244_bb9c22/stage2_surface/runs/20261015_204843_abe702ae/mrhash.cfg",
+            "resolved_path": "/root/autodl-tmp/3d-mapping-platform-deploy/jobs/job_1792068244_bb9c22/stage2_surface/runs/20261015_204843_abe702ae/mrhash.cfg",
+            "size_bytes": 785,
+            "mtime_ns": 1792068523135441150,
+            "sha256": "f4fef6accb89da28efcd98aafed3eccd47df1b429dbb4a179199af9e9f234750"
+          }
+        ]
+      }
+    }
+  }
+}

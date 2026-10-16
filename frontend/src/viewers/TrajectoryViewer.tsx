@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Line, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
+import { FitView } from './FitView';
 import { api } from '../api/api';
 import type { TrajectoryData } from '../types';
 
@@ -20,6 +21,7 @@ type P3 = [number, number, number];
 export function TrajectoryViewer({ jobId, stage }: TrajectoryViewerProps) {
   const [traj, setTraj] = useState<TrajectoryData | null>(null);
   const [error, setError] = useState(false);
+  const [reset, setReset] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,16 +51,18 @@ export function TrajectoryViewer({ jobId, stage }: TrajectoryViewerProps) {
     <div className="viewer-3d">
       <Canvas camera={{ position: [2, 4, 5], fov: 50 }}>
         <color attach="background" args={['#0b1118']} />
-        <TrajectoryScene points={pts} />
+        <TrajectoryScene points={pts} reset={reset} />
         <OrbitControls makeDefault enableDamping />
       </Canvas>
-      <div className="viewer-hint">拖拽旋转 · 滚轮缩放 · 右键平移 · 绿=起点 黄=朝向 红=终点</div>
+      <button className="btn btn-ghost viewer-reset" onClick={() => setReset(v => v + 1)}>重置视角</button>
+      <div className="viewer-hint">拖拽旋转 · 滚轮缩放 · 右键平移 · 绿=起点 黄=轨迹切向（非位姿朝向） 红=终点</div>
       <div className="viewer-count">frames: {traj.frame_count}</div>
     </div>
   );
 }
 
-function TrajectoryScene({ points }: { points: P3[] }) {
+function TrajectoryScene({ points, reset }: { points: P3[]; reset: number }) {
+  const box = useMemo(() => new THREE.Box3().setFromPoints(points.map(p => new THREE.Vector3(...p))), [points]);
   const { center, radius, groundY } = useMemo(() => {
     const min = new THREE.Vector3(Infinity, Infinity, Infinity);
     const max = new THREE.Vector3(-Infinity, -Infinity, -Infinity);
@@ -75,8 +79,10 @@ function TrajectoryScene({ points }: { points: P3[] }) {
     // 用原生 THREE.Line 而非 JSX <line>：后者会被 React 的 SVG line 类型抢占，产生类型冲突。
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(buildOrientationTicks(points)), 3));
-    return new THREE.Line(g, new THREE.LineBasicMaterial({ color: '#f5b942' }));
+    return new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: '#f5b942' }));
   }, [points]);
+
+  useEffect(() => () => { tickLine.geometry.dispose(); (tickLine.material as THREE.Material).dispose(); }, [tickLine]);
 
   const start = points[0];
   const end = points[points.length - 1];
@@ -84,18 +90,19 @@ function TrajectoryScene({ points }: { points: P3[] }) {
   return (
     <>
       {/* 世界 FLU → 显示坐标已在上层映射；网格绘制在 floor 平面 (world z = 0) */}
-      <gridHelper args={[radius * 4, Math.max(10, Math.round(radius * 6)), '#3a5a70', '#22303c']} position={[center.x, groundY, center.z]} />
+      <FitView box={box} reset={reset} />
+      <gridHelper args={[radius * 4, 40, '#3a5a70', '#22303c']} position={[center.x, groundY, center.z]} />
 
       <Line points={points} color="#3fc1ff" lineWidth={2} />
 
       <primitive object={tickLine} />
 
       <mesh position={start}>
-        <sphereGeometry args={[radius * 0.15, 16, 16]} />
+        <sphereGeometry args={[radius * 0.012, 16, 16]} />
         <meshBasicMaterial color="#4ade80" />
       </mesh>
       <mesh position={end}>
-        <sphereGeometry args={[radius * 0.15, 16, 16]} />
+        <sphereGeometry args={[radius * 0.012, 16, 16]} />
         <meshBasicMaterial color="#ff5a5a" />
       </mesh>
     </>

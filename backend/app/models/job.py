@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 from app.config import STAGE_LABELS, STAGES
 
-StageStatusValue = Literal["waiting", "running", "completed", "failed", "cancelled"]
+StageStatusValue = Literal["waiting", "queued", "running", "completed", "failed", "cancelled", "not_integrated"]
 
 
 def new_job_id() -> str:
@@ -33,10 +33,12 @@ def new_job(
     fail_stage: Optional[str] = None,
     job_id: Optional[str] = None,
     preview_job: bool = False,
+    requested_stages: list[str] | None = None,
 ) -> dict[str, Any]:
     """Create the in-memory / on-disk structure of a job."""
     job_id = job_id or new_job_id()
-    return {
+    requested_stages = requested_stages or list(STAGES)
+    result = {
         "job_id": job_id,
         "created_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "status": "created",
@@ -44,16 +46,21 @@ def new_job(
         "backends": dict(backends),
         "fail_stage": fail_stage if fail_stage in STAGES else None,
         "preview_job": preview_job,
+        "requested_stages": requested_stages,
         "stages": {
-            stage: ensure_stage_state(stage, backends[stage]) for stage, label in [(s, STAGE_LABELS[s]) for s in STAGES]
+            stage: ensure_stage_state(stage, backends.get(stage, "")) for stage, label in [(s, STAGE_LABELS[s]) for s in STAGES]
         },
     }
+    for stage in STAGES:
+        if stage not in requested_stages:
+            result["stages"][stage]["status"] = "not_integrated"
+    return result
 
 
 def derive_job_status(job: dict[str, Any]) -> str:
     """Recompute the overall job status from its stage statuses (server of truth = disk)."""
-    statuses = [st["status"] for st in job["stages"].values()]
-    if any(s == "running" for s in statuses):
+    statuses = [job["stages"][s]["status"] for s in job.get("requested_stages", STAGES)]
+    if any(s in ("running", "queued") for s in statuses):
         return "running"
     if any(s == "failed" for s in statuses):
         return "failed"
@@ -97,9 +104,11 @@ class BackendStageResponse(BaseModel):
 
 
 class CreateJobRequest(BaseModel):
+    run_mode: Optional[Literal["full", "short"]] = None
     dataset: str
     backends: dict[str, str]
     fail_stage: Optional[str] = None
+    requested_stages: Optional[list[str]] = None
 
 
 class DatasetResponse(BaseModel):
@@ -135,6 +144,7 @@ class JobSummary(BaseModel):
     dataset: str
     backends: dict[str, str]
     preview_job: bool = False
+    requested_stages: list[str] = Field(default_factory=lambda: list(STAGES))
 
 
 class JobDetail(JobSummary):

@@ -267,3 +267,6 @@ code { font-family: var(--mono); font-size: 0.92em; }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: #2b3a4d; border-radius: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
+.viewer-toolbar, .viewer-reset { position: absolute; top: 12px; left: 12px; z-index: 2; }
+.viewer-toolbar { display: flex; gap: 12px; align-items: center; padding: 6px; background: #17212eee; border-radius: 6px; }
+.viewer-toolbar select { background: #17212e; color: #eee; padding: 6px; }

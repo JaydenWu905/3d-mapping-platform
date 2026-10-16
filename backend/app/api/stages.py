@@ -46,6 +46,19 @@ async def run_all(job_id: str, request: Request) -> dict[str, str]:
         _runner(request).start_run_all(job_id)
     except JobBusyError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
+    except StartStageError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except JobNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    return {"status": "started"}
+
+
+@router.post("/run-planned")
+async def run_planned(job_id: str, request: Request) -> dict[str, str]:
+    try:
+        _runner(request).start_run_planned(job_id)
+    except (JobBusyError, StartStageError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
     except JobNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     return {"status": "started"}
