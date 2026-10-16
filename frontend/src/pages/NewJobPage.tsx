@@ -104,8 +104,10 @@ export function NewJobPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [profiles, setProfiles] = useState<Array<{ id: string; name: string; size_bytes: number; calibration_note: string }>>([]);
+  const [profiles, setProfiles] = useState<Array<{ id: string; name: string; size_bytes?: number; max_size_bytes?: number; scope?: string; calibration_note: string }>>([]);
   const [profileId, setProfileId] = useState('');
+  const [sameRigConfirmed, setSameRigConfirmed] = useState(false);
+  const [uploadResult, setUploadResult] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
   const navigate = useNavigate();
@@ -138,12 +140,16 @@ export function NewJobPage() {
     try {
       let id = localStorage.getItem(key);
       let state;
-      if (id) state = await api.uploadStatus(id);
-      else {
-        state = await api.createUpload(uploadFile.name, uploadFile.size, profileId);
+      if (id) {
+        state = await api.uploadStatus(id);
+        if (state.status === 'rejected') { localStorage.removeItem(key); id = null; }
+      }
+      if (!id) {
+        state = await api.createUpload(uploadFile.name, uploadFile.size, profileId, sameRigConfirmed);
         id = state.upload_id;
         localStorage.setItem(key, id);
       }
+      if (!state) throw new Error('上传会话未建立');
       while (state.offset < uploadFile.size) {
         const end = Math.min(state.offset + state.max_chunk_bytes, uploadFile.size);
         let succeeded = false;
@@ -164,6 +170,10 @@ export function NewJobPage() {
       const list = await api.getDatasets();
       setDatasets(list);
       setDataset(registered.dataset_id);
+      const lidar = registered.preflight.topics['/livox_mid360/livox/lidar'];
+      const imu = registered.preflight.topics['/livox_mid360/livox/imu'];
+      const asUtc = (ns?: number) => ns === undefined ? '?' : new Date(Math.floor(ns / 1_000_000)).toISOString();
+      setUploadResult(`${registered.duplicate_of ? '重复内容，已复用数据集' : 'CPU 预检通过，已注册数据集'} ${registered.dataset_id}。LiDAR ${lidar?.count ?? '?'} 条，IMU ${imu?.count ?? '?'} 条；LiDAR header ${asUtc(lidar?.first_header_ns)}–${asUtc(lidar?.last_header_ns)}，IMU header ${asUtc(imu?.first_header_ns)}–${asUtc(imu?.last_header_ns)}（UTC，毫秒精度）；检查点 ${registered.preflight.points_checked ?? '旧版预检仅抽样'}，无效点 ${registered.preflight.invalid_points ?? '未统计'}，空帧 ${registered.preflight.empty_frames ?? '未统计'}，最大逐点偏移 ${registered.preflight.max_point_offset_ns ?? '未统计'} ns。${registered.preflight.warnings?.join('；') ?? ''}`);
       localStorage.removeItem(key);
     } catch (e: unknown) {
       setError(messageOf(e));
@@ -231,12 +241,13 @@ export function NewJobPage() {
           <section className="form-section">
             <h3>① 选择数据集</h3>
             <div className="field">
-              <span className="field-label">上传已验证的 INS/Livox 原始 .bag</span>
+              <span className="field-label">上传 ROS1 bag v2 的 INS/Livox 数据</span>
               <input type="file" accept=".bag" onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)} />
-              <select value={profileId} onChange={(e) => setProfileId(e.target.value)}>{profiles.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
-              <span className="field-hint">{profiles.find((p) => p.id === profileId)?.calibration_note}</span>
-              <button className="btn btn-primary" disabled={!uploadFile || uploading || !profileId || uploadFile.size !== profiles.find((p) => p.id === profileId)?.size_bytes} onClick={() => void upload()}>{uploading ? `上传与预检中 ${uploadProgress}%` : '上传、预检并自动注册'}</button>
-              {uploadFile && uploadFile.size !== profiles.find((p) => p.id === profileId)?.size_bytes ? <span className="alert alert-error">文件大小与受控 profile 不符，不能注册。</span> : null}
+              <select value={profileId} onChange={(e) => { setProfileId(e.target.value); setSameRigConfirmed(false); setUploadResult(null); }}>{profiles.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+              <span className="field-hint">{profiles.find((p) => p.id === profileId)?.scope} {profiles.find((p) => p.id === profileId)?.calibration_note}</span>
+              {profileId === 'ins_livox_mid360_same_rig' ? <label><input type="checkbox" checked={sameRigConfirmed} onChange={(e) => setSameRigConfirmed(e.target.checked)} /> 我确认这是同一物理设备、安装和采集配置；标定仍待来源确认。</label> : null}
+              <button className="btn btn-primary" disabled={!uploadFile || uploading || !profileId || (profileId === 'ins_livox_mid360_same_rig' && !sameRigConfirmed) || (profiles.find((p) => p.id === profileId)?.size_bytes !== undefined ? uploadFile.size !== profiles.find((p) => p.id === profileId)?.size_bytes : uploadFile.size < 1 || uploadFile.size > (profiles.find((p) => p.id === profileId)?.max_size_bytes ?? 0))} onClick={() => void upload()}>{uploading ? `上传与预检中 ${uploadProgress}%` : '上传、预检并自动注册'}</button>
+              {uploadResult ? <div className="field-hint">{uploadResult} 预检仅确认结构与所选配置的运行条件，不代表算法成功或精度合格。</div> : null}
             </div>
             <div className="dataset-list">
               {datasets.map((ds) => (

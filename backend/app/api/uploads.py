@@ -12,6 +12,7 @@ class UploadCreate(BaseModel):
     filename: str
     size_bytes: int
     profile_id: str
+    attested_same_rig: bool = False
 
 
 @router.get("/profiles")
@@ -22,7 +23,7 @@ def profiles():
 @router.post("", status_code=201)
 def create(req: UploadCreate):
     try:
-        return service.create(req.filename, req.size_bytes, req.profile_id)
+        return service.create(req.filename, req.size_bytes, req.profile_id, req.attested_same_rig)
     except UploadError as exc:
         raise HTTPException(422, str(exc))
 

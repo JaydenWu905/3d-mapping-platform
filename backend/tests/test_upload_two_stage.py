@@ -43,7 +43,7 @@ class UploadTests(unittest.IsolatedAsyncioTestCase):
         self.config.mkdir(parents=True)
         self.template = self.config / "ins_longcorridor01.json"
         self.template.write_text(json.dumps({"id": "template", "pose": {"bag_path": "old"},
-            "input_manifest": {}, "files": {}, "integrity": {}}))
+            "surface": {}, "input_manifest": {}, "files": {}, "integrity": {}}))
         self.upload = UploadService(self.platform / "uploads", self.template)
         self.data = b"verified bag bytes"
         self.patches = [
@@ -104,6 +104,75 @@ class UploadTests(unittest.IsolatedAsyncioTestCase):
             await self.upload.finalize(state["upload_id"])
         self.assertEqual(self.upload.status(state["upload_id"])["status"], "uploading")
         self.assertEqual(list(self.config.glob("ins_upload_*.json")), [])
+
+    async def test_new_sequence_uses_observed_counts_and_deduplicates(self):
+        from app.services.upload_service import NEW_PROFILE_ID
+        novel = b"synthetic distinct content, not the legacy bag"
+        with self.assertRaisesRegex(UploadError, "Confirm the same physical device"):
+            self.upload.create("another.bag", len(novel), NEW_PROFILE_ID)
+        self.preflight_mock.return_value = {"bag_format": "ROS1 bag v2.0", "topics": {
+            "/livox_mid360/livox/lidar": {"count": 4, "first_header_ns": 100, "last_header_ns": 400},
+            "/livox_mid360/livox/imu": {"count": 10, "first_header_ns": 90, "last_header_ns": 420}},
+            "points_checked": 8, "warnings": []}
+        first = self.upload.create("another.bag", len(novel), NEW_PROFILE_ID, True)
+        await self._send(first["upload_id"], 0, novel)
+        result = await self.upload.finalize(first["upload_id"])
+        definition = json.loads((self.config / f"{result['dataset_id']}.json").read_text())
+        self.assertEqual(definition["input_manifest"]["bag_message_count"], 4)
+        self.assertEqual(definition["input_manifest"]["sequence_observed"]["imu"]["count"], 10)
+        self.assertEqual(definition["integrity"]["bag_size_bytes"], len(novel))
+        self.assertIsNone(definition["surface"]["integration_end_frame"])
+        self.assertEqual(definition["pose"]["bag_path"], f"platform/uploads/datasets/{result['dataset_id']}/source.bag")
+        from app.services.job_service import JobService
+        from backend.tests.test_glim_dataset_and_dispatch import FakeRegistry
+        source = self.platform / "uploads/datasets" / result["dataset_id"] / "source.bag"
+        dataset = SimpleNamespace(id=result["dataset_id"], execution="real", kind="external",
+            input_manifest=definition["input_manifest"], pose=definition["pose"],
+            runtime=definition["runtime"] if "runtime" in definition else {}, surface=definition["surface"],
+            files=definition["files"], source_file=lambda _: source)
+        service = JobService(self.platform / "jobs", SimpleNamespace(get=lambda _: dataset, validation_errors=lambda _: []))
+        job = await service.create_job(result["dataset_id"], {"pose": "glim", "surface": "mrhash_lidar"},
+                                       registry=FakeRegistry(), run_mode="full")
+        self.assertEqual((service.job_dir(job["job_id"]) / "input/source.bag").resolve(), source)
+        self.assertIsNone(job["run_scope"]["surface_end_frame"])
+        second = self.upload.create("duplicate.bag", len(novel), NEW_PROFILE_ID, True)
+        await self._send(second["upload_id"], 0, novel)
+        duplicate = await self.upload.finalize(second["upload_id"])
+        self.assertEqual(duplicate["duplicate_of"], result["dataset_id"])
+        self.assertEqual(len(list(self.config.glob("ins_upload_*.json"))), 1)
+
+    async def test_new_profile_limits_and_changed_config_block_registration(self):
+        from app.services.upload_service import NEW_PROFILE_ID, MAX_UPLOAD_BYTES
+        with self.assertRaisesRegex(UploadError, "size"):
+            self.upload.create("new.bag", MAX_UPLOAD_BYTES + 1, NEW_PROFILE_ID, True)
+        data = b"different synthetic bag"
+        state = self.upload.create("new.bag", len(data), NEW_PROFILE_ID, True)
+        await self._send(state["upload_id"], 0, data)
+        with patch.object(self.upload, "_sha256", side_effect=[hashlib.sha256(data).hexdigest(), "changed"]):
+            with self.assertRaisesRegex(UploadError, "profile changed"):
+                await self.upload.finalize(state["upload_id"])
+        self.assertEqual(list(self.config.glob("ins_upload_*.json")), [])
+
+    async def test_rejected_new_sequence_cannot_create_dataset(self):
+        from app.services.upload_service import NEW_PROFILE_ID
+        data = b"invalid synthetic bag"
+        state = self.upload.create("invalid.bag", len(data), NEW_PROFILE_ID, True)
+        await self._send(state["upload_id"], 0, data)
+        self.preflight_mock.side_effect = UploadError("Bag preflight failed: missing IMU")
+        with self.assertRaisesRegex(UploadError, "missing IMU"):
+            await self.upload.finalize(state["upload_id"])
+        self.assertEqual(self.upload.status(state["upload_id"])["status"], "rejected")
+        self.assertEqual(list(self.config.glob("ins_upload_*.json")), [])
+
+    def test_server_device_type_mismatch_is_not_accepted(self):
+        from app.services.upload_service import NEW_PROFILE_ID
+        config = json.loads(self.upload.device_config.read_text())
+        config["lidar_type"] = "sensor_msgs/msg/PointCloud2"
+        changed = self.platform / "wrong-device.json"
+        changed.write_text(json.dumps(config))
+        service = UploadService(self.platform / "uploads", self.template, changed)
+        with self.assertRaisesRegex(UploadError, "does not match"):
+            service.create("new.bag", 10, NEW_PROFILE_ID, True)
 
     def test_packaging_dependencies_are_declared_and_installed(self):
         import scipy

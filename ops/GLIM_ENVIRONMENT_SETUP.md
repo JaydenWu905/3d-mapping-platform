@@ -1,5 +1,7 @@
 # GLIM 运行环境准备（2026-10-15，CPU 验证）
 
+> 历史安装记录：下文的“当前”和“尚未完成”只代表记录当时。原 INS 样本后续已完成真实 Pose→Surface 工程验收；新序列入口只有 CPU 验证。当前范围见[README](../README.md)和[新序列上传说明](../docs/livox-new-sequence-upload.md)。本记录不证明新机器环境重建。
+
 ## 选择与安装
 
 本机 Ubuntu 22.04.5 对应 ROS2 Humble。交接包 `../GLIM_Handoff_INS_20261003/docs/environment.txt` 记录成功环境为 GLIM 1.2.2 CUDA 12.6、GTSAM 4.3、gtsam_points 1.2.2；因此选择作者的 Jammy CUDA 12.6 二进制包。选择依据是交接的已运行版本、系统版本和仓库候选版本，不是 `nvidia-smi` 的 CUDA 字样。本机 `/usr/local/cuda` 仍指向 12.8；没有改动它、NVIDIA 驱动或 MrHash Pixi 环境。

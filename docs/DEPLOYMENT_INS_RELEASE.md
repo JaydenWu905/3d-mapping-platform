@@ -1,5 +1,7 @@
 # INS 两阶段已验收版本：统一部署与恢复说明
 
+> 本文冻结记录 `ins-two-stage-20261015` 发布 tag 的固定样本范围及当时环境，不是当前功能分支新序列入口的验收报告。当前入口见[项目 README](../README.md)和[新序列上传说明](livox-new-sequence-upload.md)；独立 MrHash 源码的发布状态见[外部依赖说明](MRHASH_DEPENDENCY.md)。
+
 版本标识 `ins-two-stage-20261015`。本文是当前部署的统一入口，历史安装记录中的“CPU-only / GPU 未验证 / 人工点击待验收”描述仅代表当时现场。完整一键基线为 `job_1792068244_bb9c22`，关联[工程验收报告](job_1792068244_bb9c22-ins-full-one-click-acceptance.md)。本次保存版本只检查、记录和创建本地 Git 提交，不运行 GLIM/MrHash、不安装或重建算法环境。
 
 ## 1. 版本和仓库边界

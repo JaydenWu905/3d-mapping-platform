@@ -37,4 +37,5 @@ Thumbs.db
 runtime/
 ops/glim_install_logs/
 ops/*.local.env
+ops/glim-runtime.env
 ops/releases/*/verification.local.json

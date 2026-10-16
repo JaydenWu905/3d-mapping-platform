@@ -1,334 +1,49 @@
-> 当前已验收版本的保存、恢复与迁移统一入口：[INS 两阶段部署说明](docs/DEPLOYMENT_INS_RELEASE.md)。精确依赖与验收绑定见 `ops/releases/ins-two-stage-20261015/`。
+# 三模块三维建图平台
 
-# 三模块三维建图系统
+网页创建任务、查看进度与产物；后端按 **Pose → Surface → Distance/ESDF** 调度。当前真实 INS/Livox 链路已接通 Pose（GLIM）和 Surface（MrHash-LiDAR），同一个 Job 会先运行 GLIM、保存新轨迹、按时间关联准备 Surface 输入，再运行 MrHash。真实 Distance/ESDF 尚未接入，真实 Job 在 Surface 完成后结束。`demo_room` 的三阶段均为演示 Runner；Oxford 路径导入已注册 Pose 后运行 MrHash，不会为 Oxford 启动 GLIM。MrHash RGB-D 接口已登记但运行入口禁用。
 
-三维建图平台：**位姿估计（Pose/SLAM）→ 稠密建面（Surface）→ 距离场（ESDF）** 三阶段流水线的
-**网页展示 + 轻量调度** 框架。
+## 当前支持范围
 
-当前部署的真实 INS/Livox 链路按 **Pose → Surface 两阶段**运行；Distance/ESDF 显示“未接入”，
-不参与真实 Job 的完成判定。`demo_room` 仍保留三阶段 Run All。
+| 入口 | 数据与用途 | 状态 |
+|---|---|---|
+| `ins_livox_mid360_verified_bag` | 固定 INS 原样本；大小和 SHA-256 均固定 | 真实完整 Pose→Surface 浏览器一键工程验收通过 |
+| `ins_livox_mid360_same_rig` | 同一物理 MID-360、IMU、安装、固件和采集配置的新序列 | 上传、流式 CPU 预检、动态注册已实现并经合成 bag 测试；真实新采集序列端到端未验收 |
 
-平台同时支持两类执行路径：`demo_room` 使用 Mock Runner 演示完整三阶段；注册的 Oxford
-LiDAR 数据使用真实子进程链路，执行
-`registered_pose_import → Surface input preparation → MrHash-LiDAR`。其中 Pose backend
-只验证并导入数据集已注册的预计算 Pose，**不是本次运行 GLIM**。真实 **GLIM** Pose backend
-已接入：注册的 LiDAR+IMU 数据集可以直接创建 GLIM Pose Job，由后端启动 GLIM（ROS2）+ ROS1
-Livox bridge，产出 canonical `stage1_pose/poses.txt`，并可交给 MrHash Surface。H3-Mapping 和
-真实 ESDF Runner 尚未接入。MrHash RGB-D 官方入口已经确认，平台侧接口和校验框架已经准备，
-但运行时映射仍为 disabled / Not Ready。
+两种入口均只接收单个 **ROS1 bag v2.0 `.bag`**：LiDAR 话题 `/livox_mid360/livox/lidar`，类型 `livox_ros_driver2/msg/CustomMsg`；IMU 话题 `/livox_mid360/livox/imu`，类型 `sensor_msgs/msg/Imu`。同消息格式不能证明同设备或同标定。新序列入口要求用户确认设备来源；服务器保管设备 profile，不接收用户脚本、路径或算法配置。当前外参和 IMU 单位来自交接配置，**原始依据待确认**。CPU 预检通过只表明输入结构和所选配置符合运行前提，不代表算法成功或精度合格。其他雷达、ROS2 bag、RGB-D 不在该上传入口。
 
----
+字段、时间语义、限制、阻断条件和 API 见[新序列上传说明](docs/livox-new-sequence-upload.md)；CPU 测试和真实验收边界见[验证记录](docs/livox-new-sequence-cpu-validation.md)。原固定样本的完整工程验收见[历史报告](docs/job_1792068244_bb9c22-ins-full-one-click-acceptance.md)。该报告只证明原样本，不证明新采集序列。
 
-## 一、架构总览
+## 部署与使用
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  前端 (React + TS + Vite)    端口 5173                       │
-│  ┌──────────┐  ┌──────────────┐  ┌────────────────────────┐ │
-│  │ 任务列表  │→│ 新建任务      │→│ 任务详情 3D 预览        │ │
-│  └──────────┘  │ 选择算法      │  │ ① 位姿轨迹  ② 网格  ③ ESDF │
-│                └──────────────┘  └────────────────────────┘ │
-│  所有查看器按“阶段键 → 查看器”固定映射，前端不认识任何算法名 │
-└──────────────────────┬──────────────────────────────────────┘
-        REST + SSE（/api 代理）
-┌──────────────────────┴──────────────────────────────────────┐
-│  后端 (FastAPI)      127.0.0.1:8000                          │
-│  ┌──────────────────┐  ┌──────────────────────────────────┐  │
-│  │ 调度器            │  │ Mock / 真实子进程 Runner         │  │
-│  │ 阶段状态机        │  │ 生成 trajectory.json / *.glb /   │  │
-│  │ 取消/重跑/失败    │  │ 切片 png / gradient.json / manifest │  │
-│  └──────────────────┘  └──────────────────────────────────┘  │
-└──────────────────────┬──────────────────────────────────────┘
-                jobs/（JSON + 文件，刷新后状态可恢复）
-```
+真实链路需要 Linux、Node.js、平台 Python 环境、ROS2 Humble/GLIM、独立的 ROS1 bag 桥接 Python 环境、CUDA/GPU，以及**单独取得并构建**的 MrHash 仓库与 Pixi 环境。仅克隆本平台不能完整运行真实链路。已部署主机的版本、环境和恢复限制见[INS 发布记录](docs/DEPLOYMENT_INS_RELEASE.md)；其中固定样本支持范围是 **2026-10-15 发布 tag 的历史记录**。当前功能分支的新入口以本 README 和[上传说明](docs/livox-new-sequence-upload.md)为准。GLIM/桥接配置说明见[环境文档](ops/GLIM_ENVIRONMENT_SETUP.md)，MrHash 源码、子模块与未解决的扩展来源问题见[外部依赖说明](docs/MRHASH_DEPENDENCY.md)。新机器完整重建尚未验证。
 
-### 三条架构红线（约束，已落实为代码事实）
-
-| 红线 | 落实方式 |
-|---|---|
-| 前端不执行 shell、不理解 Conda/Pixi/ROS、不硬编码算法路径 | 前端只用 `api.ts` 发 HTTP；查看器只认 `artifact_id`，不做 `backend === 'GLIM'` 之类分支 |
-| 不针对每个算法复制页面 | 阶段键 → 查看器是**固定映射**（pose→轨迹、surface→网格、distance→切面） |
-| 严禁任意文件路径下载 / 路径穿越 | 取文件一律 `artifact_id`；后端三步校验见 *安全模型* |
-
----
-
-## 二、目录结构
-
-```
-3d-mapping-platform/
-├── backend/
-│   ├── app/
-│   │   ├── main.py            # FastAPI 入口（/api）
-│   │   ├── api/               # 路由：jobs / stages / previews / artifacts / events
-│   │   ├── models/            # Pydantic 模型
-│   │   └── services/          # 调度器、Mock/子进程 Runner、磁盘状态
-│   ├── config/                # backend 与服务器受控 dataset 注册信息
-│   ├── scripts/               # Mock/真实算法子进程入口与适配器
-│   ├── requirements.txt
-│   ├── run_backend.bat        # 一键启动后端（自动建 venv）
-│   └── ...
-├── frontend/
-│   ├── src/
-│   │   ├── api/api.ts         # 全部 HTTP 入口（URL 只由 artifact_id 构造）
-│   │   ├── types/index.ts     # 与后端模型一一对应的类型 + SSE 事件
-│   │   ├── hooks/useJob.ts    # REST 全量 + EventSource 增量
-│   │   ├── components/        # StageCard / PipelineView / LogViewer / ArtifactsPanel…
-│   │   ├── viewers/           # TrajectoryViewer / MeshViewer / EsdfViewer
-│   │   ├── pages/             # JobsPage / NewJobPage / JobDetailPage
-│   │   └── styles.css
-│   ├── run_frontend.bat       # 一键启动前端
-│   └── ...
-├── docs/                      # 阶段间版本化接口文档
-├── jobs/                      # 运行时数据；被 Git 忽略
-└── README.md
-```
-
----
-
-## 三、启动方式
-
-**后端**（终端 A）：
-
-```bat
-cd backend
-run_backend.bat
-```
-首次运行会创建 `.venv` 并 `pip install -r requirements.txt`，然后监听 `http://127.0.0.1:8000`。
-
-**前端**（终端 B）：
-
-```bat
-cd frontend
-run_frontend.bat
-```
-首次运行 `npm install`，然后打开 `http://localhost:5173`。
-
-`demo_room` 只需平台 Python 与 Node.js。真实 Oxford → MrHash-LiDAR 还要求服务器已注册数据、
-可用的 MrHash/Pixi 环境以及算法所需的 ROS/CUDA 依赖；这些依赖始终与 FastAPI 环境隔离。
-
-本 Linux 部署使用 `ops/platform.sh start|status|stop|logs`，后端监听 `127.0.0.1:8000`，
-前端监听 `127.0.0.1:5173`。后端 venv 安装 `backend/requirements.txt`，其中
-`scipy>=1.13,<2` 与 `fast-simplification>=0.2.0` 是 Surface GLB 自动封装依赖。
-首次部署先执行 `backend/.venv/bin/pip install -r backend/requirements.txt` 和
-`cd frontend && npm install`，再从仓库根目录执行 `ops/platform.sh start`。
-GLIM 及桥接环境配置见 `ops/GLIM_ENVIRONMENT_SETUP.md`；不要把 ROS 环境变量注入
-FastAPI 进程。
-
----
-
-## 四、操作流程
-
-### Mock demo
-
-1. **新建任务**：进入首页 → “新建任务” → 选数据集 `demo_room` → 三个阶段各选一个算法
-   （全部都是演示算法，任意组合均可）→ 创建。
-2. **Run All**：任务详情页点击 **▶ Run All**，观察左侧三张卡片依次经历
-   `等待 → 运行中 → 完成`；每张卡片实时显示 **阶段进度 / current+total / 耗时 / 日志流**。
-3. **① 位姿轨迹**：Pose 完成后选中该阶段，右侧 3D 视角出现轨迹线（蓝）＋朝向短线（黄）＋
-   起点/终点（绿/红），支持拖拽旋转、滚轮缩放、右键平移。
-4. **② 表面网格**：Surface 完成后选中该阶段，出现 GLB 网格，查看器支持旋转/缩放/平移。
-5. **③ 距离场**：Distance 完成后选中该阶段，有 XY / XZ / YZ 三个切面 Tab，每个切面可叠加
-   三种图层：**距离场底图 / 可观测区域 / 梯度箭头**，页面底部 `±` 滑块调节切片索引。
-6. **产物下载**：展开阶段右侧“产物与指标”面板。**只有 `download=true` 的产物可下载**
-   （原始轨迹、切片压缩包）；仅预览类文件（网格、切面）只有预览入口。
-7. **故障演示**：新建任务时选 `模拟失败阶段 = surface`，Run All 后 Surface 以
-   “Simulated failure (demo)” 失败，后续 Distance 停在下游不再启动——展示失败隔离。
-8. **取消 / 重跑**：任一阶段运行中点“取消”，状态走 `取消中 → 已取消`，下游不受影响；
-   已取消 / 已失败阶段可点“↻ 重跑”。
-9. **刷新恢复**：任务运行途中或完成后刷新浏览器，状态从磁盘完整恢复（任务、阶段、
-   产物、日志全部在 `jobs/` 下）。
-
-### Oxford → MrHash-LiDAR
-
-1. 在新建任务页选择 `oxford_mrhash_lidar`。页面会限制组合为 Pose
-   `registered_pose_import` 和 Surface `mrhash_lidar`；RGB-D Surface backend 不可选。
-2. 创建 Job 后点击 **运行 Pose → Surface**。平台依次验证并导入已注册 Pose、生成
-   `stage2_surface/input/surface_input_manifest.json`、再次校验输入并启动 MrHash-LiDAR。
-3. 真实 Job 的 Pose 范围与 Surface 范围分别由受控数据集配置决定；Oxford 当前使用注册的
-   Pose 与可关联的完整 Surface 范围。全局 demo 开关仅保留给演示路径。
-4. Surface 完成后真实 Job 进入 `completed`；Distance 显示“未接入”。
-
-### 已验证 INS/Livox bag 上传与工程验收
-
-1. 打开 `http://127.0.0.1:5173` → **新建任务**，选择单个原始 `.bag` 文件与
-   `INS / Livox MID-360 已验证原始 bag` profile，点击 **上传、预检并自动注册**。
-   当前受控 profile 只接受大小为 17,125,894,059 字节且 SHA-256 为
-   `b7a0e7b20e8f447ff6f49be9470b812ded678e28d96f943f7f9b97fd40250c7f` 的
-   这份原始 bag。断线后重新选择同一文件，页面按服务端 offset 续传；文件校验、topic/
-   消息类型/数量与必需字段预检通过后才会出现在数据集列表。
-2. 选择自动注册的数据集与运行范围，再点击 **创建并一键运行**。
-   **完整运行**新运行完整 GLIM，再自动使用本 Job 新轨迹执行整份 bag 的 Surface；
-   **短段验证**新运行完整 GLIM，Surface 使用原始第 1–100 帧，沿用已验证策略。
-   两者保持 98% 时间关联门限和算法参数，自动登记 mesh/voxel/hash/GLB 与下载；
-   GPU 由跨 Job 文件锁串行调度。范围选择持久化至新 Job，不修改已有基线。
-   已验证 INS profile 的完整浏览器一键工程验收见
-   [完整两阶段验收报告](docs/job_1792068244_bb9c22-ins-full-one-click-acceptance.md)。
-3. 在任务详情页查看各阶段进度、日志、选中/关联/融合/跳过数量与产物。
-   前 100 帧 Surface 只属于工程验收范围，不能代表完整场景重建或精度验收。
-   外参与 IMU 加速度比例来自交接配置，原始标定及单位依据待负责人确认。
-
----
-
-## 五、安全模型（文件下载守则）
-
-后端取文件走**唯一合法通道**：`/api/jobs/{job}/stages/{stage}/previews/{artifact_id}` 与
-`.../artifacts/{artifact_id}`。每一步都在服务端校验：
-
-1. 从该阶段的 `result_manifest.json` 中按 `artifact_id` 取 `path`；
-2. 校验访问方式（`preview` role 才能走 preview 路由；下载必须显式 `download=true`，可支持
-   `data` 或 `trajectory` 等已登记 role）；
-3. 把解析后的绝对路径与作业/阶段目录比对，**不位于该目录内一律拒绝**（`../`、URL 编码、
-   绝对路径等穿越尝试统一 404）。
-
-前端不提交任何路径；展示用的服务器路径仅作说明。
-
----
-
-## 六、数据 / 状态模型
-
-```
-jobs/<job_id>/
-├── job.json                # 任务元数据 + 每个阶段的 backend/status/can_run 等
-├── stage1_pose/progress.json      # 阶段运行中：phase / progress / current+total / message
-├── stage1_pose/result_manifest.json  # 阶段完成：状态/耗时/指标/metrics/artifacts[]
-├── stage1_pose/trajectory_preview.json # 预览文件（trajectory_model）
-├── stage1_pose/poses.txt          # download=true 的导入 Pose 原件
-├── stage2_surface/input/surface_input_manifest.json # Pose→Surface 标准输入
-├── stage2_surface/result_manifest.json              # Surface 标准结果
-├── stage2_surface/preview/surface_model.glb          # 浏览器简化预览
-├── stage2_surface/runs/<run_id>/                     # 配置及完整 PLY；运行时数据
-└── stage3_esdf/                   # Distance 阶段目录
-```
-
-- 阶段成功后**先写盘再发 SSE `stage.result`**，前端收到后 REST 全量刷新 → 浏览器刷新
-  在任何时刻都能从磁盘恢复。
-- SSE 连接断开由浏览器自动重连，重连后后端会补发全量 `snapshot` 帧。
-- 状态机：`waiting → running → cancelling → cancelled` / `running → completed` /
-  `running → failed`；下游阶段受上游完成状态门控。
-
----
-
-## 七、真实算法接入契约
-
-演示数据继续使用 Mock Runner。已注册的真实数据由后端调度器以**子进程方式**调用阶段脚本；
-算法通过以下统一 CLI 契约接入：
+在已具备上述外部依赖的服务器上，从仓库根目录准备平台服务：
 
 ```bash
-backend/scripts/run_pose.sh    --job-dir <JOB_DIR> --backend <backend_id> --mode demo|full
-backend/scripts/run_surface.sh --job-dir <JOB_DIR> --backend <backend_id> --mode demo|full
-backend/scripts/run_esdf.sh    --job-dir <JOB_DIR> --backend <backend_id> --mode demo|full
+python3.12 -m venv backend/.venv
+backend/.venv/bin/pip install -r backend/requirements.txt
+cd frontend && npm ci && cd ..
+test -e ops/glim-runtime.env || cp ops/templates/glim-runtime.env.example ops/glim-runtime.env
+# 按本机实际路径编辑 ops/glim-runtime.env，并核对 GLIM/bridge/MrHash 安装
+ops/platform.sh start
+ops/platform.sh status
+curl http://127.0.0.1:8000/api/health
 ```
 
-脚本责任：
+`ops/glim-runtime.env` 是本机配置，不纳入发布；公开模板不包含可运行环境。`ops/platform.sh` 仅在 `127.0.0.1` 启动后端 8000 和前端 5173。远程访问使用已有 SSH 账户转发：
 
-- **从标准输入/约定文件接收输入数据**（上一阶段的产物路径）；
-- **写进度**：把 `{phase, progress, current, total, unit, message}` 写入实际阶段目录
-  `stage1_pose/`、`stage2_surface/` 或 `stage3_esdf/`；
-- **成功**：把产物写入对应实际阶段目录（`stage1_pose/`、`stage2_surface/`、
-  `stage3_esdf/`），并在该目录的 `result_manifest.json` 中登记 `artifacts`（`artifact_id`、
-   `role`、`content_type`、`download`，以及 metrics）；
-- **退出码**：0=成功，非 0=失败（调度器把退出码写入状态并停止下游）；
-- `--mode full` 时算法可加载自有环境（容器/Conda 等），但**后端代码本身不 import
-   任何算法 Python 包**，算法环境与平台环境隔离。
+```bash
+ssh -N -L 5173:127.0.0.1:5173 -p <SSH_PORT> <SSH_USER>@<SSH_HOST>
+```
 
-`run_pose.sh` 已支持 `registered_pose_import` 与 `glim`；`run_surface.sh` 当前唯一可运行的真实
-backend 是 `mrhash_lidar`。`mrhash_rgbd` 仅注册用于接口校验并保持 disabled；`run_esdf.sh` 和其他
-尚未接入的真实 backend 会明确拒绝运行。
+然后打开 `http://127.0.0.1:5173/` → **新建任务**：
 
-### GLIM Pose backend
+1. 选择固定样本或同设备新序列 profile，上传 `.bag`；新序列还需确认来源。分块上传支持续传，预检结果显示实际消息数、时间范围和异常原因。已有已注册数据集可直接选择。
+2. 预检通过后选择数据集和 **完整运行** 或 **短段验证**，点击 **创建并一键运行**。两种模式均对本次整包新运行 GLIM；完整模式让 Surface 处理本次整包，短段模式只让 Surface 处理原始第 1–100 帧。新序列较长时仍可能受 Pose 1200 秒超时限制。
+3. 在 Job 页查看进度、时间关联和融合统计、日志与产物。原生 PLY Mesh 可下载；网页展示的是按面数阈值简化后的 GLB 预览，不能用它替代原生网格做几何质量判断。
 
-`real dataset → GLIM Pose Job → runner 启动 GLIM → canonical Pose artifact → Surface 校验` 的
-完整链路、数据集 schema、时间戳归一化规则（native sensor clock ↔ MrHash bag record clock）、
-GLIM 全局锁与进程生命周期、以及本地/AutoDL 运行与测试方法见
-[docs/glim-pose-integration.md](docs/glim-pose-integration.md)。契约文件：
-[Pose 阶段契约](docs/pose-stage-contract.md)、
-[Pose 时间戳契约](docs/pose-timestamp-contract.md)、
-[INS dataset profile](docs/ins-glim-dataset-profile.md)、
-[GLIM 集成验收标准](docs/glim-integration-acceptance.md)。
+部署命令、受控配置、SSH、产物、恢复和已验收资源数据详见[INS 发布记录](docs/DEPLOYMENT_INS_RELEASE.md)。上传 API 和字段见[新序列上传说明](docs/livox-new-sequence-upload.md)。运行数据、上传文件、Job 产物、环境及编译文件均留在服务器，不随源码发布。
 
-当前部署已完成受控 INS bag/profile 的真实 GLIM 与完整 Pose→Surface 浏览器一键工程验收。
-此结论仅适用于已验证 INS profile，不表示任意 bag 兼容或建图精度通过；外参和 IMU 单位依据仍待确认。
-详见[本次验收报告](docs/job_1792068244_bb9c22-ins-full-one-click-acceptance.md)。
+## 验收边界
 
-### Oxford → MrHash-LiDAR
-
-`oxford_mrhash_lidar` 是服务器端注册的真实数据集。浏览器只提交数据集 id；bag 和
-`poses.txt` 的位置、大小及 SHA-256 由 `backend/config/datasets/` 控制。创建 Job
-只建立服务器端符号链接，不复制大 bag，也不接受浏览器提供文件路径。
-
-一次 Run All 会自动调用 `registered_pose_import`。它校验八列格式、严格递增时间戳、有限数值、
-单位四元数及注册数据完整性，并写入
-`stage1_pose/`。该 `poses.txt` 第一列是 MrHash Ros1Reader 使用的 ROS bag record
-timestamp lookup key；后七列是按物理 LiDAR first-point 时间匹配原始 GLIM trajectory
-得到的 `T_world_lidar`，两列时间不是同一时间基准。
-
-Pose 完成后，调度器自动准备并验证 Surface 输入，再启动 MrHash。`demo` 模式在真实数据集上
-表示真实小规模 smoke run，不是预制输出；`full` 使用全部可关联帧。
-完整 PLY、voxel field、hash points 和本次配置保存在 Job 内；`surface_model` 是明确标注的
-简化 GLB 预览。接口细节见 `docs/surface-input-manifest-v1.md`，Surface 到 Distance 的讨论草案
-见 `docs/surface-to-distance-manifest-v0.md`。
-
-### MrHash RGB-D 接口（provisional / Not Ready）
-
-平台已注册 disabled 状态的 `mrhash_rgbd` backend。它的 backend 输入 modalities 为
-`rgb / depth / camera_pose`，兼容层将其对应到 dataset modalities `rgb / depth / pose`。
-该 backend 不允许用户选择或启动；注册此接口不代表真实 RGB-D 算法已经接通或验收。
-
-目前已经准备并通过测试的内容包括：标准 Surface 输入 manifest、sequence index、规范化的
-`T_world_camera` trajectory 语义、provisional `T_depth_rgb` 外参、depth scale 语义、artifact
-size/SHA-256 与路径完整性校验、modality/backend compatibility，以及 validate-only adapter。
-
-启用 backend 前仍需完成：
-
-- 注册真实交接数据并完成字段映射；
-- 按 sequence index 顺序将标准 trajectory JSON 转换为 MrHash 原生 `traj.txt`；
-- 事务性生成 stage-local 的原生 `results/*.jpg`、`results/*.png` 和 `traj.txt` 布局，且不修改源文件；
-- 由平台启动已确认的 `rgbd_runner.py` 入口；
-- 根据实际输出识别并登记真实产物与预览；
-- 完成真实 RGB-D smoke/full 验收后再启用 backend。
-
-相关接口文档：
-
-- [MrHash RGB-D 接口](docs/mrhash-rgbd-interface.md)
-- [Surface Input Manifest v1](docs/surface-input-manifest-v1.md)
-- [Surface → Distance Manifest v0 草案](docs/surface-to-distance-manifest-v0.md)
-
-### 当前集成状态
-
-| 能力 | 状态 |
-|---|---|
-| Registered Pose Import | 已实现并验证；验证并导入预计算 Pose，不运行 SLAM |
-| Pose → Surface v1 | LiDAR confirmed；RGB-D 契约与校验为 provisional，待真实数据验收 |
-| MrHash-LiDAR | 已接入；真实子进程 smoke/full verified |
-| MrHash RGB-D interface | 已准备且测试通过；契约仍为 provisional |
-| MrHash RGB-D runtime | 未接入；backend disabled / Not Ready，不可启动 |
-| Real GLIM runner | 已接入（ROS2 子进程 + ROS1 Livox bridge + 时间戳归一化 + 全局锁）；Oxford 仍使用 Registered Pose Import。受控 INS profile 完整浏览器 Pose→Surface 一键工程验收通过；其他 profile 与建图精度未验收 |
-| H3-Mapping | 未接入 |
-| Distance/ESDF | 未接入；当前只有 Surface → Distance v0 draft |
-| 分布式服务器部署 | 未实施；阶段契约使用受控引用，不要求浏览器提供同机绝对路径 |
-
----
-
-## 八、未实现清单
-
-以下内容**未实现**，也不会伪装成已完成：
-
-- 其他 bag/profile 的完整流程验证与建图精度验收；Oxford 当前只导入数据集注册的预计算 Pose；
-- MrHash RGB-D runtime、H3-Mapping 及真实 ESDF/Distance runner；
-- MrHash RGB-D 原生输入布局生成、runtime 启动、真实产物接入及真实数据 smoke/full 验收；
-- 除已接入 MrHash 的 Pixi 子进程环境外，其他算法环境管理；
-- 3D 体素场体渲染（当前是三个正交切面切片）；
-- 任务持久化到数据库（当前为本地 JSON/文件，满足“刷新恢复”要求）；
-- 多用户 / 登录鉴权 / 配额；
-- 分布式调度（Redis/Celery/K8s）；
-- 远程服务器（SSH/AutoDL）运行。
-
-## 九、技术栈
-
-| 层 | 选型 |
-|---|---|
-| 前端 | React 18 · TypeScript · Vite 5 · react-router |
-| 3D | three.js · @react-three/fiber · @react-three/drei |
-| 后端 | Python 3 · FastAPI · uvicorn |
-| 存储 | 本地 JSON + 文件系统 |
-| 实时 | Server-Sent Events（SSE） |
+原 INS 样本的完整 GLIM→MrHash 工程运行、页面与原生/预览产物已验收；新序列仅完成代码和 CPU 验证。要验收真实新采集数据，还需有来源明确且能确认同设备、同安装、同采集配置及标定适用性的独立 bag，再单独运行并检查 Pose 时间关联、Surface 帧统计、产物和精度。重传、改名、截取或重打包原样本以及合成 bag 都不能替代该验收。第三模块、任意设备兼容、建图精度和新机器环境重建均未验收。

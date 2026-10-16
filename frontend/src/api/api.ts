@@ -61,10 +61,10 @@ export const api = {
     request<{ status: string }>(`${jobUrl(jobId)}/run-all`, { method: 'POST' }),
   runPlanned: (jobId: string) =>
     request<{ status: string }>(`${jobUrl(jobId)}/run-planned`, { method: 'POST' }),
-  uploadProfiles: () => request<Array<{ id: string; name: string; size_bytes: number; calibration_note: string }>>('/uploads/profiles'),
-  createUpload: (filename: string, size_bytes: number, profile_id: string) =>
+  uploadProfiles: () => request<Array<{ id: string; name: string; size_bytes?: number; max_size_bytes?: number; scope?: string; calibration_note: string }>>('/uploads/profiles'),
+  createUpload: (filename: string, size_bytes: number, profile_id: string, attested_same_rig: boolean) =>
     request<{ upload_id: string; offset: number; max_chunk_bytes: number }>('/uploads', {
-      method: 'POST', body: JSON.stringify({ filename, size_bytes, profile_id }),
+      method: 'POST', body: JSON.stringify({ filename, size_bytes, profile_id, attested_same_rig }),
     }),
   uploadStatus: (id: string) => request<{ upload_id: string; offset: number; status: string; dataset_id?: string; max_chunk_bytes: number }>(`/uploads/${encodeURIComponent(id)}`),
   uploadChunk: async (id: string, offset: number, blob: Blob): Promise<void> => {
@@ -75,7 +75,7 @@ export const api = {
     });
     if (!res.ok) throw new Error(`上传分块失败：${res.status} ${await res.text()}`);
   },
-  finalizeUpload: (id: string) => request<{ dataset_id: string; preflight: Record<string, unknown> }>(`/uploads/${encodeURIComponent(id)}/finalize`, { method: 'POST' }),
+  finalizeUpload: (id: string) => request<{ dataset_id: string; duplicate_of?: string; preflight: { topics: Record<string, { count: number; first_header_ns?: number; last_header_ns?: number }>; warnings?: string[]; points_checked?: number; max_point_offset_ns?: number; invalid_points?: number; empty_frames?: number } }>(`/uploads/${encodeURIComponent(id)}/finalize`, { method: 'POST' }),
   startStage: (jobId: string, stage: string) =>
     request<{ status: string }>(`${stageUrl(jobId, stage)}/start`, { method: 'POST' }),
   cancelStage: (jobId: string, stage: string) =>
