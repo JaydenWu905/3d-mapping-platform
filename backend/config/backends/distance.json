@@ -8,7 +8,7 @@
       "status": "ready",
       "input_modalities": ["surface_mesh", "camera_pose"],
       "preview_types": ["slices", "gradient"],
-      "description": "Mock demo backend only; no real Distance runner is integrated yet.",
+      "description": "Voxblox-based offline ESDF generation from MrHash voxel points, with Dijkstra wavefront propagation up to 2.5m.",
       "home_url": ""
     },
     {

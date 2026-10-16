@@ -38,8 +38,13 @@ async def list_jobs(request: Request) -> list[dict[str, Any]]:
     jobs: JobService = request.app.state.jobs
     registry = get_registry()
     return [
-        {k: j.get(k) for k in ("job_id", "created_at", "status", "dataset", "preview_job")}
-        | {"stages": {s: jobs.stage_detail(j, s, registry, collect_backend_labels(registry))["status"] for s in j.get("stages", {})}}
+        {
+            **{k: j.get(k) for k in ("job_id", "created_at", "status", "dataset", "preview_job")},
+            **{"stages": {
+                s: jobs.stage_detail(j, s, registry, collect_backend_labels(registry))["status"]
+                for s in j.get("stages", {})
+            }},
+        }
         for j in jobs.list_jobs()
     ]
 
