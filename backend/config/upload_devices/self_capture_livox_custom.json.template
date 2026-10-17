@@ -1,0 +1,47 @@
+{
+  "schema_version": 2,
+  "id": "my_livox_rig",
+  "version": "1.0.0",
+  "enabled": false,
+  "name": "自采 Livox CustomMsg 设备（填写后启用）",
+  "scope": "仅用于所记录的设备、安装和采集设置",
+  "attestation_required": true,
+  "attestation_label": "我确认本次 bag 使用这套设备、IMU 和标定",
+  "sensor": {
+    "bag_format": "ROS1 bag v2.0",
+    "lidar": {"topic": "/my_rig/livox/lidar", "message_type": "livox_ros_driver2/msg/CustomMsg", "frame_id": "my_lidar_frame"},
+    "imu": {"topic": "/my_rig/imu", "message_type": "sensor_msgs/msg/Imu", "frame_id": "my_imu_frame"}
+  },
+  "calibration": {
+    "T_lidar_imu": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0],
+    "transform_direction": "T_lidar_imu",
+    "translation_unit": "meter",
+    "quaternion_order": "qx qy qz qw",
+    "imu_acceleration_input_unit": "m/s^2",
+    "status": "示例值，尚未标定",
+    "source": "填写标定报告、测量日期和负责人"
+  },
+  "capture": {
+    "lidar_header_clock": "physical LiDAR sensor timestamp",
+    "imu_header_clock": "physical IMU sensor timestamp",
+    "point_offset_unit": "nanosecond relative to LiDAR header stamp",
+    "bag_record_clock": "ROS bag record timestamp",
+    "imu_selection": "填写实际使用的 IMU 型号和安装位置"
+  },
+  "preflight": {
+    "max_point_offset_ns": 1000000000,
+    "warn_point_offset_ns": 200000000,
+    "max_timebase_header_delta_ns": 50000000,
+    "min_range_m": 0.2,
+    "max_range_m": 100.0
+  },
+  "algorithms": {
+    "glim": {"acc_scale": 1.0, "perpoint_relative_time": true, "perpoint_time_scale": 1e-9, "config_preset": "ins_default"},
+    "mrhash": {"profile_id": "ins_livox_mid360_custom", "reader_format": "livox_custom", "reference_config": "ins_livox_mid360.cfg"}
+  },
+  "camera": {
+    "rgb_consumed_by_current_pipeline": false,
+    "depth_consumed_by_current_pipeline": false,
+    "note": "仅记录相机信息；当前 GLIM Pose 和 MrHash LiDAR Surface 不读取 RGB 或深度。"
+  }
+}

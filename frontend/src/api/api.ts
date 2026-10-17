@@ -75,7 +75,7 @@ export const api = {
     });
     if (!res.ok) throw new Error(`上传分块失败：${res.status} ${await res.text()}`);
   },
-  finalizeUpload: (id: string) => request<{ dataset_id: string; duplicate_of?: string; preflight: { topics: Record<string, { count: number; first_header_ns?: number; last_header_ns?: number }>; warnings?: string[]; points_checked?: number; max_point_offset_ns?: number; invalid_points?: number; empty_frames?: number } }>(`/uploads/${encodeURIComponent(id)}/finalize`, { method: 'POST' }),
+  finalizeUpload: (id: string) => request<{ dataset_id: string; duplicate_of?: string; lidar_topic: string; imu_topic: string; preflight: { topics: Record<string, { count: number; first_header_ns?: number; last_header_ns?: number }>; warnings?: string[]; points_checked?: number; max_point_offset_ns?: number; invalid_points?: number; empty_frames?: number } }>(`/uploads/${encodeURIComponent(id)}/finalize`, { method: 'POST' }),
   startStage: (jobId: string, stage: string) =>
     request<{ status: string }>(`${stageUrl(jobId, stage)}/start`, { method: 'POST' }),
   cancelStage: (jobId: string, stage: string) =>

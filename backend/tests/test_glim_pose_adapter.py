@@ -234,6 +234,48 @@ class DryRunTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.fx = Fixture(Path(self.tmp.name))
 
+    def test_bridge_command_uses_dataset_counts_before_shell_render(self):
+        manifest_path = self.fx.job_dir / "input" / "input_manifest.json"
+        manifest = json.loads(manifest_path.read_text())
+        manifest["preflight"] = {"topics": {
+            POSE_SPEC["lidar_topic"]: {"count": 2471},
+            POSE_SPEC["imu_topic"]: {"count": 49201},
+        }}
+        manifest["bag_message_count"] = 9999
+        manifest_path.write_text(json.dumps(manifest))
+        job, spec, _ = adapter.load_job_inputs(self.fx.job_dir)
+        plan = adapter.build_plan(self.fx.job_dir, job, spec, "full", env=self.fx.env())
+        self.assertEqual(plan["bridge_argv"][plan["bridge_argv"].index("--expected-lidar-frames") + 1], "2471")
+        self.assertIn("'2471'", plan["bridge_shell"])
+        self.assertIn("'49201'", plan["bridge_shell"])
+        self.assertIn("--progress-file", plan["bridge_shell"])
+        manifest["preflight"] = {"topics": {}}
+        manifest.pop("bag_message_count")
+        manifest_path.write_text(json.dumps(manifest))
+        plan = adapter.build_plan(self.fx.job_dir, job, spec, "full", env=self.fx.env())
+        self.assertNotIn("--expected-lidar-frames", plan["bridge_shell"])
+
+    def test_bridge_snapshot_and_phase_transitions_are_atomic(self):
+        path = self.fx.native_dir / "bridge_progress.json"
+        reporter = bridge.BridgeProgress(path, 7, 40)
+        reporter.write(0, 0, force=True)
+        reporter.write(3, 18, force=True)
+        snapshot = json.loads(path.read_text())
+        self.assertEqual((snapshot["lidar_published"], snapshot["lidar_total"],
+                          snapshot["imu_published"], snapshot["imu_total"]), (3, 7, 18, 40))
+        progress = adapter.Progress(self.fx.stage_dir / "progress.json")
+        progress.bridge(snapshot)
+        progress.write("waiting_glim_export", "输入发布完成，正在等待 GLIM 导出")
+        waiting = json.loads(progress.path.read_text())
+        self.assertEqual(waiting["lidar_published"], 3)
+        self.assertEqual(waiting["progress"], 0)
+        progress.write("associating", "正在关联轨迹")
+        progress.write("failed", "关联失败", status="failed")
+        failed = json.loads(progress.path.read_text())
+        self.assertEqual(failed["phase"], "failed")
+        self.assertEqual(failed["progress"], 0)
+        self.assertEqual(failed["imu_published"], 18)
+
     def test_dry_run_validates_plans_and_materialises_without_executing(self):
         completed = self.fx.run_adapter("--dry-run", "--mode", "demo")
         self.assertEqual(completed.returncode, 0, completed.stderr)

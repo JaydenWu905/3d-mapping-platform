@@ -119,6 +119,9 @@ class UploadTests(unittest.IsolatedAsyncioTestCase):
         result = await self.upload.finalize(first["upload_id"])
         definition = json.loads((self.config / f"{result['dataset_id']}.json").read_text())
         self.assertEqual(definition["input_manifest"]["bag_message_count"], 4)
+        self.assertEqual(definition["input_manifest"]["device_config_version"], "1.0.0")
+        self.assertEqual(definition["input_manifest"]["device_profile"]["sensor"]["lidar"]["topic"],
+                         "/livox_mid360/livox/lidar")
         self.assertEqual(definition["input_manifest"]["sequence_observed"]["imu"]["count"], 10)
         self.assertEqual(definition["integrity"]["bag_size_bytes"], len(novel))
         self.assertIsNone(definition["surface"]["integration_end_frame"])
@@ -135,11 +138,46 @@ class UploadTests(unittest.IsolatedAsyncioTestCase):
                                        registry=FakeRegistry(), run_mode="full")
         self.assertEqual((service.job_dir(job["job_id"]) / "input/source.bag").resolve(), source)
         self.assertIsNone(job["run_scope"]["surface_end_frame"])
+        saved = json.loads((service.job_dir(job["job_id"]) / "input/device_profile.json").read_text())
+        self.assertEqual(saved["id"], NEW_PROFILE_ID)
+        effective = json.loads((service.job_dir(job["job_id"]) / "input/effective_algorithm_params.json").read_text())
+        self.assertEqual(effective["pose"]["lidar_topic"], "/livox_mid360/livox/lidar")
         second = self.upload.create("duplicate.bag", len(novel), NEW_PROFILE_ID, True)
         await self._send(second["upload_id"], 0, novel)
         duplicate = await self.upload.finalize(second["upload_id"])
         self.assertEqual(duplicate["duplicate_of"], result["dataset_id"])
         self.assertEqual(len(list(self.config.glob("ins_upload_*.json"))), 1)
+
+    async def test_selected_device_id_drives_registered_pose_and_surface(self):
+        variant = json.loads(self.upload.device_config.read_text())
+        variant.update(id="self_capture_01", name="Test second rig", enabled=True,
+                       attestation_required=False)
+        variant["sensor"]["lidar"].update(topic="/rig2/lidar", frame_id="rig2_lidar")
+        variant["sensor"]["imu"].update(topic="/rig2/imu", frame_id="rig2_imu")
+        variant["calibration"]["T_lidar_imu"] = [0.2, 0.1, -0.1, 0, 0, 0, 1]
+        variant["algorithms"]["glim"]["acc_scale"] = 1.0
+        variant["calibration"]["imu_acceleration_input_unit"] = "m/s^2"
+        variant_dir = self.platform / "device-profiles"
+        variant_dir.mkdir()
+        variant_path = variant_dir / "self_capture_01.json"
+        variant_path.write_text(json.dumps(variant))
+        upload = UploadService(self.platform / "uploads", self.template, variant_path)
+        self.preflight_mock.return_value = {"bag_format": "ROS1 bag v2.0", "topics": {
+            "/rig2/lidar": {"count": 42}, "/rig2/imu": {"count": 840}}}
+        data = b"another configured bag"
+        state = upload.create("rig2.bag", len(data), "self_capture_01")
+        await self._send(state["upload_id"], 0, data)
+        result = await upload.finalize(state["upload_id"])
+        definition = json.loads((self.config / f"{result['dataset_id']}.json").read_text())
+        self.assertEqual(result["lidar_topic"], "/rig2/lidar")
+        self.assertEqual(definition["pose"]["lidar_frame_id"], "rig2_lidar")
+        self.assertEqual(definition["pose"]["imu_frame_id"], "rig2_imu")
+        self.assertEqual(definition["pose"]["T_lidar_imu"][:3], [0.2, 0.1, -0.1])
+        self.assertEqual(definition["pose"]["acc_scale"], 1.0)
+        self.assertEqual(definition["surface"]["topic"], "/rig2/lidar")
+        self.assertEqual(definition["input_manifest"]["device_profile_id"], "self_capture_01")
+        self.preflight_mock.assert_called_with(
+            upload.root / "sessions" / state["upload_id"] / "preflight.bag", variant_path)
 
     async def test_new_profile_limits_and_changed_config_block_registration(self):
         from app.services.upload_service import NEW_PROFILE_ID, MAX_UPLOAD_BYTES
@@ -148,9 +186,19 @@ class UploadTests(unittest.IsolatedAsyncioTestCase):
         data = b"different synthetic bag"
         state = self.upload.create("new.bag", len(data), NEW_PROFILE_ID, True)
         await self._send(state["upload_id"], 0, data)
-        with patch.object(self.upload, "_sha256", side_effect=[hashlib.sha256(data).hexdigest(), "changed"]):
+        original_dir = self.upload.device_dir
+        changed_dir = self.platform / "changed-device"
+        changed_dir.mkdir()
+        changed_config = changed_dir / f"{NEW_PROFILE_ID}.json"
+        changed = json.loads(self.upload.device_config.read_text())
+        changed["version"] = "1.0.1"
+        changed_config.write_text(json.dumps(changed))
+        self.upload.device_dir = changed_dir
+        try:
             with self.assertRaisesRegex(UploadError, "profile changed"):
                 await self.upload.finalize(state["upload_id"])
+        finally:
+            self.upload.device_dir = original_dir
         self.assertEqual(list(self.config.glob("ins_upload_*.json")), [])
 
     async def test_rejected_new_sequence_cannot_create_dataset(self):
@@ -167,11 +215,14 @@ class UploadTests(unittest.IsolatedAsyncioTestCase):
     def test_server_device_type_mismatch_is_not_accepted(self):
         from app.services.upload_service import NEW_PROFILE_ID
         config = json.loads(self.upload.device_config.read_text())
-        config["lidar_type"] = "sensor_msgs/msg/PointCloud2"
-        changed = self.platform / "wrong-device.json"
+        config["sensor"]["lidar"]["message_type"] = "sensor_msgs/msg/PointCloud2"
+        changed = self.platform / f"{NEW_PROFILE_ID}.json"
         changed.write_text(json.dumps(config))
         service = UploadService(self.platform / "uploads", self.template, changed)
-        with self.assertRaisesRegex(UploadError, "does not match"):
+        public = service.profiles()
+        self.assertFalse(public[1]["available"])
+        self.assertIn("Unsupported LiDAR message type", public[1]["unavailable_reason"])
+        with self.assertRaisesRegex(UploadError, "Unsupported LiDAR message type"):
             service.create("new.bag", 10, NEW_PROFILE_ID, True)
 
     def test_packaging_dependencies_are_declared_and_installed(self):

@@ -146,6 +146,11 @@ code { font-family: var(--mono); font-size: 0.92em; }
 .stage-backend strong { color: var(--text); }
 
 .progress-bg { background: #1a2433; border-radius: 6px; height: 8px; overflow: hidden; }
+.stage-progress-visual { display: flex; align-items: center; gap: 8px; min-height: 12px; }
+.stage-progress-visual .progress-bg { flex: 1; }
+.progress-activity { display: inline-block; width: 12px; height: 12px; flex: none; border: 2px solid var(--border); border-top-color: #58a6ff; border-radius: 50%; animation: progress-spin 0.8s linear infinite; }
+@keyframes progress-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .progress-activity { animation: none; } }
 .progress-lg { height: 12px; }
 .progress-fill { height: 100%; background: linear-gradient(90deg, #2b7fd4, #5bb7ff); transition: width 0.3s; }
 .progress-meta { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; margin-top: 4px; }

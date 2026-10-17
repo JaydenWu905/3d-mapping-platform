@@ -123,12 +123,15 @@ def main() -> int:
     apps_dir = mrhash_root / "mrhash" / "apps"
     profile = input_manifest.get("mrhash_profile")
     profiles = {
-        "oxford_hesai_pointcloud2": ("oxford_hesai_corrected_full.cfg", "/hesai/pandar"),
-        "ins_livox_mid360_custom": ("ins_livox_mid360.cfg", "/livox_mid360/livox/lidar"),
+        "oxford_hesai_pointcloud2": "oxford_hesai_corrected_full.cfg",
+        "ins_livox_mid360_custom": "ins_livox_mid360.cfg",
     }
-    if profile not in profiles or input_manifest.get("lidar_topic") != profiles[profile][1]:
-        raise ValueError("unregistered or mismatched MrHash LiDAR profile and topic")
-    reference = mrhash_root / "mrhash" / "configurations" / profiles[profile][0]
+    if profile not in profiles or not input_manifest.get("lidar_topic"):
+        raise ValueError("unregistered MrHash LiDAR reader profile or missing topic")
+    reference_name = input_manifest.get("mrhash_reference_config") or profiles[profile]
+    if reference_name != profiles[profile]:
+        raise ValueError("MrHash reference config does not match installed reader profile")
+    reference = mrhash_root / "mrhash" / "configurations" / reference_name
     if not (apps_dir / "rosbag_runner.py").is_file() or not reference.is_file():
         raise ValueError("configured MrHash repository or reference config is unavailable")
     controlled_limit = input_manifest.get("integration_end_frame")
@@ -153,6 +156,14 @@ def main() -> int:
         (controlled_input / "poses.txt").symlink_to(trajectory_path)
         replace_config(reference, config_path, controlled_input, raw_dir, end_frame,
                        topic=input_manifest["lidar_topic"])
+        params_path = job_dir / "input" / "effective_algorithm_params.json"
+        params = read_json(params_path, {}) or {}
+        params["surface_applied"] = {
+            "profile": profile, "reference_config": str(reference),
+            "run_config": str(config_path), "lidar_topic": input_manifest["lidar_topic"],
+            "start_frame": 1, "end_frame": end_frame,
+        }
+        atomic_write_json(params_path, params)
         progress(stage_dir, "validating", "Validated real bag and imported Pose inputs")
         command = [pixi, "run", "--manifest-path", str(mrhash_root), "python",
                    str(apps_dir / "rosbag_runner.py"), str(config_path)]

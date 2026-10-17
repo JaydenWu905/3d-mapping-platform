@@ -16,6 +16,12 @@ SCRIPT = Path(__file__).resolve().parents[2] / "backend/scripts/preflight_ins_ba
 spec = importlib.util.spec_from_file_location("preflight_ins_bag", SCRIPT)
 preflight = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(preflight)
+from app.services.device_config_service import load_device
+DEVICE = load_device("ins_livox_mid360_same_rig")
+LIDAR = DEVICE["sensor"]["lidar"]["topic"]
+IMU = DEVICE["sensor"]["imu"]["topic"]
+EXPECTED = {LIDAR: DEVICE["sensor"]["lidar"]["message_type"],
+            IMU: DEVICE["sensor"]["imu"]["message_type"]}
 
 CUSTOM_POINT = "uint32 offset_time\nfloat32 x\nfloat32 y\nfloat32 z\nuint8 reflectivity\nuint8 tag\nuint8 line\n"
 CUSTOM_MSG = "std_msgs/Header header\nuint64 timebase\nuint32 point_num\nuint8 lidar_id\nuint8[3] rsvd\nlivox_ros_driver2/CustomPoint[] points\n"
@@ -38,9 +44,9 @@ class BagTests(unittest.TestCase):
         stamp = lambda ns: t["builtin_interfaces/msg/Time"](sec=ns // 10**9, nanosec=ns % 10**9)
         header = lambda ns, frame="livox_mid360_frame": t["std_msgs/msg/Header"](seq=0, stamp=stamp(ns), frame_id=frame)
         with Writer(self.path) as writer:
-            lc = writer.add_connection(preflight.LIDAR,
-                "sensor_msgs/msg/Imu" if wrong_type else preflight.EXPECTED[preflight.LIDAR], typestore=self.store)
-            ic = None if missing_imu else writer.add_connection(preflight.IMU, preflight.EXPECTED[preflight.IMU], typestore=self.store)
+            lc = writer.add_connection(LIDAR,
+                "sensor_msgs/msg/Imu" if wrong_type else EXPECTED[LIDAR], typestore=self.store)
+            ic = None if missing_imu else writer.add_connection(IMU, EXPECTED[IMU], typestore=self.store)
             events = []
             for i in range(lidar_count):
                 record_ns = 1_000_000_000 + i * 100_000_000
@@ -51,7 +57,7 @@ class BagTests(unittest.TestCase):
                 points = [] if empty_frame and i == 1 else [point]
                 msg = t["livox_ros_driver2/msg/CustomMsg"](header=header(ns, "other_frame" if wrong_frame and i == 1 else "livox_mid360_frame"), timebase=ns + (100_000_000 if bad_timebase and i == 1 else 0),
                     point_num=len(points), lidar_id=0, rsvd=np.zeros(3, dtype=np.uint8), points=points)
-                payload = b"\x00\x01" if corrupt_message and i == 1 else self.store.serialize_ros1(msg, preflight.EXPECTED[preflight.LIDAR])
+                payload = b"\x00\x01" if corrupt_message and i == 1 else self.store.serialize_ros1(msg, EXPECTED[LIDAR])
                 events.append(((ns if duplicate_time else record_ns) + 1, lc, payload))
             if ic:
                 for i in range(imu_count):
@@ -65,18 +71,18 @@ class BagTests(unittest.TestCase):
                         angular_velocity_covariance=np.zeros(9),
                         linear_acceleration=t["geometry_msgs/msg/Vector3"](x=float("nan") if bad_imu and i == 2 else 0., y=0., z=1.),
                         linear_acceleration_covariance=np.zeros(9))
-                    events.append((ns + 1, ic, self.store.serialize_ros1(msg, preflight.EXPECTED[preflight.IMU])))
+                    events.append((ns + 1, ic, self.store.serialize_ros1(msg, EXPECTED[IMU])))
             for ns, conn, raw in sorted(events, key=lambda item: item[0]): writer.write(conn, ns, raw)
         if corrupt:
             with self.path.open("r+b") as handle: handle.write(b"broken format!")
 
     def test_different_counts_and_time_range_are_measured(self):
         self.make(lidar_count=4, imu_count=10)
-        result = preflight.inspect(self.path)
-        self.assertEqual(result["topics"][preflight.LIDAR]["count"], 4)
-        self.assertEqual(result["topics"][preflight.IMU]["count"], 10)
+        result = preflight.inspect(self.path, DEVICE)
+        self.assertEqual(result["topics"][LIDAR]["count"], 4)
+        self.assertEqual(result["topics"][IMU]["count"], 10)
         self.assertEqual(result["points_checked"], 4)
-        self.assertEqual(result["topics"][preflight.LIDAR]["first_header_ns"], 1_000_000_000)
+        self.assertEqual(result["topics"][LIDAR]["first_header_ns"], 1_000_000_000)
 
     def test_missing_wrong_corrupt_and_time(self):
         for options, error in [({"missing_imu": True}, "Missing required"),
@@ -96,7 +102,7 @@ class BagTests(unittest.TestCase):
             with self.subTest(options=options):
                 self.path.unlink(missing_ok=True)
                 self.make(**options)
-                with self.assertRaisesRegex(ValueError, error): preflight.inspect(self.path)
+                with self.assertRaisesRegex(ValueError, error): preflight.inspect(self.path, DEVICE)
 
     def test_synthetic_bag_upload_registers_observed_sequence(self):
         self.make(lidar_count=5, imu_count=12)
@@ -108,7 +114,7 @@ class BagTests(unittest.TestCase):
         registry = platform / "backend/config/datasets"
         registry.mkdir(parents=True)
         template = SCRIPT.parents[1] / "config/datasets/ins_longcorridor01.json"
-        device = SCRIPT.parents[1] / "config/upload_devices/ins_mid360_handoff.json"
+        device = SCRIPT.parents[1] / "config/upload_devices/ins_livox_mid360_same_rig.json"
         service = UploadService(platform / "uploads", template, device)
         raw = self.path.read_bytes()
 
@@ -120,7 +126,7 @@ class BagTests(unittest.TestCase):
 
         with patch("app.services.upload_service.PROJECT_ROOT", platform), \
              patch("app.services.upload_service.DATASETS_CONFIG_DIR", registry), \
-             patch.object(UploadService, "_preflight", side_effect=preflight.inspect):
+             patch.object(UploadService, "_preflight", side_effect=lambda bag, profile: preflight.inspect(bag, load_device(profile.stem, profile.parent))):
             result = asyncio.run(upload())
         definition = json.loads((registry / f"{result['dataset_id']}.json").read_text())
         self.assertEqual(definition["input_manifest"]["bag_message_count"], 5)

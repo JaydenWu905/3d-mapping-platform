@@ -253,6 +253,9 @@ def _resolve(stage_dir: Path, artifact: dict[str, Any]) -> Path:
 def prepare_mrhash_lidar_input(job_id: str, jobs) -> dict[str, Any]:
     job = jobs.load_job(job_id)
     definition = jobs.datasets.get(job["dataset"])
+    job_input = read_json(jobs.job_dir(job_id) / "input" / "input_manifest.json", {}) or {}
+    surface_config = ((job_input.get("effective_algorithm_params") or {}).get("surface")
+                      or definition.surface)
     pose_dir = jobs.stage_dir(job_id, "pose")
     pose = read_json(pose_dir / "result_manifest.json", None)
     if not isinstance(pose, dict) or pose.get("status") != "completed":
@@ -279,7 +282,7 @@ def prepare_mrhash_lidar_input(job_id: str, jobs) -> dict[str, Any]:
             "Pose result declares an incompatible Surface handoff: "
             + str(handoff.get("reason") or "no reason recorded")
         )
-    required_lookup_key = (definition.surface or {}).get("pose_lookup_key")
+    required_lookup_key = surface_config.get("pose_lookup_key")
     pose_lookup_key = details["timestamp_basis"].get("lookup_key")
     if required_lookup_key and pose_lookup_key != required_lookup_key:
         raise SurfaceInputError(
@@ -297,21 +300,21 @@ def prepare_mrhash_lidar_input(job_id: str, jobs) -> dict[str, Any]:
     bag_sha = definition.integrity.get("bag_sha256")
     if not bag_sha or definition.integrity.get("bag_size_bytes") != bag.stat().st_size or sha256_file(bag) != bag_sha:
         raise SurfaceInputError("registered sensor artifact size/SHA-256 validation failed")
-    lidar_topic = definition.surface.get("topic")
+    lidar_topic = surface_config.get("topic")
     if not isinstance(lidar_topic, str) or not lidar_topic.strip():
         raise SurfaceInputError("LiDAR topic must be a non-empty string")
-    profile = definition.surface.get("mrhash_profile") or (
+    profile = surface_config.get("mrhash_profile") or (
         "oxford_hesai_pointcloud2" if lidar_topic == "/hesai/pandar" else None)
-    allowed_profiles = {
-        "oxford_hesai_pointcloud2": "/hesai/pandar",
-        "ins_livox_mid360_custom": "/livox_mid360/livox/lidar",
-    }
-    if profile not in allowed_profiles or lidar_topic != allowed_profiles[profile]:
-        raise SurfaceInputError("Surface LiDAR topic does not match a controlled MrHash profile")
-    frame_limit = definition.surface.get("integration_end_frame")
+    allowed_profiles = {"oxford_hesai_pointcloud2", "ins_livox_mid360_custom"}
+    if profile not in allowed_profiles:
+        raise SurfaceInputError("Unsupported MrHash reader profile")
+    device = job_input.get("device_profile") or {}
+    if device.get("sensor") and lidar_topic != (device["sensor"].get("lidar") or {}).get("topic"):
+        raise SurfaceInputError("Surface LiDAR topic differs from this Job's device snapshot")
+    frame_limit = surface_config.get("integration_end_frame")
     if job.get("run_mode") in ("full", "short"):
         expected = None if job["run_mode"] == "full" else 100
-        if definition.surface.get("mrhash_profile") != "ins_livox_mid360_custom" or job.get("run_scope", {}).get("surface_end_frame") != expected:
+        if profile != "ins_livox_mid360_custom" or job.get("run_scope", {}).get("surface_end_frame") != expected:
             raise SurfaceInputError("Persisted run mode/scope is inconsistent with the verified INS profile")
         frame_limit = expected
     if frame_limit is not None and (not isinstance(frame_limit, int) or frame_limit < 1):
@@ -340,6 +343,7 @@ def prepare_mrhash_lidar_input(job_id: str, jobs) -> dict[str, Any]:
         },
         "lidar_topic": lidar_topic,
         "mrhash_profile": profile,
+        "mrhash_reference_config": surface_config.get("mrhash_reference_config"),
         "integration_end_frame": frame_limit,
         "matching": {"bag_message_count": declared, "pose_count": pose_count, "matched_count": pose_count,
                      "missing_or_skipped_count": missing_count},

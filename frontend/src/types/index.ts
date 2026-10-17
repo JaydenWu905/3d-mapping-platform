@@ -70,6 +70,11 @@ export interface StageDetail {
   unit: string;
   message: string;
   elapsed_sec: number;
+  lidar_published?: number;
+  lidar_total?: number;
+  imu_published?: number;
+  imu_total?: number;
+  input_updated_at?: string | null;
   started_at: string | null;
   finished_at: string | null;
   manifest: Manifest | null;
@@ -79,6 +84,7 @@ export interface StageDetail {
 
 export interface JobDetail {
   job_id: string;
+  device_config?: { id: string; version: string; sha256?: string | null; snapshot: string; effective_params: string };
   created_at: string;
   status: string;
   dataset: string;
@@ -122,6 +128,11 @@ export type StageProgressEvent = {
   unit?: string;
   message?: string;
   elapsed_sec?: number;
+  lidar_published?: number;
+  lidar_total?: number;
+  imu_published?: number;
+  imu_total?: number;
+  input_updated_at?: string | null;
 };
 
 export type StageResultEvent = { stage: string; status: string };

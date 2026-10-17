@@ -120,17 +120,36 @@ class Progress:
     def __init__(self, path: Path):
         self.path = path
         self.started = time.monotonic()
+        self.input_counts: dict[str, Any] = {}
 
     def write(self, phase: str, message: str, *, percent: float = 0.0,
               current: float = 0, total: float = 0, unit: str = "",
-              status: str = "running") -> None:
+              status: str = "running", lidar_published: int | None = None,
+              lidar_total: int | None = None, imu_published: int | None = None,
+              imu_total: int | None = None, input_updated_at: str | None = None) -> None:
+        self.input_counts.update({key: value for key, value in {
+            "lidar_published": lidar_published, "lidar_total": lidar_total,
+            "imu_published": imu_published, "imu_total": imu_total,
+            "input_updated_at": input_updated_at,
+        }.items() if value is not None})
         atomic_write_json(self.path, {
             "stage": STAGE, "backend": BACKEND, "status": status, "phase": phase,
             "progress": round(float(percent), 2), "current": current, "total": total,
             "unit": unit, "message": message,
+            **self.input_counts,
             "elapsed_sec": round(time.monotonic() - self.started, 1),
             "updated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
         })
+
+    def bridge(self, snapshot: dict[str, Any]) -> None:
+        lidar = max(0, int(snapshot.get("lidar_published") or 0))
+        imu = max(0, int(snapshot.get("imu_published") or 0))
+        total = max(0, int(snapshot.get("lidar_total") or 0))
+        imu_total = max(0, int(snapshot.get("imu_total") or 0))
+        self.write("input_publishing", "正在发布 LiDAR 与 IMU 输入", current=lidar,
+                   total=total, unit="LiDAR 已发布", lidar_published=lidar,
+                   lidar_total=total, imu_published=imu, imu_total=imu_total,
+                   input_updated_at=snapshot.get("updated_at"))
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -265,13 +284,28 @@ def build_plan(
     )
     # The bridge imports rclpy/sensor_msgs itself, so it runs through the same
     # ROS runtime shell as GLIM (source first, then LD_LIBRARY_PATH override).
+    job_input_manifest = read_json(job_dir / "input" / "input_manifest.json", {}) or {}
+    topics = (job_input_manifest.get("preflight") or {}).get("topics") or {}
+    def topic_count(topic: str) -> int:
+        value = (topics.get(topic) or {}).get("count")
+        return value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else 0
+    expected = topic_count(spec["lidar_topic"])
+    imu_expected = topic_count(spec["imu_topic"])
+    if not expected:
+        value = job_input_manifest.get("bag_message_count")
+        expected = value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else 0
+    if max_duration:
+        expected = 0
+    elif max_frames:
+        expected = min(expected, max_frames) if expected else max_frames
+    bridge_argv.extend(["--progress-file", str(native_dir / "bridge_progress.json")])
+    if expected:
+        bridge_argv.extend(["--expected-lidar-frames", str(expected)])
+    if imu_expected and not max_frames and not max_duration:
+        bridge_argv.extend(["--expected-imu-messages", str(imu_expected)])
     bridge_shell = cfg.build_bridge_shell(
         runtime.ros_setup, runtime.ld_library_path, bridge_argv
     )
-    job_input_manifest = read_json(job_dir / "input" / "input_manifest.json", {}) or {}
-    expected = job_input_manifest.get("bag_message_count")
-    if isinstance(expected, int) and expected > 0:
-        bridge_argv.extend(["--expected-lidar-frames", str(expected)])
 
     return {
         "job": job,
@@ -295,7 +329,8 @@ def build_plan(
         "bridge_shell": bridge_shell,
         "mode": mode,
         "run_timeout_sec": float(spec.get("run_timeout_sec", DEFAULT_RUN_TIMEOUT_SEC)),
-        "expected_lidar_frames": expected if isinstance(expected, int) else None,
+        "expected_lidar_frames": expected or None,
+        "expected_imu_messages": imu_expected if not max_frames and not max_duration else None,
     }
 
 
@@ -676,6 +711,16 @@ def main(argv: list[str] | None = None) -> int:
             plan["overrides"],
             registered_copy=native_dir / "config_registered",
         )
+        if not args.dry_run:
+            params_path = job_dir / "input" / "effective_algorithm_params.json"
+            params = read_json(params_path, {}) or {}
+            params["pose_applied"] = {
+                "config_path": str(runtime.config_path),
+                "effective_config_dir": str(native_dir / "config"),
+                "overrides": plan["overrides"],
+                "runtime_sources": runtime.sources,
+            }
+            atomic_write_json(params_path, params)
         for warning in config_summary["headless_warnings"]:
             log(f"WARNING: {warning}")
         log(f"GLIM config: {config_summary['effective']} "
@@ -767,7 +812,10 @@ def main(argv: list[str] | None = None) -> int:
             time.sleep(0.25)
         log("GLIM node started; streaming the ROS1 bag through the bridge")
 
-        progress.write("streaming", "Streaming ROS1 LiDAR + IMU into GLIM")
+        progress.write("input_publishing", "等待 bridge 发布 LiDAR 与 IMU 输入",
+                       total=plan["expected_lidar_frames"] or 0,
+                       lidar_total=plan["expected_lidar_frames"] or 0,
+                       imu_total=plan["expected_imu_messages"] or 0)
         # Same controlled ROS runtime shell as GLIM, so the bridge's own
         # `import rclpy` works without the platform being started from a
         # sourced shell; `exec` makes the bridge Python the direct child.
@@ -776,14 +824,21 @@ def main(argv: list[str] | None = None) -> int:
             env=plan["ros_env"], cwd=str(stage_dir), **child_popen_kwargs(),
         ))
         bridge = supervisor.child("bridge")
+        bridge_progress_path = native_dir / "bridge_progress.json"
         while bridge.poll() is None:
             supervisor.raise_if_cancelled()
+            snapshot = read_json(bridge_progress_path, None)
+            if isinstance(snapshot, dict):
+                progress.bridge(snapshot)
             time.sleep(0.5)
+        snapshot = read_json(bridge_progress_path, None)
+        if isinstance(snapshot, dict):
+            progress.bridge(snapshot)
         if bridge.returncode != 0:
             raise GlimPoseError(f"ROS1 bridge exited with code {bridge.returncode}")
         log("bridge finished; asking GLIM to dump its result")
 
-        progress.write("finalizing", f"Waiting {runtime.finalize_wait_sec:g}s before GLIM shutdown")
+        progress.write("waiting_glim_export", "输入发布完成，正在等待 GLIM 处理完成及退出导出")
         deadline = time.monotonic() + runtime.finalize_wait_sec
         while time.monotonic() < deadline:
             supervisor.raise_if_cancelled()
@@ -793,7 +848,7 @@ def main(argv: list[str] | None = None) -> int:
         shutdown = request_glim_shutdown(supervisor, grace=runtime.dump_wait_sec)
         log(f"graceful shutdown: {shutdown['signal']} -> {shutdown['target']} (pid {shutdown['pid']})")
 
-        progress.write("dumping", "Waiting for GLIM to dump its native trajectory")
+        progress.write("waiting_glim_export", "输入发布完成，正在等待 GLIM 导出原生轨迹")
         dump_dir: Path | None = None
         deadline = time.monotonic() + runtime.dump_wait_sec
         while time.monotonic() < deadline:
@@ -824,7 +879,7 @@ def main(argv: list[str] | None = None) -> int:
         log(f"native trajectory found: {dump_dir / trajectory_filename} "
             f"(GLIM exit code {glim_exit_code})")
 
-        progress.write("normalizing", "Associating native Pose timestamps with bag record timestamps")
+        progress.write("associating", "正在关联轨迹时间戳并生成 Pose 产物")
         collected = collect_native_outputs(dump_dir, native_dir, trajectory_filename)
         native_rows = ts.read_pose_trajectory(native_dir / trajectory_filename)
 

@@ -10,6 +10,7 @@ import type {
   StageResultEvent,
   StageStatusEvent,
 } from '../types';
+import { stageProgressPatch } from '../components/stageProgressPatch';
 
 export interface JobActions {
   runAll: () => Promise<void>;
@@ -118,16 +119,7 @@ export function useJob(jobId: string | undefined): JobState {
       try {
         const data = JSON.parse(ev.data) as StageProgressEvent;
         setJob((prev) => {
-          const patch: Partial<StageDetail> = {};
-          if (data.status) patch.status = data.status as StageDetail['status'];
-          if (data.phase !== undefined) patch.phase = data.phase;
-          if (data.progress !== undefined) patch.progress = data.progress;
-          if (data.current !== undefined) patch.current = data.current;
-          if (data.total !== undefined) patch.total = data.total;
-          if (data.unit !== undefined) patch.unit = data.unit;
-          if (data.message !== undefined) patch.message = data.message;
-          if (data.elapsed_sec !== undefined) patch.elapsed_sec = data.elapsed_sec;
-          return patchStage(prev, data.stage, patch);
+          return patchStage(prev, data.stage, stageProgressPatch(data));
         });
       } catch {
         /* ignore */

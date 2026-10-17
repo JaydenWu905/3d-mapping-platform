@@ -5,7 +5,7 @@ backend/.venv/
 .venv/
 
 # ---- Node ----
-frontend/node_modules/
+frontend/node_modules
 frontend/dist/
 frontend/*.local
 
@@ -38,4 +38,7 @@ runtime/
 ops/glim_install_logs/
 ops/*.local.env
 ops/glim-runtime.env
+ops/device_runtime.json
+ops/backend-installed.txt
+ops/frontend-installed.json
 ops/releases/*/verification.local.json

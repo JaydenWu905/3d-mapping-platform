@@ -6,6 +6,8 @@ job.json, <stage>/progress.json, <stage>/result_manifest.json.
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 import shutil
 import time
 from pathlib import Path
@@ -22,6 +24,7 @@ from app.models.progress import atomic_write_json, load_progress, read_json
 from app.services.backend_runtime import has_real_runner, missing_runner_reason
 from app.services.registry_service import BackendRegistry
 from app.services.dataset_service import DatasetError, DatasetService, get_dataset_service
+from app.services.device_config_service import load_device
 
 
 class JobNotFoundError(Exception):
@@ -118,7 +121,7 @@ class JobService:
 
         if run_mode is not None:
             if run_mode not in ("full", "short") or dataset_def.surface.get("mrhash_profile") != "ins_livox_mid360_custom" or backends.get("pose") != "glim":
-                raise ValueError("Explicit full/short modes require the verified INS GLIM/MrHash profile")
+                raise ValueError("Explicit full/short modes require the supported GLIM/Livox CustomMsg/MrHash profile")
 
         job = new_job(dataset, backends, fail_stage, job_id=job_id, preview_job=preview_job,
                       requested_stages=requested_stages)
@@ -127,7 +130,11 @@ class JobService:
         if run_mode is not None:
             job["run_mode"] = run_mode
             job["run_scope"].update(pose="full", surface_end_frame=None if run_mode == "full" else 100)
-            job["validation_scope"] = "ins_full_pose_surface" if run_mode == "full" else "ins_short_pose_surface"
+            device_id = dataset_def.input_manifest.get("device_profile_id")
+            ins_device = device_id in (None, "ins_livox_mid360_same_rig")
+            job["validation_scope"] = (
+                ("ins_full_pose_surface" if run_mode == "full" else "ins_short_pose_surface")
+                if ins_device else "custom_device_pose_surface_unverified")
         job_dir = self.job_dir(job["job_id"])
         if job_dir.exists():
             await self._ensure_remove(job_dir)
@@ -143,6 +150,10 @@ class JobService:
             input_dir.mkdir(parents=True, exist_ok=True)
             manifest = dict(dataset_def.input_manifest)
             manifest.update({"execution": dataset_def.execution, "dataset_kind": dataset_def.kind})
+            if dataset_def.execution == "real" and not getattr(dataset_def, "rgbd", None):
+                manifest["modalities"] = [item for item in manifest.get("modalities", [])
+                                          if item not in ("rgb", "depth")]
+                manifest["camera_consumed"] = {"rgb": False, "depth": False}
             # The Pose adapter reads everything it needs from this manifest: the
             # dataset semantics (`pose`) and the machine settings (`runtime`).
             pose_block = dict(getattr(dataset_def, "pose", {}) or {})
@@ -151,6 +162,42 @@ class JobService:
                 manifest["pose"] = pose_block
             if runtime_block:
                 manifest["runtime"] = runtime_block
+            device_snapshot = manifest.get("device_profile")
+            if not isinstance(device_snapshot, dict):
+                if (dataset_def.id == "ins_longcorridor01" or
+                        manifest.get("profile_id") == "ins_livox_mid360_verified_bag"):
+                    device_snapshot = load_device("ins_livox_mid360_same_rig")
+                else:
+                    device_snapshot = {
+                        "id": f"dataset_{dataset_def.id}", "version": "registry-v1",
+                        "source": "existing dataset registry", "sensor": {
+                            "lidar": {"topic": pose_block.get("lidar_topic"),
+                                      "frame_id": pose_block.get("lidar_frame_id")},
+                            "imu": {"topic": pose_block.get("imu_topic"),
+                                    "frame_id": pose_block.get("imu_frame_id")}},
+                        "calibration": {"T_lidar_imu": pose_block.get("T_lidar_imu")},
+                        "camera": {"rgb_consumed_by_current_pipeline": bool(getattr(dataset_def, "rgbd", None)),
+                                   "depth_consumed_by_current_pipeline": bool(getattr(dataset_def, "rgbd", None))},
+                    }
+            device_hash = manifest.get("device_config_sha256") or device_snapshot.get("config_sha256") or hashlib.sha256(
+                json.dumps(device_snapshot, ensure_ascii=False, sort_keys=True).encode("utf-8")
+            ).hexdigest()
+            effective_params = {"pose": pose_block, "surface": dict(dataset_def.surface),
+                                "runtime": runtime_block,
+                                "preflight": manifest.get("preflight"),
+                                "preflight_bounds": device_snapshot.get("preflight")}
+            manifest["device_profile"] = device_snapshot
+            manifest["device_profile_id"] = device_snapshot["id"]
+            manifest["device_config_version"] = device_snapshot["version"]
+            manifest["device_config_sha256"] = device_hash
+            manifest["effective_algorithm_params"] = effective_params
+            atomic_write_json(input_dir / "device_profile.json", device_snapshot)
+            atomic_write_json(input_dir / "effective_algorithm_params.json", effective_params)
+            job["device_config"] = {"id": device_snapshot["id"],
+                                    "version": device_snapshot["version"],
+                                    "sha256": device_hash,
+                                    "snapshot": "input/device_profile.json",
+                                    "effective_params": "input/effective_algorithm_params.json"}
             atomic_write_json(input_dir / "input_manifest.json", manifest)
             if not getattr(dataset_def, "rgbd", None):
                 # Stable names keep the real adapters independent from source filenames.
@@ -278,6 +325,11 @@ class JobService:
             "unit": progress.get("unit", ""),
             "message": progress.get("message", ""),
             "elapsed_sec": round(float(progress.get("elapsed_sec", 0.0)), 1),
+            "lidar_published": progress.get("lidar_published", 0),
+            "lidar_total": progress.get("lidar_total", 0),
+            "imu_published": progress.get("imu_published", 0),
+            "imu_total": progress.get("imu_total", 0),
+            "input_updated_at": progress.get("input_updated_at"),
             "started_at": st.get("started_at"),
             "finished_at": st.get("finished_at"),
             "manifest": manifest,
@@ -294,7 +346,7 @@ class JobService:
         backend_id: str,
     ) -> tuple[bool, str]:
         if stage not in job.get("requested_stages", STAGES):
-            return False, "第三模块未接入此真实任务"
+            return False, "此阶段未包含在本 Job 的执行范围"
         if status in ("running", "queued"):
             return False, "Stage already running"
         if status in ("completed",):
@@ -367,6 +419,7 @@ class JobService:
             "pose_reuse": job.get("pose_reuse"),
             "validation_scope": job.get("validation_scope"),
             "fail_stage": job.get("fail_stage"),
+            "device_config": job.get("device_config"),
             "stages": {
                 stage: self.stage_detail(job, stage, registry, backend_labels)
                 for stage in STAGES
@@ -386,7 +439,10 @@ def _normalize_modality(name: str) -> str:
 
 def _declared_modalities(dataset_def) -> set[str]:
     declared = (getattr(dataset_def, "input_manifest", {}) or {}).get("modalities", [])
-    return set(declared or [])
+    result = set(declared or [])
+    if getattr(dataset_def, "execution", "mock") == "real" and not getattr(dataset_def, "rgbd", None):
+        result -= {"rgb", "depth"}
+    return result
 
 
 def pose_backend_compatibility(dataset_def, registry: BackendRegistry, backend_id: str) -> tuple[bool, str]:

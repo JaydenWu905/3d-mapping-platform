@@ -56,6 +56,18 @@ class SurfaceInputTests(unittest.TestCase):
         self.assertEqual(first["compatibility"]["warnings"][0]["code"], "FRAME_COUNT_MISMATCH")
         self.assertEqual(first, second)
         validate_surface_input(self.jobs.job_dir("j"))
+    def test_job_device_snapshot_selects_non_ins_livox_topic_and_mrhash_config(self):
+        input_dir = self.jobs.job_dir("j") / "input"
+        input_dir.mkdir()
+        (input_dir / "input_manifest.json").write_text(json.dumps({
+            "device_profile": {"sensor": {"lidar": {"topic": "/rig2/lidar"}}},
+            "effective_algorithm_params": {"surface": {
+                "topic": "/rig2/lidar", "mrhash_profile": "ins_livox_mid360_custom",
+                "mrhash_reference_config": "ins_livox_mid360.cfg"}}}))
+        prepared = prepare_mrhash_lidar_input("j", self.jobs)
+        self.assertEqual(prepared["lidar_topic"], "/rig2/lidar")
+        self.assertEqual(prepared["mrhash_profile"], "ins_livox_mid360_custom")
+        self.assertEqual(prepared["mrhash_reference_config"], "ins_livox_mid360.cfg")
     def test_missing_artifact(self):
         self.jobs.manifest["artifacts"] = []; self.write_pose()
         with self.assertRaisesRegex(SurfaceInputError, "required Pose artifact"): prepare_mrhash_lidar_input("j", self.jobs)
