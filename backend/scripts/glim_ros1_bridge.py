@@ -23,6 +23,9 @@ import sys
 import time
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from app.models.progress import atomic_write_json  # noqa: E402
+
 #: PointCloud2 layout published to GLIM: 5 fields, 20 bytes per point.
 POINT_STEP = 20
 BAG_INDEX_HEADER = "# record_timestamp_ns\tsensor_timestamp_ns\tpoint_count\n"
@@ -45,16 +48,39 @@ def pack_points(points) -> bytes:
     return bytes(buffer)
 
 
-def wait_for_subscriber(publisher, timeout_sec: float, log) -> bool:
+def wait_for_subscriber(publisher, timeout_sec: float, log, tick=None) -> bool:
     """Wait until GLIM subscribes to the points topic (or the timeout expires)."""
     deadline = time.monotonic() + max(timeout_sec, 0.0)
     while time.monotonic() < deadline:
+        if tick is not None:
+            tick()
         if publisher.get_subscription_count() > 0:
             return True
         time.sleep(0.2)
     log(f"no subscriber appeared within {timeout_sec:.1f}s; streaming anyway "
         "(GLIM may still be starting up)")
     return False
+
+
+class BridgeProgress:
+    """Bridge-owned atomic snapshot; the adapter alone writes stage progress."""
+
+    def __init__(self, path: Path | None, lidar_total: int, imu_total: int):
+        self.path = path
+        self.lidar_total = max(0, lidar_total)
+        self.imu_total = max(0, imu_total)
+        self.last_write = 0.0
+
+    def write(self, lidar: int, imu: int, *, status: str = "publishing", force: bool = False) -> None:
+        now = time.monotonic()
+        if self.path is None or (not force and now - self.last_write < 0.5):
+            return
+        atomic_write_json(self.path, {
+            "status": status, "lidar_published": lidar, "lidar_total": self.lidar_total,
+            "imu_published": imu, "imu_total": self.imu_total,
+            "updated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        })
+        self.last_write = now
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -76,6 +102,8 @@ def build_parser() -> argparse.ArgumentParser:
                         help="stop after N seconds of bag time (0 = no limit)")
     parser.add_argument("--expected-lidar-frames", type=int, default=0,
                         help="hint used only to render progress percentages")
+    parser.add_argument("--expected-imu-messages", type=int, default=0)
+    parser.add_argument("--progress-file", type=Path)
     parser.add_argument("--subscriber-wait-sec", type=float, default=15.0)
     parser.add_argument("--progress-every", type=int, default=25)
     return parser
@@ -160,6 +188,9 @@ def main(argv: list[str] | None = None) -> int:
 
     rclpy.init()
     node = Bridge()
+    progress = BridgeProgress(args.progress_file, args.expected_lidar_frames,
+                              args.expected_imu_messages)
+    progress.write(0, 0, force=True)
     exit_code = 0
     try:
         if not args.bag_index.parent.exists():
@@ -174,6 +205,7 @@ def main(argv: list[str] | None = None) -> int:
                 found = {connection.topic for connection in connections}
                 if found != {args.lidar_topic, args.imu_topic}:
                     missing = sorted({args.lidar_topic, args.imu_topic} - found)
+                    progress.write(node.lidar_count, node.imu_count, status="failed", force=True)
                     print(
                         "bridge: configured topic(s) not present in the bag: "
                         + ", ".join(missing),
@@ -181,7 +213,8 @@ def main(argv: list[str] | None = None) -> int:
                     )
                     return 2
                 log(f"bag={args.bag.name} topics={len(connections)} rate={args.rate}")
-                wait_for_subscriber(node.pub_points, args.subscriber_wait_sec, log)
+                wait_for_subscriber(node.pub_points, args.subscriber_wait_sec, log,
+                                    lambda: progress.write(node.lidar_count, node.imu_count))
                 first_time = None
                 wall_start = None
                 last_lidar_time = None
@@ -194,12 +227,17 @@ def main(argv: list[str] | None = None) -> int:
                         break
                     delay = ((record_time - first_time) / 1e9 / args.rate) - (time.monotonic() - wall_start)
                     if delay > 0:
-                        time.sleep(delay)
+                        deadline = time.monotonic() + delay
+                        while time.monotonic() < deadline:
+                            progress.write(node.lidar_count, node.imu_count)
+                            time.sleep(min(0.2, max(0.0, deadline - time.monotonic())))
                     message = reader.deserialize(raw, connection.msgtype)
                     if connection.topic == args.imu_topic:
                         node.publish_imu(message)
+                        progress.write(node.lidar_count, node.imu_count)
                         continue
                     node.publish_lidar(message)
+                    progress.write(node.lidar_count, node.imu_count)
                     sensor_time = message.header.stamp
                     sensor_time_ns = int(sensor_time.sec) * 1_000_000_000 + int(sensor_time.nanosec)
                     index_file.write(format_bag_index_row(record_time, sensor_time_ns, len(message.points)))
@@ -227,6 +265,11 @@ def main(argv: list[str] | None = None) -> int:
             exit_code = 1
         if last_lidar_time is None and exit_code == 0:
             log("warning: no LiDAR frame timestamp recorded in the bag index")
+        progress.write(node.lidar_count, node.imu_count,
+                       status="completed" if exit_code == 0 else "failed", force=True)
+    except BaseException:
+        progress.write(node.lidar_count, node.imu_count, status="failed", force=True)
+        raise
     finally:
         try:
             node.destroy_node()

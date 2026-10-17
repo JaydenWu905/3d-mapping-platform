@@ -1,4 +1,5 @@
-import { progressLabel } from './progressLabel';
+import { progressLabel, posePhaseLabel, stageProgressText } from './progressLabel';
+import { StageProgressBar } from './StageProgressBar';
 import type { StageDetail } from '../types';
 import { StatusBadge } from './StatusBadge';
 import { BACKEND_STATUS_LABELS } from './PipelineView';
@@ -24,7 +25,6 @@ function formatElapsed(sec: number): string {
 
 export function StageCard({ stageKey, label, detail, selected, busy, onSelect, onStart, onCancel, onRetry }: StageCardProps) {
   const running = detail.status === 'running' || detail.status === 'cancelling' || detail.status === 'queued';
-  const progress = Math.max(0, Math.min(100, detail.progress ?? 0));
 
   return (
     <div
@@ -47,20 +47,18 @@ export function StageCard({ stageKey, label, detail, selected, busy, onSelect, o
       </div>
 
       <div className="stage-progress" title={detail.phase || detail.message || ''}>
-        <div className="progress-bg">
-          <div className="progress-fill" style={{ width: `${progress}%` }} />
-        </div>
+        <StageProgressBar stage={detail} />
         <div className="progress-meta">
           <span>
             {progressLabel(detail)}
           </span>
-          <span>阶段 {Math.round(progress)}%</span>
+          <span>{stageProgressText(detail)}</span>
         </div>
       </div>
 
       <div className="stage-line">
         <span className="phase" title={detail.message}>
-          {detail.phase || '待命'}
+          {detail.stage === 'pose' && detail.backend === 'glim' ? posePhaseLabel(detail) : detail.phase || '待命'}
         </span>
         <span className="elapsed">⏱ {formatElapsed(detail.elapsed_sec)}</span>
       </div>

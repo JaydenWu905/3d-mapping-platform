@@ -21,10 +21,10 @@
 - 当前继承的 Pose 运行超时为 1200 秒；上传没有单独的采集时长上限。较长序列即使通过 CPU 预检，运行时仍可能超时；这需要另行验证和调整运行策略。
 - 文件须为单个 `.bag`，容量 1 字节至 64 GiB，块上限 64 MiB；CPU 预检最长 3600 秒。预检按实际消息流统计，不要求原样本大小、SHA 或 1539/30770 条数。固定样本 profile 则仍要求原大小、SHA 和消息数。
 
-每份新序列的 SHA、大小、实际消息数、record/header 时间范围和预检结果保存在新数据集配置中。设备参数在 `backend/config/upload_devices/ins_mid360_handoff.json`，注册数据集保存其 SHA。新序列不会继承原样本的 1539/30770 条消息数或截止时间。服务器只支持当前 ROS1 Livox 路径；其他雷达、ROS2 bag、RGB-D 不在此入口。
+每份新序列的 SHA、大小、实际消息数、record/header 时间范围和预检结果保存在新数据集配置中。同设备参数现位于 `backend/config/upload_devices/ins_livox_mid360_same_rig.json`；其他自采设备按 [换设备修改指南](换设备修改指南.md) 新增独立 ID。新序列不会继承原样本的 1539/30770 条消息数或截止时间。当前 bridge/MrHash reader 只支持上述 ROS1 Livox CustomMsg/IMU 结构；其他消息格式需一次性适配。
 
 真正新采集序列的端到端验收仍需来源和标定依据明确的 bag，经独立审查后另行运行 Pose→Surface 并核查时间关联、帧统计、结果与精度。合成 bag CPU 测试和重传原 INS bag 均不能替代该验收。
 
 ## 上传 API
 
-网页调用 `GET /api/uploads/profiles` 取得服务器可选配置，`POST /api/uploads` 提交 `filename`、`size_bytes`、`profile_id`；新序列还须提交 `attested_same_rig=true`。返回的 `upload_id` 只标识本次传输。客户端用 `GET /api/uploads/{upload_id}` 查询服务端 offset，以 `PUT /api/uploads/{upload_id}/chunk` 传块，带 `X-Offset` 与 `X-Chunk-Sha256` 请求头；最后 `POST /api/uploads/{upload_id}/finalize` 计算整包 SHA、预检并注册。失败不会出现可选数据集；同设备配置快照下相同内容会复用已有数据集 ID。`POST /api/jobs` 需选择已注册数据集，`run_mode=full|short`；真实入口只规划 Pose、Surface 两阶段。不得将预检成功等同于启动算法。
+网页调用 `GET /api/uploads/profiles` 取得服务器可选配置，`POST /api/uploads` 提交 `filename`、`size_bytes`、`profile_id`；新序列还须提交 `attested_same_rig=true`。返回的 `upload_id` 只标识本次传输。客户端用 `GET /api/uploads/{upload_id}` 查询服务端 offset，以 `PUT /api/uploads/{upload_id}/chunk` 传块，带 `X-Offset` 与 `X-Chunk-Sha256` 请求头；最后 `POST /api/uploads/{upload_id}/finalize` 计算整包 SHA、预检并注册。失败不会出现可选数据集；同设备配置快照下相同内容会复用已有数据集 ID。`POST /api/jobs` 需选择已注册数据集，`run_mode=full|short`；当前网页真实入口只规划 Pose、Surface 两阶段；main 已接入 Distance/ESDF 后端，但本流程未请求或验收第三阶段。不得将预检成功等同于启动算法。

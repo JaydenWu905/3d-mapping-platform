@@ -182,6 +182,10 @@ class DatasetService:
         for definition in self.definitions():
             errors = self.validation_errors(definition)
             manifest = dict(definition.input_manifest)
+            if definition.execution == "real" and not definition.rgbd:
+                manifest["modalities"] = [item for item in manifest.get("modalities", [])
+                                          if item not in ("rgb", "depth")]
+                manifest["camera_consumed"] = {"rgb": False, "depth": False}
             manifest["execution"] = definition.execution
             manifest["pose_backend"] = definition.pose.get("backend")
             manifest["surface_backend"] = definition.surface.get("backend")

@@ -11,6 +11,7 @@ from pathlib import Path
 
 from app.services.runner_adapter import SubprocessRunnerAdapter
 from app.services.event_service import EventService
+from app.models.progress import atomic_write_json
 
 
 class FakeJobs:
@@ -79,6 +80,32 @@ class SubprocessRunnerTests(unittest.IsolatedAsyncioTestCase):
         isolation.start()
         self.addCleanup(isolation.stop)
         self.jobs = FakeJobs(Path(self.temp.name))
+
+    async def test_pose_snapshot_reaches_event_without_backend_rewrite(self) -> None:
+        events = Events()
+        runner = CommandRunner(self.jobs, events, "")
+        stage_dir = self.jobs.stage_dir("test-job", "pose")
+        stage_dir.mkdir(parents=True, exist_ok=True)
+        snapshot = {"stage": "pose", "backend": "glim", "status": "running",
+                    "phase": "input_publishing", "progress": 0, "current": 17,
+                    "total": 37, "lidar_published": 17, "lidar_total": 37,
+                    "imu_published": 326, "imu_total": 740,
+                    "input_updated_at": "2026-10-17T10:00:00"}
+        path = stage_dir / "progress.json"
+        atomic_write_json(path, snapshot)
+        class Process:
+            returncode = None
+        process = Process()
+        task = asyncio.create_task(runner._poll_progress("test-job", "pose", "glim", process, 0))
+        await asyncio.sleep(0.05)
+        process.returncode = 0
+        await task
+        self.assertEqual(json.loads(path.read_text()), snapshot)
+        emitted = [payload for kind, payload in events.items if kind == "stage.progress"]
+        self.assertTrue(emitted)
+        self.assertEqual(emitted[0]["lidar_published"], 17)
+        self.assertEqual(emitted[0]["imu_published"], 326)
+        self.assertEqual(emitted[0]["input_updated_at"], "2026-10-17T10:00:00")
 
     async def test_carriage_returns_and_long_unterminated_output(self) -> None:
         code = r'''

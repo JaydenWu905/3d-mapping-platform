@@ -1,4 +1,5 @@
-import { progressLabel } from '../components/progressLabel';
+import { progressLabel, posePhaseLabel, stageProgressText } from '../components/progressLabel';
+import { StageProgressBar } from '../components/StageProgressBar';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/api';
@@ -100,9 +101,10 @@ export function JobDetailPage() {
       </div>
 
       {error ? <div className="alert alert-error">{error}</div> : null}
-      {job.requested_stages?.length === 2 ? <div className="alert">运行范围：Pose {job.run_scope?.pose === 'reused' ? '复用已有真实 Pose（本任务未运行 GLIM）' : job.run_scope?.pose === 'full' ? '完整序列' : '按注册轨迹'}；Surface 原始第 {job.run_scope?.surface_start_frame ?? 1}–{job.run_scope?.surface_end_frame ?? '末尾'} 帧。Distance 未接入。{job.validation_scope === 'ins_full_pose_surface' ? '本任务验收已验证 INS profile 的完整两阶段一键流程，不代表任意 bag 兼容或建图精度通过。外参及 IMU 单位依据待确认。' : job.validation_scope === 'full_surface_only' ? '本任务仅验收完整 Surface，不代表完整一键流程或建图精度通过。外参及 IMU 单位依据待确认。' : '短段成功不代表完整场景重建或精度验收。'}</div> : null}
+      {job.requested_stages?.length === 2 ? <div className="alert">运行范围：Pose {job.run_scope?.pose === 'reused' ? '复用已有真实 Pose（本任务未运行 GLIM）' : job.run_scope?.pose === 'full' ? '完整序列' : '按注册轨迹'}；Surface 原始第 {job.run_scope?.surface_start_frame ?? 1}–{job.run_scope?.surface_end_frame ?? '末尾'} 帧。本 Job 未请求 Distance。{job.validation_scope === 'ins_full_pose_surface' ? '本任务验收已验证 INS profile 的完整两阶段一键流程，不代表任意 bag 兼容或建图精度通过。外参及 IMU 单位依据待确认。' : job.validation_scope === 'custom_device_pose_surface_unverified' ? '本任务使用自采设备配置；CPU 预检和参数匹配不代表 GLIM/MrHash 结果或精度已验收。' : job.validation_scope === 'full_surface_only' ? '本任务仅验收完整 Surface，不代表完整一键流程或建图精度通过。外参及 IMU 单位依据待确认。' : '短段成功不代表完整场景重建或精度验收。'}</div> : null}
 
       {job.pose_reuse ? <div className="alert">复用已有真实 Pose · 来源 Job <code>{job.pose_reuse.source_job_id}</code> · poses.txt SHA-256 <code>{job.pose_reuse.sha256}</code></div> : null}
+      {job.device_config ? <div className="alert">本 Job 设备配置：<code>{job.device_config.id}</code> · 版本 <code>{job.device_config.version}</code> · 实际参数已保存于 <code>{job.device_config.effective_params}</code></div> : null}
 
       <div className="detail-grid">
         <aside className="detail-pipeline">
@@ -138,18 +140,16 @@ function StagePanel({ jobId, stage, running, scope }: { jobId: string; stage: St
         <h3 className="panel-title-inline">{STAGE_LABELS[stage.stage] ?? stage.stage}</h3>
         <StatusBadge status={stage.status} />
         <span className="muted">
-          {stage.backend_display || stage.backend} · {stage.phase}
+          {stage.backend_display || stage.backend} · {stage.stage === 'pose' && stage.backend === 'glim' ? posePhaseLabel(stage) : stage.phase}
         </span>
         <span className="muted">⏱ {formatElapsed(stage.elapsed_sec)}</span>
       </div>
-      <div className="progress-bg progress-lg">
-        <div className="progress-fill" style={{ width: `${Math.max(0, Math.min(100, stage.progress))}%` }} />
-      </div>
+      <StageProgressBar stage={stage} large />
       <div className="progress-meta">
         <span>
           {progressLabel(stage)}
         </span>
-        <span>阶段 {Math.round(stage.progress)}% · {stage.message}</span>
+        <span>{stageProgressText(stage)} · {stage.message}</span>
       </div>
       {stage.stage === 'surface' && manifest?.metrics ? <div className="stage-message">
         全包 LiDAR {String(manifest.metrics.bag_lidar_frames ?? '—')} 帧 · 原始范围第 {scope?.surface_start_frame ?? 1}–{scope?.surface_end_frame ?? '末尾'} 帧 · 选中 {String(manifest.metrics.selected_frames ?? '—')} · 关联 {String(manifest.metrics.matched_pose_frames ?? '—')} · 融合 {String(manifest.metrics.fused_frames ?? '—')} · 跳过无 Pose {String(manifest.metrics.skipped_no_pose_frames ?? '—')}

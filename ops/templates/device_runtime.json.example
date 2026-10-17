@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "glim_config_presets": {
+    "ins_default": "REPLACE_WITH_WORKSPACE_RELATIVE_GLIM_CONFIG_DIR"
+  }
+}

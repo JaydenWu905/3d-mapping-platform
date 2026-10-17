@@ -1,0 +1,44 @@
+{
+  "schema_version": 2,
+  "id": "ins_livox_mid360_same_rig",
+  "version": "1.0.0",
+  "enabled": true,
+  "name": "INS / Livox MID-360 同设备同采集配置（待确认标定）",
+  "scope": "仅适用于与原 INS 样本相同的物理 MID-360、IMU、安装、固件和采集配置；选择者须确认数据来源。",
+  "attestation_required": true,
+  "attestation_label": "我确认这是同一物理设备、安装和采集配置；标定来源仍待确认。",
+  "sensor": {
+    "bag_format": "ROS1 bag v2.0",
+    "lidar": {"topic": "/livox_mid360/livox/lidar", "message_type": "livox_ros_driver2/msg/CustomMsg", "frame_id": "livox_mid360_frame"},
+    "imu": {"topic": "/livox_mid360/livox/imu", "message_type": "sensor_msgs/msg/Imu", "frame_id": "livox_frame"}
+  },
+  "calibration": {
+    "T_lidar_imu": [0.011, 0.02329, -0.04412, 0.0, 0.0, 0.0, 1.0],
+    "transform_direction": "T_lidar_imu",
+    "translation_unit": "meter",
+    "quaternion_order": "qx qy qz qw",
+    "imu_acceleration_input_unit": "g",
+    "status": "交接配置，原始标定和 IMU 单位依据待确认",
+    "source": "INS 项目交接配置，原始标定报告待确认"
+  },
+  "capture": {
+    "lidar_header_clock": "physical LiDAR sensor timestamp",
+    "imu_header_clock": "physical IMU sensor timestamp",
+    "point_offset_unit": "nanosecond relative to LiDAR header stamp",
+    "bag_record_clock": "ROS bag record timestamp",
+    "imu_selection": "MID-360 内置 IMU"
+  },
+  "preflight": {
+    "max_point_offset_ns": 1000000000,
+    "warn_point_offset_ns": 200000000,
+    "max_timebase_header_delta_ns": 50000000,
+    "min_range_m": 0.2,
+    "max_range_m": 100.0
+  },
+  "algorithms": {
+    "glim": {"acc_scale": 9.80665, "perpoint_relative_time": true, "perpoint_time_scale": 1e-9, "config_preset": "ins_default"},
+    "mrhash": {"profile_id": "ins_livox_mid360_custom", "reader_format": "livox_custom", "reference_config": "ins_livox_mid360.cfg"}
+  },
+  "camera": {"rgb_consumed_by_current_pipeline": false, "depth_consumed_by_current_pipeline": false, "note": "当前 GLIM Pose 与 MrHash LiDAR Surface 不读取 RGB 或深度；填写相机参数不会启用 RGB-D 算法。"},
+  "verified_reference": {"lidar_messages": 1539, "imu_messages": 30770}
+}

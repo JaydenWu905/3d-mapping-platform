@@ -131,7 +131,7 @@ class SubprocessRunnerAdapter(RunnerAdapter):
             (stage_dir / stale).unlink(missing_ok=True)
         progress = load_progress(stage_dir, stage, backend)
         progress.update(status="running", phase="starting", progress=0.0, current=0,
-                        total=0, unit="", message="Starting real MrHash process",
+                        total=0, unit="", message="等待启动 GLIM" if stage == "pose" else "Starting real MrHash process",
                         elapsed_sec=0.0, updated_at=time.strftime("%Y-%m-%dT%H:%M:%S"))
         atomic_write_json(stage_dir / "progress.json", progress)
         self._progress_states[key] = dict(progress)
@@ -321,7 +321,7 @@ class SubprocessRunnerAdapter(RunnerAdapter):
         log.flush()
         enqueue(timestamped)
         match = self._TQDM_RE.search(line)
-        if match:
+        if match and stage == "surface":
             await self._record_tqdm_progress(
                 job_id, stage, int(match["percent"]),
                 int(match["current"]), int(match["total"])
@@ -376,13 +376,14 @@ class SubprocessRunnerAdapter(RunnerAdapter):
             async with lock:
                 disk = load_progress(self._jobs.stage_dir(job_id, stage), stage, backend)
                 cached = self._progress_states.get(key, {})
-                if int(cached.get("current") or 0) > int(disk.get("current") or 0):
+                if stage == "surface" and int(cached.get("current") or 0) > int(disk.get("current") or 0):
                     disk.update({name: cached.get(name) for name in
                                  ("current", "total", "progress", "unit")})
                 progress = disk
                 progress["elapsed_sec"] = round(time.monotonic() - started, 1)
                 self._progress_states[key] = progress
-                atomic_write_json(self._jobs.stage_dir(job_id, stage) / "progress.json", progress)
+                if stage != "pose":
+                    atomic_write_json(self._jobs.stage_dir(job_id, stage) / "progress.json", progress)
             snapshot = repr(sorted(progress.items()))
             if snapshot != last:
                 await self._emit_progress(job_id, stage, progress)
@@ -391,7 +392,8 @@ class SubprocessRunnerAdapter(RunnerAdapter):
 
     async def _emit_progress(self, job_id: str, stage: str, progress: dict) -> None:
         payload = {key: progress.get(key) for key in
-                   ("status", "phase", "progress", "current", "total", "unit", "message", "elapsed_sec")}
+                   ("status", "phase", "progress", "current", "total", "unit", "message", "elapsed_sec",
+                    "lidar_published", "lidar_total", "imu_published", "imu_total", "input_updated_at")}
         payload["stage"] = stage
         await self._events.publish(job_id, "stage.progress", payload)
 
@@ -402,7 +404,8 @@ class SubprocessRunnerAdapter(RunnerAdapter):
         if status != "completed":
             (stage_dir / "result_manifest.json").unlink(missing_ok=True)
         key = (job_id, stage)
-        progress = dict(self._progress_states.get(key) or load_progress(stage_dir, stage, backend))
+        progress = dict(load_progress(stage_dir, stage, backend) if stage == "pose"
+                        else self._progress_states.get(key) or load_progress(stage_dir, stage, backend))
         progress.update(status=status, phase=status, message=message,
                         elapsed_sec=round(time.monotonic() - started, 1),
                         updated_at=time.strftime("%Y-%m-%dT%H:%M:%S"))

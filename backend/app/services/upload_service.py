@@ -12,6 +12,10 @@ from pathlib import Path
 
 from app.config import BACKEND_ROOT, DATASETS_CONFIG_DIR, PROJECT_ROOT
 from app.models.progress import atomic_write_json, read_json
+from app.services.device_config_service import (
+    DEVICE_CONFIG_DIR, DeviceConfigError, effective_pose, effective_surface,
+    load_device,
+)
 
 PROFILE_ID = "ins_livox_mid360_verified_bag"
 NEW_PROFILE_ID = "ins_livox_mid360_same_rig"
@@ -20,7 +24,7 @@ PROFILE_SIZE = 17125894059
 MAX_UPLOAD_BYTES = 64 * 1024 ** 3
 MAX_CHUNK = 64 * 1024 * 1024
 UPLOAD_ROOT = PROJECT_ROOT / "uploads"
-DEVICE_CONFIG = DATASETS_CONFIG_DIR.parent / "upload_devices/ins_mid360_handoff.json"
+DEVICE_CONFIG = DEVICE_CONFIG_DIR / "ins_livox_mid360_same_rig.json"
 
 
 class UploadError(ValueError):
@@ -32,35 +36,43 @@ class UploadService:
         self.root = root
         self.template = template or DATASETS_CONFIG_DIR / "ins_longcorridor01.json"
         self.device_config = device_config or DEVICE_CONFIG
+        self.device_dir = self.device_config.parent
         self._locks: dict[str, asyncio.Lock] = {}
 
-    def _device(self) -> dict:
-        device = json.loads(self.device_config.read_text(encoding="utf-8"))
-        expected = (NEW_PROFILE_ID, "/livox_mid360/livox/lidar", "livox_ros_driver2/msg/CustomMsg",
-                    "/livox_mid360/livox/imu", "sensor_msgs/msg/Imu", "ins_livox_mid360_custom")
-        actual = (device.get("id"), device.get("lidar_topic"), device.get("lidar_type"),
-                  device.get("imu_topic"), device.get("imu_type"), device.get("surface", {}).get("mrhash_profile"))
-        if actual != expected:
-            raise UploadError("Server device profile does not match the installed Livox bridge and MrHash reader")
-        if (device.get("pose", {}).get("max_point_offset_ns") != 1_000_000_000 or
-                device.get("pose", {}).get("warn_point_offset_ns") != 200_000_000 or
-                device.get("pose", {}).get("max_timebase_header_delta_ns") != 50_000_000 or
-                device.get("pose", {}).get("lidar_frame_id") != "livox_mid360_frame" or
-                device.get("pose", {}).get("imu_frame_id") != "livox_frame" or
-                device.get("surface", {}).get("min_range_m") != 0.2 or
-                device.get("surface", {}).get("max_range_m") != 100.0):
-            raise UploadError("Server device profile preflight bounds differ from the installed runner")
-        return device
+    def _device(self, profile_id: str = NEW_PROFILE_ID) -> dict:
+        try:
+            return load_device(NEW_PROFILE_ID if profile_id == PROFILE_ID else profile_id,
+                               self.device_dir)
+        except DeviceConfigError as exc:
+            raise UploadError(str(exc)) from exc
 
     def profiles(self) -> list[dict]:
-        device = self._device()
-        return [{"id": PROFILE_ID, "name": "INS / Livox MID-360 已验证原始 bag",
+        result = [{"id": PROFILE_ID, "name": "INS / Livox MID-360 已验证原始 bag",
                  "size_bytes": PROFILE_SIZE, "sha256": PROFILE_SHA,
-                 "calibration_note": "来自交接配置，原始标定及单位依据待负责人确认；仅适用于已验证的原始 INS bag。"},
-                {"id": NEW_PROFILE_ID, "name": device["name"], "max_size_bytes": MAX_UPLOAD_BYTES,
-                 "scope": device["scope"], "calibration_note": device["calibration_status"],
-                 "bag_format": device["bag_format"], "lidar_topic": device["lidar_topic"],
-                 "imu_topic": device["imu_topic"]}]
+                 "calibration_note": "来自交接配置，原始标定及单位依据待负责人确认；仅适用于已验证的原始 INS bag。"}]
+        for path in sorted(self.device_dir.glob("*.json")):
+            raw = read_json(path, {}) or {}
+            if not isinstance(raw, dict) or raw.get("schema_version") != 2 or not raw.get("enabled", True):
+                continue
+            try:
+                if raw.get("id") != path.stem:
+                    raise DeviceConfigError("Device profile filename must match its independent ID")
+                device = load_device(raw["id"], self.device_dir)
+            except (DeviceConfigError, KeyError) as exc:
+                result.append({"id": raw.get("id", path.stem), "name": raw.get("name", path.stem),
+                               "available": False, "unavailable_reason": str(exc),
+                               "calibration_note": "设备配置不可用"})
+                continue
+            result.append({"id": device["id"], "name": device["name"], "max_size_bytes": MAX_UPLOAD_BYTES,
+                           "scope": device.get("scope", ""),
+                           "calibration_note": device["calibration"].get("status", ""),
+                           "bag_format": device["sensor"]["bag_format"],
+                           "lidar_topic": device["sensor"]["lidar"]["topic"],
+                           "imu_topic": device["sensor"]["imu"]["topic"],
+                           "version": device["version"],
+                           "attestation_required": device.get("attestation_required", False),
+                           "attestation_label": device.get("attestation_label", "确认采集设备与该配置一致")})
+        return result
 
     def _paths(self, upload_id: str) -> tuple[Path, Path]:
         if not re.fullmatch(r"up_[0-9a-f]{32}", upload_id):
@@ -78,16 +90,15 @@ class UploadService:
         return state
 
     def create(self, filename: str, size_bytes: int, profile_id: str, attested_same_rig: bool = False) -> dict:
-        if profile_id not in (PROFILE_ID, NEW_PROFILE_ID):
-            raise UploadError("Unsupported profile")
+        device = self._device(profile_id)
+        if profile_id != PROFILE_ID and not device.get("enabled", True):
+            raise UploadError("Device profile is disabled")
         if Path(filename).name != filename or not filename.lower().endswith(".bag"):
             raise UploadError("Upload one .bag file")
         if profile_id == PROFILE_ID and size_bytes != PROFILE_SIZE:
             raise UploadError(f"This controlled profile requires {PROFILE_SIZE} bytes")
-        if profile_id == NEW_PROFILE_ID and attested_same_rig is not True:
+        if profile_id != PROFILE_ID and device.get("attestation_required") and attested_same_rig is not True:
             raise UploadError("Confirm the same physical device, installation and acquisition configuration")
-        if profile_id == NEW_PROFILE_ID:
-            self._device()
         if isinstance(size_bytes, bool) or not isinstance(size_bytes, int) or not 0 < size_bytes <= MAX_UPLOAD_BYTES:
             raise UploadError(f"Bag size must be 1..{MAX_UPLOAD_BYTES} bytes")
         upload_id = "up_" + uuid.uuid4().hex
@@ -96,9 +107,10 @@ class UploadService:
         part.touch(exist_ok=False)
         state = {"upload_id": upload_id, "filename": filename, "size_bytes": size_bytes,
                  "profile_id": profile_id, "offset": 0, "status": "uploading", "max_chunk_bytes": MAX_CHUNK}
-        if profile_id == NEW_PROFILE_ID:
-            state["device_config_sha256"] = self._sha256(self.device_config)
-            state["same_rig_attested"] = True
+        state["device_config_sha256"] = device["config_sha256"]
+        state["device_config_version"] = device["version"]
+        state["device_profile_id"] = device["id"]
+        state["same_rig_attested"] = bool(attested_same_rig)
         atomic_write_json(meta, state)
         return state
 
@@ -140,6 +152,10 @@ class UploadService:
         async with lock:
             state = self.status(upload_id)
             if state["status"] == "registered":
+                if not state.get("lidar_topic") or not state.get("imu_topic"):
+                    sensor = self._device(state["profile_id"])["sensor"]
+                    state = {**state, "lidar_topic": sensor["lidar"]["topic"],
+                             "imu_topic": sensor["imu"]["topic"]}
                 return state
             if state["status"] != "uploading" or state["offset"] != state["size_bytes"]:
                 raise UploadError("Upload is incomplete")
@@ -148,8 +164,12 @@ class UploadService:
                 raise UploadError("Upload file size differs from committed offset")
             digest = await asyncio.to_thread(self._sha256, part)
             legacy = state["profile_id"] == PROFILE_ID
-            if not legacy and self._sha256(self.device_config) != state.get("device_config_sha256"):
+            device = self._device(state["profile_id"])
+            if (state.get("device_config_sha256") is not None and
+                    device["config_sha256"] != state["device_config_sha256"]):
                 raise UploadError("Server device profile changed since upload creation; start a new upload")
+            if not legacy and state.get("device_config_sha256") is None:
+                raise UploadError("Upload session has no device configuration snapshot; start a new upload")
             if legacy and digest != PROFILE_SHA:
                 raise UploadError("Bag SHA-256 differs from verified INS profile")
             if not legacy and digest == PROFILE_SHA:
@@ -163,7 +183,8 @@ class UploadService:
             os.link(part, preflight_path)
             try:
                 try:
-                    result = await asyncio.to_thread(self._preflight, preflight_path)
+                    result = await asyncio.to_thread(self._preflight, preflight_path,
+                                                     self.device_dir / device["config_file"])
                 except UploadError as exc:
                     if not legacy:
                         state.update(status="rejected", preflight_error=str(exc))
@@ -171,8 +192,16 @@ class UploadService:
                     raise
             finally:
                 preflight_path.unlink(missing_ok=True)
+            if self._device(state["profile_id"])["config_sha256"] != device["config_sha256"]:
+                raise UploadError("Server device profile changed during preflight; start a new upload")
             topics = result["topics"]
-            if legacy and (topics["/livox_mid360/livox/lidar"]["count"] != 1539 or topics["/livox_mid360/livox/imu"]["count"] != 30770):
+            lidar_topic = device["sensor"]["lidar"]["topic"]
+            imu_topic = device["sensor"]["imu"]["topic"]
+            if lidar_topic not in topics or imu_topic not in topics:
+                raise UploadError("Preflight did not report configured LiDAR and IMU topics")
+            reference = device.get("verified_reference") or {}
+            if legacy and (topics[lidar_topic]["count"] != reference.get("lidar_messages") or
+                           topics[imu_topic]["count"] != reference.get("imu_messages")):
                 raise UploadError("LiDAR/IMU count differs from verified profile")
             if not legacy:
                 # No await follows this second check through registry publication, so
@@ -195,36 +224,34 @@ class UploadService:
             definition["input_manifest"]["dataset_id"] = dataset_id
             definition["input_manifest"]["profile_id"] = PROFILE_ID
             definition["input_manifest"]["preflight"] = result
-            definition["input_manifest"]["calibration_note"] = self.profiles()[0]["calibration_note"]
+            definition["input_manifest"]["calibration_note"] = device["calibration"]["status"]
+            definition["input_manifest"]["modalities"] = ["lidar", "imu"]
             if not legacy:
-                device = self._device()
-                definition["name"] = f"MID-360 新序列 {dataset_id}"
-                definition["description"] = device["scope"] + " " + device["calibration_status"]
+                definition["name"] = f"{device['name']} {dataset_id}"
+                definition["description"] = device.get("scope", "") + " " + device["calibration"]["status"]
                 definition["input_manifest"].update(
-                    modalities=["lidar", "imu"], bag_message_count=topics[device["lidar_topic"]]["count"],
-                    profile_id=NEW_PROFILE_ID, device_profile_id=NEW_PROFILE_ID,
-                    device_config_sha256=state["device_config_sha256"],
+                    bag_message_count=topics[lidar_topic]["count"],
+                    profile_id=state["profile_id"],
                     same_rig_attested=state["same_rig_attested"],
-                    calibration_status=device["calibration_status"],
-                    calibration_note=device["scope"])
+                    calibration_status=device["calibration"]["status"],
+                    calibration_note=device.get("scope", ""))
                 definition["input_manifest"]["sequence_observed"] = {
                     "size_bytes": state["size_bytes"], "sha256": digest,
-                    "lidar": topics[device["lidar_topic"]], "imu": topics[device["imu_topic"]]}
-                definition["pose"].update(device["pose"])
-                definition["pose"]["backend"] = "glim"
-                definition["pose"].pop("imu_acceleration_input_unit", None)
-                definition["pose"].pop("perpoint_time_unit", None)
-                definition["pose"].pop("max_point_offset_ns", None)
-                definition["pose"].pop("warn_point_offset_ns", None)
-                definition["pose"].pop("max_timebase_header_delta_ns", None)
-                definition["pose"]["lidar_topic"] = device["lidar_topic"]
-                definition["pose"]["imu_topic"] = device["imu_topic"]
-                definition["surface"].update(backend="mrhash_lidar", topic=device["lidar_topic"], mrhash_profile=device["surface"]["mrhash_profile"],
-                                             integration_end_frame=None)
+                    "lidar": topics[lidar_topic], "imu": topics[imu_topic]}
+                definition["pose"] = effective_pose(device, definition["pose"])
+                definition["surface"] = effective_surface(device, definition["surface"])
                 definition["integrity"] = {"bag_size_bytes": state["size_bytes"], "bag_sha256": digest}
+            definition["input_manifest"].update(
+                device_profile_id=device["id"], device_config_version=device["version"],
+                device_config_sha256=device["config_sha256"], device_profile=device,
+                effective_algorithm_params={"pose": definition["pose"],
+                                            "surface": definition["surface"],
+                                            "preflight": device["preflight"]},
+                camera_consumed={"rgb": False, "depth": False})
             DATASETS_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
             atomic_write_json(DATASETS_CONFIG_DIR / f"{dataset_id}.json", definition)
-            state.update(status="registered", dataset_id=dataset_id, sha256=digest, preflight=result)
+            state.update(status="registered", dataset_id=dataset_id, sha256=digest,
+                         preflight=result, lidar_topic=lidar_topic, imu_topic=imu_topic)
             atomic_write_json(meta, state)
             return state
 
@@ -248,18 +275,22 @@ class UploadService:
             if not existing_bag.is_file() or existing_bag.stat().st_size != state["size_bytes"]:
                 raise UploadError("Duplicate registry entry has no valid source bag")
             state.update(status="registered", dataset_id=existing["id"], sha256=digest,
-                         duplicate_of=existing["id"], preflight=existing["input_manifest"].get("preflight"))
+                         duplicate_of=existing["id"], preflight=existing["input_manifest"].get("preflight"),
+                         lidar_topic=existing.get("pose", {}).get("lidar_topic"),
+                         imu_topic=existing.get("pose", {}).get("imu_topic"))
             part.unlink()
             atomic_write_json(meta, state)
             return state
         return None
 
     @staticmethod
-    def _preflight(path: Path) -> dict:
+    def _preflight(path: Path, device_config: Path) -> dict:
         python = PROJECT_ROOT.parent / "envs/glim_bridge/bin/python"
         script = BACKEND_ROOT / "scripts/preflight_ins_bag.py"
         try:
-            completed = subprocess.run([str(python), str(script), str(path)], capture_output=True, text=True, timeout=3600)
+            completed = subprocess.run([str(python), str(script), str(path),
+                                        "--device-config", str(device_config)],
+                                       capture_output=True, text=True, timeout=3600)
         except subprocess.TimeoutExpired as exc:
             raise UploadError("Bag CPU preflight exceeded its 3600-second limit") from exc
         if completed.returncode:

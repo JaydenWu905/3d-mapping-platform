@@ -250,12 +250,14 @@ class CompatibilityTests(unittest.TestCase):
         self.assertEqual(set(REAL_RUNNERS), {
             ("pose", "registered_pose_import"), ("pose", "glim"),
             ("surface", "mrhash_lidar"), ("surface", "mrhash_rgbd"),
+            ("distance", "voxel_esdf"),
         })
         self.assertEqual(real_backend_ids("pose"), ("registered_pose_import", "glim"))
         self.assertTrue(has_real_runner("pose", "glim"))
         self.assertFalse(has_real_runner("pose", "fast_livo2"))
         self.assertEqual(runner_script("pose", "glim"), "run_pose.sh")
         self.assertEqual(runner_script("surface", "mrhash_lidar"), "run_surface.sh")
+        self.assertEqual(runner_script("distance", "voxel_esdf"), "run_esdf.sh")
 
 
 class DispatchTests(unittest.TestCase):
@@ -279,6 +281,8 @@ class DispatchTests(unittest.TestCase):
                       service.subprocess_adapter)
         self.assertIs(service._adapter_for(job, "surface", "mrhash_lidar"),
                       service.subprocess_adapter)
+        self.assertIs(service._adapter_for(job, "distance", "voxel_esdf"),
+                      service.subprocess_adapter)
 
     def test_mock_datasets_use_the_mock_adapter(self):
         service = RunnerService(self.fake_jobs("mock"), SimpleNamespace())
@@ -287,9 +291,9 @@ class DispatchTests(unittest.TestCase):
 
     def test_unsupported_real_combination_fails_explicitly(self):
         service = RunnerService(self.fake_jobs("real"), SimpleNamespace())
-        job = {"dataset": "ins", "backends": {"distance": "voxel_esdf"}}
-        with self.assertRaisesRegex(StartStageError, "No real Distance runner"):
-            service._adapter_for(job, "distance", "voxel_esdf")
+        job = {"dataset": "ins", "backends": {"distance": "unsupported_distance"}}
+        with self.assertRaisesRegex(StartStageError, "No real runner is available"):
+            service._adapter_for(job, "distance", "unsupported_distance")
         with self.assertRaisesRegex(StartStageError, "No real runner is available"):
             service._adapter_for(job, "pose", "fast_livo2")
 
@@ -316,9 +320,9 @@ class DispatchTests(unittest.TestCase):
             set_stage_status=lambda *args, **kwargs: None,
         )
         adapter = SubprocessRunnerAdapter(jobs, Events(), mode="demo")
-        result = asyncio.run(adapter.run_stage("job1", "distance", "voxel_esdf"))
+        result = asyncio.run(adapter.run_stage("job1", "distance", "unsupported_distance"))
         self.assertEqual(result.status, "failed")
-        self.assertIn("No real Distance runner", result.error)
+        self.assertIn("No real runner is available", result.error)
         self.assertEqual(adapter._processes, {})
 
 

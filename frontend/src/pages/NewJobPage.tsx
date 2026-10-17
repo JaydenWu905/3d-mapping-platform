@@ -104,7 +104,7 @@ export function NewJobPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [profiles, setProfiles] = useState<Array<{ id: string; name: string; size_bytes?: number; max_size_bytes?: number; scope?: string; calibration_note: string }>>([]);
+  const [profiles, setProfiles] = useState<Array<{ id: string; name: string; version?: string; size_bytes?: number; max_size_bytes?: number; scope?: string; calibration_note: string; lidar_topic?: string; imu_topic?: string; attestation_required?: boolean; attestation_label?: string; available?: boolean; unavailable_reason?: string }>>([]);
   const [profileId, setProfileId] = useState('');
   const [sameRigConfirmed, setSameRigConfirmed] = useState(false);
   const [uploadResult, setUploadResult] = useState<string | null>(null);
@@ -170,8 +170,8 @@ export function NewJobPage() {
       const list = await api.getDatasets();
       setDatasets(list);
       setDataset(registered.dataset_id);
-      const lidar = registered.preflight.topics['/livox_mid360/livox/lidar'];
-      const imu = registered.preflight.topics['/livox_mid360/livox/imu'];
+      const lidar = registered.preflight.topics[registered.lidar_topic];
+      const imu = registered.preflight.topics[registered.imu_topic];
       const asUtc = (ns?: number) => ns === undefined ? '?' : new Date(Math.floor(ns / 1_000_000)).toISOString();
       setUploadResult(`${registered.duplicate_of ? '重复内容，已复用数据集' : 'CPU 预检通过，已注册数据集'} ${registered.dataset_id}。LiDAR ${lidar?.count ?? '?'} 条，IMU ${imu?.count ?? '?'} 条；LiDAR header ${asUtc(lidar?.first_header_ns)}–${asUtc(lidar?.last_header_ns)}，IMU header ${asUtc(imu?.first_header_ns)}–${asUtc(imu?.last_header_ns)}（UTC，毫秒精度）；检查点 ${registered.preflight.points_checked ?? '旧版预检仅抽样'}，无效点 ${registered.preflight.invalid_points ?? '未统计'}，空帧 ${registered.preflight.empty_frames ?? '未统计'}，最大逐点偏移 ${registered.preflight.max_point_offset_ns ?? '未统计'} ns。${registered.preflight.warnings?.join('；') ?? ''}`);
       localStorage.removeItem(key);
@@ -243,10 +243,10 @@ export function NewJobPage() {
             <div className="field">
               <span className="field-label">上传 ROS1 bag v2 的 INS/Livox 数据</span>
               <input type="file" accept=".bag" onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)} />
-              <select value={profileId} onChange={(e) => { setProfileId(e.target.value); setSameRigConfirmed(false); setUploadResult(null); }}>{profiles.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
-              <span className="field-hint">{profiles.find((p) => p.id === profileId)?.scope} {profiles.find((p) => p.id === profileId)?.calibration_note}</span>
-              {profileId === 'ins_livox_mid360_same_rig' ? <label><input type="checkbox" checked={sameRigConfirmed} onChange={(e) => setSameRigConfirmed(e.target.checked)} /> 我确认这是同一物理设备、安装和采集配置；标定仍待来源确认。</label> : null}
-              <button className="btn btn-primary" disabled={!uploadFile || uploading || !profileId || (profileId === 'ins_livox_mid360_same_rig' && !sameRigConfirmed) || (profiles.find((p) => p.id === profileId)?.size_bytes !== undefined ? uploadFile.size !== profiles.find((p) => p.id === profileId)?.size_bytes : uploadFile.size < 1 || uploadFile.size > (profiles.find((p) => p.id === profileId)?.max_size_bytes ?? 0))} onClick={() => void upload()}>{uploading ? `上传与预检中 ${uploadProgress}%` : '上传、预检并自动注册'}</button>
+              <select value={profileId} onChange={(e) => { setProfileId(e.target.value); setSameRigConfirmed(false); setUploadResult(null); }}>{profiles.map((p) => <option key={p.id} value={p.id} disabled={p.available === false}>{p.name}{p.version ? ` v${p.version}` : ''}{p.available === false ? '（配置不可用）' : ''}</option>)}</select>
+              <span className="field-hint">{profiles.find((p) => p.id === profileId)?.scope} {profiles.find((p) => p.id === profileId)?.calibration_note} {profiles.find((p) => p.id === profileId)?.unavailable_reason}</span>
+              {profiles.find((p) => p.id === profileId)?.attestation_required ? <label><input type="checkbox" checked={sameRigConfirmed} onChange={(e) => setSameRigConfirmed(e.target.checked)} /> {profiles.find((p) => p.id === profileId)?.attestation_label}</label> : null}
+              <button className="btn btn-primary" disabled={!uploadFile || uploading || !profileId || profiles.find((p) => p.id === profileId)?.available === false || (profiles.find((p) => p.id === profileId)?.attestation_required && !sameRigConfirmed) || (profiles.find((p) => p.id === profileId)?.size_bytes !== undefined ? uploadFile.size !== profiles.find((p) => p.id === profileId)?.size_bytes : uploadFile.size < 1 || uploadFile.size > (profiles.find((p) => p.id === profileId)?.max_size_bytes ?? 0))} onClick={() => void upload()}>{uploading ? `上传与预检中 ${uploadProgress}%` : '上传、预检并自动注册'}</button>
               {uploadResult ? <div className="field-hint">{uploadResult} 预检仅确认结构与所选配置的运行条件，不代表算法成功或精度合格。</div> : null}
             </div>
             <div className="dataset-list">
@@ -283,7 +283,7 @@ export function NewJobPage() {
           <section className="form-section">
             <h3>② 为每个阶段选择算法</h3>
             <p className="form-tip">
-              真实数据执行 Pose / Surface 两阶段；Distance 未接入。演示数据保留三阶段。
+              此页面为真实数据创建 Pose / Surface 两阶段任务；Distance/ESDF 后端已接入，但不在此页面的任务范围内。演示数据保留三阶段。
             </p>
             {(datasets.find((d) => d.id === dataset)?.input_manifest?.execution === 'real' ? STAGE_ORDER.slice(0, 2) : STAGE_ORDER).map((s) => (
               <div className="backend-group" key={s}>
@@ -335,7 +335,7 @@ export function NewJobPage() {
               </select>
             </label>
             <p>{runMode === 'full' ? '完整运行：新运行 GLIM 处理完整序列，再自动将本 Job 的新轨迹交给完整 Surface；不限制前 100 帧。' : '短段验证：新运行 GLIM 处理完整序列，Surface 仅处理原始第 1–100 帧，沿用已验证策略。'}</p>
-            <p>Pose 时间关联门限保持 98%。仅适用于已验证 INS profile；外参及 IMU 单位依据待确认。Distance 未接入，本轮不验收建图精度。</p>
+            <p>Pose 时间关联门限保持 98%。原 INS 验收仅适用于已验证样本；自采设备须独立核对标定，原 INS 外参及 IMU 单位依据待确认。本次两阶段任务不运行 Distance，不验收建图精度。</p>
           </section> : null}
           {datasets.find(d => d.id === dataset)?.input_manifest?.execution !== 'real' ? <section className="form-section">
             <h3>③ 演示选项（仅 Mock Runner）</h3>
