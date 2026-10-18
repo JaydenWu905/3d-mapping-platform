@@ -35,7 +35,7 @@ function withAlpha(hex: string, alpha: number): string {
 
 /**
  * 绘制等待区示意场景。
- * 展开量完全由 options.progress 决定；小车位置单独平滑，time 只影响扫描线。
+ * 服务端进度限制展开上限，实际路线和色块与平滑移动的小车同步，time 只影响扫描线。
  */
 export function drawWaitingScene(
   ctx: CanvasRenderingContext2D,
@@ -43,7 +43,8 @@ export function drawWaitingScene(
   height: number,
   options: WaitingSceneOptions,
 ): SceneArea {
-  const { map, progress, robotProgress, stage, standby, time } = options;
+  const { map, robotProgress, stage, standby, time } = options;
+  const progress = Math.min(clamp(options.progress, 0, 1), clamp(robotProgress, 0, 1));
   const area = sceneArea(width, height);
   const color = stageColor(stage);
 
@@ -147,7 +148,7 @@ export function drawWaitingScene(
 
   const obstacles = obstaclesForRoom(map.room, map.direction);
 
-  obstacles.forEach((obstacle, index) => {
+  obstacles.forEach((obstacle) => {
     rect(
       px(obstacle.x),
       py(obstacle.y) + 5,
@@ -160,7 +161,7 @@ export function drawWaitingScene(
       py(obstacle.y),
       obstacle.w * area.w,
       obstacle.h * area.h,
-      index === 1 ? '#e9def9' : '#e0e8f1',
+      '#e0e8f1',
     );
     line(
       px(obstacle.x),
@@ -181,17 +182,6 @@ export function drawWaitingScene(
   });
 
   const routeLength = map.lengths[map.lengths.length - 1] || 0;
-
-  ctx.beginPath();
-  map.route.forEach((point, index) => {
-    if (index === 0) ctx.moveTo(px(point.x), py(point.y));
-    else ctx.lineTo(px(point.x), py(point.y));
-  });
-  ctx.setLineDash([2, 7]);
-  ctx.strokeStyle = 'rgba(99, 115, 129, 0.12)';
-  ctx.lineWidth = 1;
-  ctx.stroke();
-  ctx.setLineDash([]);
 
   if (progress > 0 && map.route.length > 0) {
     ctx.beginPath();
@@ -287,11 +277,6 @@ export function drawWaitingScene(
   ctx.fillStyle = color;
   ctx.fill();
   ctx.globalAlpha = 1;
-
-  contacts.forEach(([x, y], index) => {
-    if (index % 2 !== 0) return;
-    rect(x - 1.7, y - 1.7, 3.4, 3.4, index % 7 === 0 ? PURPLE : color);
-  });
 
   const scale = clamp(Math.min(area.w, area.h) / 280, 0.82, 1.3);
   ctx.save();

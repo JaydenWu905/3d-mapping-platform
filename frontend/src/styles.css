@@ -252,7 +252,6 @@ body.display-mode .detail-duration-chart {
 .task-preview-live p { font-size: 14px; }
 .task-preview-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 16px; border-bottom: 1px solid #dfe3e8; }
 .task-preview-toolbar .MuiToggleButton-root { border-radius: 0; padding: 7px 13px; font-size: 15px; }
-.task-preview-toolbar>p:last-child { flex-basis: 100%; }
 @media(max-width:600px) { .task-preview-live,.task-preview-toolbar { padding: 10px; } .task-preview-toolbar .MuiToggleButton-root { font-size: 13px; padding: 7px 10px; } }
 
 .waiting-preview__canvas {

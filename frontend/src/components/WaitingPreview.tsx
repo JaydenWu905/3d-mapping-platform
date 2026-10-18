@@ -32,7 +32,7 @@ function noticeSeverity(
 
 /**
  * 当前阶段没有可用真实产物时的等待区。
- * 画面展开量只来自有效进度；新一轮自动更换房间和方向，没有场景交互。
+ * 画面在有效进度范围内随小车同步展开；新一轮自动更换房间和方向，没有场景交互。
  */
 export function WaitingPreview({ stage, connected, runKey }: WaitingPreviewProps) {
   const reducedMotion = useReducedMotion();
@@ -224,7 +224,7 @@ export function WaitingPreview({ stage, connected, runKey }: WaitingPreviewProps
               </Typography>
             </Box>
             <Typography className="waiting-preview__footnote">
-              {state.legend} · 展开量跟随进度；图形为示意，不是真实地图。
+              {state.legend} · 路线与色块随小车展开；图形为示意，不是真实地图。
             </Typography>
           </Box>
         </>

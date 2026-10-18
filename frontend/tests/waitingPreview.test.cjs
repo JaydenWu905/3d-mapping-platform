@@ -443,7 +443,7 @@ assert.match(componentSource, /progress: snapshot\.state\.reveal/);
 assert.doesNotMatch(componentSource, /progress:\s*time/);
 assert.match(componentSource, /useReducedMotion\(\)/);
 assert.match(componentSource, /data-waiting-reveal/);
-assert.match(componentSource, /展开量跟随进度；图形为示意，不是真实地图。/);
+assert.match(componentSource, /路线与色块随小车展开；图形为示意，不是真实地图。/);
 assert.match(componentSource, /等待动画 · 非实时地图/);
 assert.doesNotMatch(componentSource, /onClick|onPointer|换个方向|换个房间|暂停示意|继续示意/);
 assert.match(componentSource, /ref=\{wrapRef\}/);
@@ -490,4 +490,40 @@ for (let room = 0; room < 3; room += 1) {
   assert.equal(starts.size, 4);
 }
 
-console.log('Waiting preview states and lifecycle: passed');
+/* ---------- 绘图不能在小车之前显示路径或生成区域 ---------- */
+const { drawWaitingScene } = loadTs(path.join(SRC, 'components/waitingPreview/draw.ts'));
+function recordScene(stage, progress, robotProgress) {
+  const strokes = [], tiles = [], cars = [];
+  const surfaceColors = ['#ddc4ff', '#cfa5ff', '#bb80fa'];
+  const distanceColors = ['#9ecbff', '#64bce9', '#65d5df', '#b6e9c3', '#ffe09a'];
+  let points = [];
+  const context = {
+    beginPath() { points = []; },
+    moveTo(x, y) { points.push([x, y]); },
+    lineTo(x, y) { points.push([x, y]); },
+    stroke() { strokes.push({ color: this.strokeStyle, width: this.lineWidth, points: [...points] }); },
+    fill() { if (surfaceColors.includes(this.fillStyle)) tiles.push([...points]); },
+    fillRect(...rect) { if (distanceColors.includes(this.fillStyle)) tiles.push(rect); },
+    translate(x, y) { cars.push([x, y]); },
+    clearRect() {}, closePath() {}, arc() {}, strokeRect() {}, setLineDash() {}, save() {}, restore() {}, rotate() {},
+  };
+  const area = drawWaitingScene(context, 1000, 700, { map, stage, progress, robotProgress, time: 1, standby: false });
+  const trail = strokes.find(stroke => stroke.width === (stage === 'pose' ? 2.7 : 1.6));
+  return { trail, tiles, cars, area };
+}
+for (const stage of ['pose', 'surface', 'distance']) {
+  const drawn = recordScene(stage, 0.8, 0.2);
+  const position = routeAt(map, 0.2);
+  const expected = [drawn.area.x + position.x * drawn.area.w, drawn.area.y + position.y * drawn.area.h];
+  assert.deepEqual(drawn.trail.points.at(-1), expected, `${stage} trail ends at car`);
+  assert.deepEqual(drawn.cars, [expected]);
+  assert.equal(drawn.tiles.length, stage === 'pose' ? 0 : revealedCellCount(map, 0.2) * (stage === 'surface' ? 2 : 1));
+  const rolledBack = recordScene(stage, 0.2, 0.8);
+  assert.deepEqual(rolledBack.trail, drawn.trail, `${stage} also respects server rollback`);
+  assert.deepEqual(rolledBack.tiles, drawn.tiles);
+  const unmoved = recordScene(stage, 0.8, 0);
+  assert.equal(unmoved.trail, undefined);
+  assert.equal(unmoved.tiles.length, 0);
+}
+
+console.log('Waiting preview states, lifecycle and synchronized drawing: passed');

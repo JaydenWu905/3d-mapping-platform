@@ -546,14 +546,12 @@ export function JobDetailPage() {
               <ToggleButton value="animation" data-preview-mode-button="animation" disabled={job.status === 'completed' && !activeStage && preview.availableResults.length > 0}>实时进度</ToggleButton>
               <ToggleButton value="results" data-preview-mode-button="results" disabled={!preview.availableResults.length}>已有成果{preview.availableResults.length ? `（${preview.availableResults.length}）` : ''}</ToggleButton>
             </ToggleButtonGroup>
-            {!preview.availableResults.length ? <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>成果生成后即可切换查看</Typography> : null}
             {preview.mode === 'results' ? <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap aria-label="选择已有成果">
               {preview.availableResults.map(key => <Button key={key} size="small" data-result-stage={key} aria-pressed={preview.resultStageKey === key} variant={preview.resultStageKey === key ? 'contained' : 'outlined'} onClick={() => {
                 setPreviewChoice({ jobId, mode: 'results', resultStageKey: key, animationStageKey: null });
                 setSelectedStage(key);
               }}>{STAGE_NAMES[key]}</Button>)}
             </Stack> : null}
-            {isDemo ? <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>后台演示任务 · 每阶段约30秒 · 成果为预制合成示例</Typography> : null}
           </Box>
 
           <Box sx={{ p: 1.5, minWidth: 0 }}>

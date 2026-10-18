@@ -55,13 +55,13 @@ function stageDetailCopy(
     if (standby) {
       return {
         title: '输入已发布，等待轨迹导出/关联',
-        detail: '位姿估计尚未完成；真实轨迹预览可用后会自动替换此示意。',
+        detail: '位姿估计尚未完成；轨迹预览可用后，可点击“已有成果”查看。',
       };
     }
     if (kind === 'input') {
       return {
         title: '正在发布输入',
-        detail: '蓝色路线随输入发布进度展开；动画本身不会改变进度。',
+        detail: '蓝色路线随小车行进展开，范围以输入发布进度为限。',
       };
     }
     if (percent === null) {
@@ -72,7 +72,7 @@ function stageDetailCopy(
     }
     return {
       title: '正在估计位姿',
-      detail: '蓝色路线随本阶段进度展开；真实轨迹就绪后自动替换。',
+      detail: '蓝色路线随小车前进展开；轨迹就绪后可在“已有成果”中查看。',
     };
   }
 
@@ -80,24 +80,24 @@ function stageDetailCopy(
     if (percent === null) {
       return {
         title: '正在重建表面',
-        detail: '暂未收到有效阶段进度；紫色三角网格只在收到新进度后展开。',
+        detail: '暂未收到有效进度，小车和紫色网格会等待进度更新。',
       };
     }
     return {
       title: '正在重建表面',
-      detail: '紫色三角网格随本阶段进度铺开；完成后显示真实网格。',
+      detail: '紫色三角网格在小车经过时铺开；完成后可在“已有成果”中查看网格。',
     };
   }
 
   if (percent === null) {
     return {
       title: '正在计算距离场',
-      detail: '暂未收到有效阶段进度；距离色块只在收到新进度后展开。',
+      detail: '暂未收到有效进度，小车和距离色块会等待进度更新。',
     };
   }
   return {
     title: '正在计算距离场',
-    detail: '距离色块随本阶段进度展开，颜色只表示示意空间的远近。',
+    detail: '距离色块在小车经过时展开，颜色只表示示意空间的远近。',
   };
 }
 
