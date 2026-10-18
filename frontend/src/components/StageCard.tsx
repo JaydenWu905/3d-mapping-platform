@@ -1,8 +1,19 @@
-import { progressLabel, posePhaseLabel, stageProgressText } from './progressLabel';
-import { StageProgressBar } from './StageProgressBar';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
+
 import type { StageDetail } from '../types';
-import { StatusBadge } from './StatusBadge';
 import { BACKEND_STATUS_LABELS } from './PipelineView';
+import {
+  blockedReasonLabel,
+  formatElapsed,
+  progressLabel,
+  stageMessageLabel,
+  stageProgressText,
+} from './progressLabel';
+import { StageProgressBar } from './StageProgressBar';
+import { StatusBadge } from './StatusBadge';
 
 export interface StageCardProps {
   stageKey: string;
@@ -16,65 +27,144 @@ export interface StageCardProps {
   onRetry: () => void;
 }
 
-function formatElapsed(sec: number): string {
-  if (!sec) return '—';
-  const m = Math.floor(sec / 60);
-  const s = Math.floor(sec % 60);
-  return m > 0 ? `${m}m ${s}s` : `${s}s`;
-}
+/** 阶段顺序号只绑定阶段键，不绑定后端算法名。 */
+const STAGE_INDEX: Record<string, string> = {
+  pose: '①',
+  surface: '②',
+  distance: '③',
+};
 
-export function StageCard({ stageKey, label, detail, selected, busy, onSelect, onStart, onCancel, onRetry }: StageCardProps) {
-  const running = detail.status === 'running' || detail.status === 'cancelling' || detail.status === 'queued';
+export function StageCard({
+  stageKey,
+  label,
+  detail,
+  selected,
+  busy,
+  onSelect,
+  onStart,
+  onCancel,
+  onRetry,
+}: StageCardProps) {
+  const running =
+    detail.status === 'running' || detail.status === 'cancelling' || detail.status === 'queued';
 
   return (
-    <div
-      className={`stage-card ${selected ? 'selected' : ''} ${running ? 'active' : ''}`}
-      onClick={() => onSelect()}
+    <Box
+      onClick={onSelect}
+      aria-current={selected ? 'step' : undefined}
+      sx={{
+        p: 1.5,
+        minWidth: 0,
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 0.75,
+        cursor: 'pointer',
+        bgcolor: selected ? 'primary.lighter' : 'background.paper',
+        border: '1px solid',
+        borderColor: selected ? 'primary.main' : 'divider',
+        transition: (theme) =>
+          theme.transitions.create(['border-color', 'background-color'], {
+            duration: theme.transitions.duration.shorter,
+          }),
+        '&:hover': { borderColor: selected ? 'primary.main' : 'grey.400' },
+      }}
     >
-      <div className="stage-card-head">
-        <div className="stage-title">
-          <span className="stage-index">
-            {stageKey === 'pose' ? '①' : stageKey === 'surface' ? '②' : '③'}
-          </span>
-          <span className="stage-name">{label}</span>
-        </div>
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+        <Box
+          component="span"
+          sx={{
+            flex: 'none',
+            width: 24,
+            height: 24,
+            display: 'grid',
+            placeItems: 'center',
+            fontSize: 13,
+            fontWeight: 700,
+            color: running || selected ? 'common.white' : 'text.secondary',
+            bgcolor: running ? 'primary.main' : selected ? 'primary.dark' : 'grey.200',
+          }}
+        >
+          {STAGE_INDEX[stageKey] ?? '·'}
+        </Box>
+        <Typography sx={{ fontSize: 18, fontWeight: 700, whiteSpace: 'nowrap' }}>
+          {label}
+        </Typography>
+        <Box sx={{ flex: 1, minWidth: 8 }} />
         <StatusBadge status={detail.status} />
-      </div>
+      </Stack>
 
-      <div className="stage-backend" title={`backend: ${detail.backend}`}>
-        算法：<strong>{detail.backend_display || detail.backend || '未选择'}</strong>
+      <Typography
+        title={`backend: ${detail.backend}`}
+        sx={{
+          fontSize: 13,
+          color: 'text.secondary',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        算法：
+        <Box component="span" sx={{ color: 'text.primary', fontWeight: 600 }}>
+          {detail.backend_display || detail.backend || '未选择'}
+        </Box>
         {' · '}状态 {BACKEND_STATUS_LABELS[detail.backend_status] ?? detail.backend_status}
-      </div>
+      </Typography>
 
-      <div className="stage-progress" title={detail.phase || detail.message || ''}>
+      <Box title={detail.phase || detail.message || ''} sx={{ minWidth: 0 }}>
         <StageProgressBar stage={detail} />
-        <div className="progress-meta">
-          <span>
+        <Stack direction="row" spacing={1} justifyContent="space-between" sx={{ mt: 0.5 }}>
+          <Typography
+            title={progressLabel(detail)}
+            sx={{
+              fontSize: 12,
+              color: 'text.secondary',
+              minWidth: 0,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
             {progressLabel(detail)}
-          </span>
-          <span>{stageProgressText(detail)}</span>
-        </div>
-      </div>
+          </Typography>
+          <Typography sx={{ flex: 'none', fontSize: 12, color: 'text.secondary' }}>
+            {stageProgressText(detail)}
+          </Typography>
+        </Stack>
+      </Box>
 
-      <div className="stage-line">
-        <span className="phase" title={detail.message}>
-          {detail.stage === 'pose' && detail.backend === 'glim' ? posePhaseLabel(detail) : detail.phase || '待命'}
-        </span>
-        <span className="elapsed">⏱ {formatElapsed(detail.elapsed_sec)}</span>
-      </div>
-
-      {detail.message ? <div className="stage-message">{detail.message}</div> : null}
-
-      <div className="stage-btns" onClick={(e) => e.stopPropagation()}>
-        <StageButton
-          detail={detail}
-          busy={busy}
-          onStart={onStart}
-          onCancel={onCancel}
-          onRetry={onRetry}
-        />
-      </div>
-    </div>
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 'auto', minWidth: 0 }}>
+        <Typography
+          title={detail.message}
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            fontSize: 12,
+            color: 'text.secondary',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {stageMessageLabel(detail)}
+        </Typography>
+        <Typography sx={{ flex: 'none', fontSize: 12, color: 'text.disabled' }}>
+          {formatElapsed(detail.elapsed_sec)}
+        </Typography>
+        <Box
+          onClick={(event) => event.stopPropagation()}
+          sx={{ flex: 'none', display: 'flex', alignItems: 'center' }}
+        >
+          <StageButton
+            detail={detail}
+            busy={busy}
+            onStart={onStart}
+            onCancel={onCancel}
+            onRetry={onRetry}
+          />
+        </Box>
+      </Stack>
+    </Box>
   );
 }
 
@@ -95,31 +185,60 @@ function StageButton({
 
   if (status === 'running' || status === 'cancelling' || status === 'queued') {
     return (
-      <button className="btn btn-danger" onClick={onCancel} disabled={busy}>
+      <Button
+        variant="outlined"
+        color="error"
+        size="small"
+        onClick={onCancel}
+        disabled={busy}
+        sx={{ whiteSpace: 'nowrap' }}
+      >
         {status === 'cancelling' ? '取消中…' : '取消'}
-      </button>
+      </Button>
     );
   }
 
   if (status === 'completed' || status === 'failed' || status === 'cancelled') {
     return (
-      <button className="btn btn-ghost" onClick={onRetry} disabled={busy}>
+      <Button
+        variant="text"
+        size="small"
+        onClick={onRetry}
+        disabled={busy}
+        sx={{ whiteSpace: 'nowrap' }}
+      >
         ↻ 重跑
-      </button>
+      </Button>
     );
   }
 
   if (!can_run) {
     return (
-      <span className="btn-disabled-hint" title={run_blocked_reason}>
-        不可启动 · {run_blocked_reason}
-      </span>
+      <Typography
+        title={run_blocked_reason}
+        sx={{
+          maxWidth: 130,
+          fontSize: 12,
+          color: 'text.disabled',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        不可启动 · {blockedReasonLabel(run_blocked_reason)}
+      </Typography>
     );
   }
 
   return (
-    <button className="btn btn-primary" onClick={onStart} disabled={busy}>
+    <Button
+      variant="contained"
+      size="small"
+      onClick={onStart}
+      disabled={busy}
+      sx={{ whiteSpace: 'nowrap' }}
+    >
       ▶ 启动
-    </button>
+    </Button>
   );
 }

@@ -124,31 +124,31 @@ export function EsdfViewer({ jobId, stage, slices, artifacts }: EsdfViewerProps)
 
       <div className="esdf-stage" style={{ aspectRatio: '1 / 1' }}>
         {baseUrl ? (
-          <img className="esdf-base" src={baseUrl} alt={`distance ${plane}`} />
+          <img className="esdf-base" src={baseUrl} alt={`距离场 ${plane}`} />
         ) : (
-          <div className="esdf-missing">distance 图片缺失（slice_{plane}）</div>
+          <div className="esdf-missing">距离场图片缺失（slice_{plane}）</div>
         )}
         {observedUrl && showObserved ? (
-          <img className="esdf-overlay esdf-observed" src={observedUrl} alt={`observed ${plane}`} />
+          <img className="esdf-overlay esdf-observed" src={observedUrl} alt={`观测掩码 ${plane}`} />
         ) : null}
         <canvas
           ref={canvasRef}
           className="esdf-overlay esdf-arrows"
           style={{ display: showGradient && arrows && arrows[plane] ? 'block' : 'none' }}
         />
-        {arrowError ? <div className="esdf-tip">gradient 预览不可用</div> : null}
+        {arrowError ? <div className="esdf-tip">梯度预览不可用</div> : null}
       </div>
 
       <div className="overlay-controls">
         <label className="toggle">
           <input type="checkbox" checked={showObserved} onChange={(e) => setShowObserved(e.target.checked)} disabled={!observedUrl} />
-          观测掩码 (Observed)
+          观测掩码
         </label>
         <label className="toggle">
           <input type="checkbox" checked={showGradient} onChange={(e) => setShowGradient(e.target.checked)} disabled={!hasGradient} />
-          梯度箭头 (Gradient)
+          梯度箭头
         </label>
-        <span className="gradient-note">{arrows && arrows[plane] ? `|∇| max = ${arrows[plane].magnitude_max}` : ''}</span>
+        <span className="gradient-note">{arrows && arrows[plane] ? `|∇| 最大值 = ${arrows[plane].magnitude_max}` : ''}</span>
       </div>
 
       <p className="esdf-legend">暖色 = 靠近障碍物表面（距离小），冷色 = 离表面远 · 箭头指向距离梯度上升方向</p>

@@ -1,0 +1,246 @@
+[
+  {
+    "name": "上传前校验 bag 大小并给出中文提示",
+    "ok": true,
+    "detail": "bag 大小须与配置一致（17,125,894,059 字节）"
+  },
+  {
+    "name": "默认数据集为可用的合成演示数据",
+    "ok": true,
+    "detail": {
+      "defaultDataset": "demo_room"
+    }
+  },
+  {
+    "name": "可选择演示失败阶段（表面重建）",
+    "ok": true,
+    "detail": {
+      "failSelection": "表面重建阶段失败"
+    }
+  },
+  {
+    "name": "创建演示任务并进入详情",
+    "ok": true,
+    "detail": {
+      "jobId": "job_1792253355_cd1221"
+    }
+  },
+  {
+    "name": "新建任务阶段未运行时曲线显示暂无数据",
+    "ok": true,
+    "detail": {
+      "charts": 2,
+      "observedNoData": true,
+      "observedPoints": 0,
+      "durationNoData": true,
+      "durationPoints": 0
+    }
+  },
+  {
+    "name": "位姿运行中产生真实观测曲线",
+    "ok": true,
+    "detail": {
+      "charts": 2,
+      "observedNoData": false,
+      "observedPoints": 7,
+      "durationNoData": true,
+      "durationPoints": 0
+    }
+  },
+  {
+    "name": "运行中可切换到表面重建并继续采样",
+    "ok": true,
+    "detail": {
+      "selected": "② |  | 表面重建",
+      "surfaceRunCharts": {
+        "charts": 2,
+        "observedNoData": false,
+        "observedPoints": 7,
+        "durationNoData": false,
+        "durationPoints": 6
+      }
+    }
+  },
+  {
+    "name": "演示任务按所选阶段失败",
+    "ok": true,
+    "detail": {
+      "pose": {
+        "stage": "pose",
+        "backend": "registered_pose_import",
+        "backend_display": "Registered Pose Import",
+        "backend_status": "ready",
+        "status": "completed",
+        "phase": "completed",
+        "progress": 100,
+        "current": 1500,
+        "total": 1500,
+        "unit": "frame",
+        "message": "Completed",
+        "elapsed_sec": 7,
+        "lidar_published": 0,
+        "lidar_total": 0,
+        "imu_published": 0,
+        "imu_total": 0,
+        "input_updated_at": null,
+        "started_at": "2026-10-18T00:09:15",
+        "finished_at": "2026-10-18T00:09:22",
+        "manifest": {
+          "schema_version": "0.1",
+          "job_id": "job_1792253355_cd1221",
+          "stage": "pose",
+          "backend": "registered_pose_import",
+          "status": "completed",
+          "frame_id": "world",
+          "unit": "meter",
+          "runtime_sec": 7.01,
+          "artifacts": [
+            {
+              "artifact_id": "trajectory_model",
+              "role": "preview",
+              "path": "trajectory_preview.json",
+              "content_type": "application/json"
+            },
+            {
+              "artifact_id": "trajectory_raw",
+              "role": "data",
+              "path": "trajectory.txt",
+              "content_type": "text/plain",
+              "download": true
+            }
+          ],
+          "metrics": {
+            "pose_count": 120,
+            "trajectory_length_m": 37.7,
+            "loop_closures": 1
+          },
+          "backend_details": {
+            "mock_backend": true,
+            "data_source": "demo preview (not a real algorithm run)",
+            "note": "Prepared demo artifacts presented as registered_pose_import results for phase-1 demo."
+          }
+        },
+        "can_run": false,
+        "run_blocked_reason": "Stage already completed"
+      },
+      "surface": {
+        "stage": "surface",
+        "backend": "mrhash_lidar",
+        "backend_display": "MrHash (LiDAR)",
+        "backend_status": "ready",
+        "status": "failed",
+        "phase": "mapping",
+        "progress": 38.62,
+        "current": 772,
+        "total": 2000,
+        "unit": "frame",
+        "message": "Simulated failure (demo)",
+        "elapsed_sec": 3.6,
+        "lidar_published": 0,
+        "lidar_total": 0,
+        "imu_published": 0,
+        "imu_total": 0,
+        "input_updated_at": null,
+        "started_at": "2026-10-18T00:09:22",
+        "finished_at": "2026-10-18T00:09:26",
+        "manifest": {
+          "schema_version": "0.1",
+          "job_id": "job_1792253355_cd1221",
+          "stage": "surface",
+          "backend": "mrhash_lidar",
+          "status": "failed",
+          "frame_id": "world",
+          "unit": "meter",
+          "runtime_sec": 3.62,
+          "artifacts": [],
+          "metrics": {
+            "partial_progress": 38.6
+          },
+          "backend_details": {
+            "mock_backend": true,
+            "note": "Run failed (simulated demo failure)."
+          }
+        },
+        "can_run": true,
+        "run_blocked_reason": ""
+      },
+      "distance": {
+        "stage": "distance",
+        "backend": "voxel_esdf",
+        "backend_display": "Voxel-ESDF",
+        "backend_status": "ready",
+        "status": "waiting",
+        "phase": "",
+        "progress": 0,
+        "current": 0,
+        "total": 0,
+        "unit": "",
+        "message": "",
+        "elapsed_sec": 0,
+        "lidar_published": 0,
+        "lidar_total": 0,
+        "imu_published": 0,
+        "imu_total": 0,
+        "input_updated_at": null,
+        "started_at": null,
+        "finished_at": null,
+        "manifest": null,
+        "can_run": false,
+        "run_blocked_reason": "Surface must be completed before running Distance"
+      }
+    }
+  },
+  {
+    "name": "失败状态在中文界面呈现",
+    "ok": true,
+    "detail": null
+  },
+  {
+    "name": "失败前已记录表面进度样本",
+    "ok": true,
+    "detail": {
+      "charts": 2,
+      "observedNoData": false,
+      "observedPoints": 9,
+      "durationNoData": false,
+      "durationPoints": 12
+    }
+  },
+  {
+    "name": "重跑后观测历史按运行重置",
+    "ok": true,
+    "detail": {
+      "before": 9,
+      "after": 7
+    }
+  },
+  {
+    "name": "取消阶段后状态终止",
+    "ok": true,
+    "detail": {
+      "status": "cancelled",
+      "surface": "cancelled"
+    }
+  },
+  {
+    "name": "取消状态在中文界面呈现",
+    "ok": true,
+    "detail": null
+  },
+  {
+    "name": "删除确认框为中文且含任务号",
+    "ok": true,
+    "detail": "删除任务\n\n确认删除任务 job_1792253355_cd1221 ？ 该操作会删除其磁盘上的所有数据，且不可恢复。\n\n取消\n确认删除"
+  },
+  {
+    "name": "取消删除不执行操作",
+    "ok": true
+  },
+  {
+    "name": "确认删除后任务移除",
+    "ok": true,
+    "detail": {
+      "apiStatus": 404
+    }
+  }
+]

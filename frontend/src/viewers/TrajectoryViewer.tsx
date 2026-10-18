@@ -56,7 +56,7 @@ export function TrajectoryViewer({ jobId, stage }: TrajectoryViewerProps) {
       </Canvas>
       <button className="btn btn-ghost viewer-reset" onClick={() => setReset(v => v + 1)}>重置视角</button>
       <div className="viewer-hint">拖拽旋转 · 滚轮缩放 · 右键平移 · 绿=起点 黄=轨迹切向（非位姿朝向） 红=终点</div>
-      <div className="viewer-count">frames: {traj.frame_count}</div>
+      <div className="viewer-count">帧：{traj.frame_count}</div>
     </div>
   );
 }

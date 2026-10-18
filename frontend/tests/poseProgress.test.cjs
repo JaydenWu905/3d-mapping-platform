@@ -9,7 +9,17 @@ const compiled = ts.transpileModule(source, {
 }).outputText;
 const exportsForTest = {};
 new Function('exports', compiled)(exportsForTest);
-const { progressLabel, posePhaseLabel, stageProgressText, progressBarState } = exportsForTest;
+const {
+  progressLabel,
+  posePhaseLabel,
+  stageProgressText,
+  progressBarState,
+  unitLabel,
+  formatElapsed,
+  stagePhaseLabel,
+  stageMessageLabel,
+  blockedReasonLabel,
+} = exportsForTest;
 const patchSource = fs.readFileSync(path.join(__dirname, '../src/components/stageProgressPatch.ts'), 'utf8');
 const patchCompiled = ts.transpileModule(patchSource, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
@@ -41,10 +51,37 @@ assert.equal(posePhaseLabel(stage), '输入发布完成，正在等待 GLIM 导�
 stage.phase = 'associating';
 assert.equal(posePhaseLabel(stage), '轨迹关联与产物生成');
 stage.status = 'failed';
-assert.equal(posePhaseLabel(stage), 'Pose 失败');
+assert.equal(posePhaseLabel(stage), '位姿估计失败');
 stage.status = 'completed';
 stage.progress = 100;
 assert.equal(stageProgressText(stage), '阶段 100%');
+
+// 展示层中文标签：单位、耗时、环节、消息与不可启动原因。
+assert.equal(unitLabel('frame'), '帧');
+assert.equal(unitLabel('voxel'), '体素');
+assert.equal(unitLabel('秒'), '秒');
+assert.equal(formatElapsed(42), '42 秒');
+assert.equal(formatElapsed(118), '1 分 58 秒');
+assert.equal(formatElapsed(3720), '1 小时 2 分');
+assert.equal(formatElapsed(0), '—');
+const surfaceStage = {
+  stage: 'surface',
+  backend: 'mrhash',
+  status: 'running',
+  phase: 'mapping',
+  message: 'Fusing frames 12/40',
+  progress: 30,
+};
+assert.equal(stagePhaseLabel(surfaceStage), '表面融合');
+assert.equal(stageMessageLabel(surfaceStage), '正在融合 12 / 40 帧');
+assert.equal(stageMessageLabel({ ...surfaceStage, message: 'Completed' }), '已完成');
+assert.equal(stageMessageLabel({ ...surfaceStage, message: 'Tracking pose 5/9' }), '位姿跟踪 5 / 9 帧');
+assert.equal(blockedReasonLabel("Backend 'x' not in registry"), '所选后端未注册（x）');
+assert.equal(
+  blockedReasonLabel('Pose must be completed before running Surface'),
+  '需先完成位姿估计，才能运行表面重建',
+);
+assert.equal(blockedReasonLabel('Stage already completed'), '阶段已完成');
 
 // Simulate three SSE count updates and inspect the actual rendered fill width.
 const React = require('react');

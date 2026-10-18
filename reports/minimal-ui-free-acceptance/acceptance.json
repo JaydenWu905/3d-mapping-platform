@@ -1,0 +1,210 @@
+[
+  {
+    "label": "overview-1920",
+    "url": "/",
+    "title": "三维建图平台",
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "scroll": {
+      "doc": 1920,
+      "body": 1920
+    },
+    "overflow": false,
+    "bodyFont": "18px",
+    "buttonFont": "24px",
+    "h1Size": "32px",
+    "axisFont": "16px",
+    "sidebarWidth": 200,
+    "topbarHeight": 56,
+    "chartCount": 2,
+    "canvasCount": 0,
+    "roundedControlCount": 0,
+    "roundedExamples": [],
+    "metricValues": [],
+    "text": "三维建图平台\n三维重建工作台\n任务总览\n状态统计与任务列表\n新建任务\n上传数据并配置算法\n处理流程\n1\n位姿估计\n2\n表面重建\n3\n距离场\n三维建图平台\n/\n任务总览\n位姿估计 · 表面重建 · 距离场\n任务总览\n查看三维建图任务状态、阶段进度与最近七日活动。\n新建任务\n任务总数\n4\n来自真实任务列表\n运行中\n0\n来自真实任务列表\n已完成\n2\n来自真实任务列表\n失败\n1\n来自真实任务列表\n任务状态分布\n0\n2\n1\n0\n1\n运行中\n已完成\n失败\n已取消\n已创建\n2.0\n1.5\n1.0\n0.5\n0.0\n近七日新建任务\n2\n1\n0\n10-12\n10-13\n10-14\n10-15\n10-16\n10-17\n10-18\n​\n​\n全部状态\n​\n共 4 个任务\n任务 ID\t数据集\t创建时间\t状态\t阶段\t操作\njob_1789959412_084205\n\tdemo_room\t2026/9/21 10:56:52\t\n已创建\n\t\n位姿估计\n已完成\n表面重建\n等待中\n距离场\n等待中\n\t\n打开\n删除\njob_1789959395_629e45\n\tdemo_room\t2026/9/21 10:56:35\t\n失败\n\t\n位姿估计\n已完成\n表面重建\n失败\n距离场\n等待中\n\t\n打开\n删除\njob_1789959302_68a603\n\tdemo_room\t2026/9/21 10:55:02\t\n已完成\n\t\n位姿估计\n已完成\n表面重建\n已完成\n距离场\n已完成\n\t\n打开\n删除\ndemo\n演示\n\tdemo_room\t2026/9/21 10:29:12\t\n已完成\n\t\n位姿估计\n已完成\n表面重建\n已完成\n距离场\n已完成\n\t\n打开\n删除",
+    "shot": {
+      "contentWidth": 1920,
+      "contentHeight": 1080
+    }
+  },
+  {
+    "label": "new-job-1920",
+    "url": "/jobs/new",
+    "title": "三维建图平台",
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "scroll": {
+      "doc": 1920,
+      "body": 1920
+    },
+    "overflow": false,
+    "bodyFont": "18px",
+    "buttonFont": "24px",
+    "h1Size": "32px",
+    "axisFont": null,
+    "sidebarWidth": 200,
+    "topbarHeight": 56,
+    "chartCount": 0,
+    "canvasCount": 0,
+    "roundedControlCount": 0,
+    "roundedExamples": [],
+    "metricValues": [],
+    "text": "三维建图平台\n三维重建工作台\n任务总览\n状态统计与任务列表\n新建任务\n上传数据并配置算法\n处理流程\n1\n位姿估计\n2\n表面重建\n3\n距离场\n三维建图平台\n/\n新建任务\n位姿估计 · 表面重建 · 距离场\n新建任务\n上传数据、选择设备配置与各阶段算法，然后创建三维建图任务。\n①\n数据与设备\n上传 ROS1 bag v2 的 INS / Livox 数据，或选择已注册数据集。\n上传 bag 并注册数据集\n选择 .bag 文件\n尚未选择文件\nINS / Livox MID-360 已验证原始 bag\n​\n来自交接配置，原始标定及单位依据待负责人确认；仅适用于已验证的原始 INS bag。\n大小限制：须恰好 17,125,894,059 字节\n上传、预检并注册数据集\n请选择 .bag 文件\n已注册数据集\nDemo Room (合成房间)\ndemo_room\n合成室内房间点云序列:单回环,含桌椅墙壁,用于三种算法阶段的无环境演示。\n技术清单（原始字段）\nINS indoor_long_corridor01 (Livox MID-360, GLIM)\nins_longcorridor01\n服务器数据不可用，请展开技术清单查看原始原因\n技术清单（原始字段）\nOxford Spires (MrHash LiDAR, corrected poses)\noxford_mrhash_lidar\n服务器数据不可用，请展开技术清单查看原始原因\n技术清单（原始字段）\n②\n阶段算法\n演示数据包含位姿估计、表面重建与距离场三个模拟阶段。\n位姿估计\nRegistered Pose Import\n就绪\n输入：预计算位姿\n能力与原始信息\nGLIM\n就绪\n输入：激光雷达 / IMU\n能力与原始信息\nFAST-LIVO2\n就绪\n输入：激光雷达 / IMU / RGB 图像\n能力与原始信息\nLIO-SAM\n实验性\n输入：激光雷达 / IMU\n能力与原始信息\n表面重建\nMrHash (LiDAR)\n就绪\n输入：激光雷达 / 相机位姿\n能力与原始信息\nMrHash (RGB-D)\n已禁用\n输入：RGB 图像 / 深度",
+    "shot": {
+      "contentWidth": 1920,
+      "contentHeight": 1986
+    }
+  },
+  {
+    "label": "job-detail-1920",
+    "url": "/jobs/demo",
+    "title": "三维建图平台",
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "scroll": {
+      "doc": 1920,
+      "body": 1920
+    },
+    "overflow": false,
+    "bodyFont": "18px",
+    "buttonFont": "24px",
+    "h1Size": "30px",
+    "axisFont": "16px",
+    "sidebarWidth": 200,
+    "topbarHeight": 56,
+    "chartCount": 2,
+    "canvasCount": 1,
+    "roundedControlCount": 0,
+    "roundedExamples": [],
+    "metricValues": [],
+    "text": "三维建图平台\n三维重建工作台\n任务总览\n状态统计与任务列表\n新建任务\n上传数据并配置算法\n处理流程\n1\n位姿估计\n2\n表面重建\n3\n距离场\n三维建图平台\n/\n任务详情\n位姿估计 · 表面重建 · 距离场\ndemo\n演示任务\n已完成\n数据集 demo_room\n创建于 2026/9/21 10:29:12\n请求阶段 位姿估计 → 表面重建 → 距离场\n实时连接已建立\n展示模式\n一键运行（全部阶段）\n刷新\n删除\n处理管线\n①\n位姿估计\n已完成\n算法：GLIM · 状态 就绪\n输出 120 位姿 · 全包 — 帧\n阶段 100%\n已完成\n42 秒\n↻ 重跑\n②\n表面重建\n已完成\n算法：MrHash (LiDAR) · 状态 就绪\n120 / 120 帧\n阶段 100%\n已完成\n1 分 58 秒\n↻ 重跑\n③\n距离场\n已完成\n算法：Voxel-ESDF · 状态 就绪\n120 / 120 帧\n阶段 100%\n已完成\n55 秒\n↻ 重跑\n三维预览\n位姿估计\n可旋转 · 缩放 · 平移 · 重置视角\n重置视角\n拖拽旋转 · 滚轮缩放 · 右键平移 · 绿=起点 黄=轨迹切向（非位姿朝向） 红=终点\n帧：120\n位姿估计\n已完成\n阶段 1 / 3\n阶段算法\nGLIM · 就绪\n当前环节\n位姿估计完成\n阶段耗时\n42 秒\n输出 120 位姿 · 全包 — 帧\n阶段 100%\n已完成\n当前阶段不可运行：阶段已完成\n本次页面观测的进度\n100%\n80%\n60%\n40%\n20%\n0%\n00:10:20\n输入发布进度\n阶段进度\n只记录本页面打开后的真实读数；刷新页面后重新观测，不补造历史。\n各阶段耗时\n42 秒\n118 秒\n55 秒\n位姿估计\n表面重建\n距离场\n120\n100\n80\n60\n40\n20\n0\n仅展示已完成阶段产物清单中的真实运行耗时。\n产物、完整指标与算法细节\n按当前阶段展示 manifest 中的产物、指标和后端细节。\n展开 / 收起\n运行日志\n查看当前阶段日志；阶段运行时自动刷新。\n展开 / 收起\n设备与算法配置\n设备配置、阶段算法、复用位姿与运行模式。\n展开 / 收起\n运行范",
+    "shot": {
+      "contentWidth": 1920,
+      "contentHeight": 1581
+    }
+  },
+  {
+    "label": "overview-1366",
+    "url": "/",
+    "title": "三维建图平台",
+    "viewport": {
+      "width": 1366,
+      "height": 768
+    },
+    "scroll": {
+      "doc": 1366,
+      "body": 1366
+    },
+    "overflow": false,
+    "bodyFont": "18px",
+    "buttonFont": "24px",
+    "h1Size": "32px",
+    "axisFont": "16px",
+    "sidebarWidth": 200,
+    "topbarHeight": 56,
+    "chartCount": 2,
+    "canvasCount": 0,
+    "roundedControlCount": 0,
+    "roundedExamples": [],
+    "metricValues": [],
+    "text": "三维建图平台\n三维重建工作台\n任务总览\n状态统计与任务列表\n新建任务\n上传数据并配置算法\n处理流程\n1\n位姿估计\n2\n表面重建\n3\n距离场\n三维建图平台\n/\n任务总览\n位姿估计 · 表面重建 · 距离场\n任务总览\n查看三维建图任务状态、阶段进度与最近七日活动。\n新建任务\n任务总数\n4\n来自真实任务列表\n运行中\n0\n来自真实任务列表\n已完成\n2\n来自真实任务列表\n失败\n1\n来自真实任务列表\n任务状态分布\n0\n2\n1\n0\n1\n运行中\n已完成\n失败\n已取消\n已创建\n2.0\n1.5\n1.0\n0.5\n0.0\n近七日新建任务\n2\n1\n0\n10-12\n10-13\n10-14\n10-15\n10-16\n10-17\n10-18\n​\n​\n全部状态\n​\n共 4 个任务\n任务 ID\t数据集\t创建时间\t状态\t阶段\t操作\njob_1789959412_084205\n\tdemo_room\t2026/9/21 10:56:52\t\n已创建\n\t\n位姿估计\n已完成\n表面重建\n等待中\n距离场\n等待中\n\t\n打开\n删除\njob_1789959395_629e45\n\tdemo_room\t2026/9/21 10:56:35\t\n失败\n\t\n位姿估计\n已完成\n表面重建\n失败\n距离场\n等待中\n\t\n打开\n删除\njob_1789959302_68a603\n\tdemo_room\t2026/9/21 10:55:02\t\n已完成\n\t\n位姿估计\n已完成\n表面重建\n已完成\n距离场\n已完成\n\t\n打开\n删除\ndemo\n演示\n\tdemo_room\t2026/9/21 10:29:12\t\n已完成\n\t\n位姿估计\n已完成\n表面重建\n已完成\n距离场\n已完成\n\t\n打开\n删除",
+    "shot": {
+      "contentWidth": 1366,
+      "contentHeight": 1006
+    }
+  },
+  {
+    "label": "new-job-1366",
+    "url": "/jobs/new",
+    "title": "三维建图平台",
+    "viewport": {
+      "width": 1366,
+      "height": 768
+    },
+    "scroll": {
+      "doc": 1366,
+      "body": 1366
+    },
+    "overflow": false,
+    "bodyFont": "18px",
+    "buttonFont": "24px",
+    "h1Size": "32px",
+    "axisFont": null,
+    "sidebarWidth": 200,
+    "topbarHeight": 56,
+    "chartCount": 0,
+    "canvasCount": 0,
+    "roundedControlCount": 0,
+    "roundedExamples": [],
+    "metricValues": [],
+    "text": "三维建图平台\n三维重建工作台\n任务总览\n状态统计与任务列表\n新建任务\n上传数据并配置算法\n处理流程\n1\n位姿估计\n2\n表面重建\n3\n距离场\n三维建图平台\n/\n新建任务\n位姿估计 · 表面重建 · 距离场\n新建任务\n上传数据、选择设备配置与各阶段算法，然后创建三维建图任务。\n①\n数据与设备\n上传 ROS1 bag v2 的 INS / Livox 数据，或选择已注册数据集。\n上传 bag 并注册数据集\n选择 .bag 文件\n尚未选择文件\nINS / Livox MID-360 已验证原始 bag\n​\n来自交接配置，原始标定及单位依据待负责人确认；仅适用于已验证的原始 INS bag。\n大小限制：须恰好 17,125,894,059 字节\n上传、预检并注册数据集\n请选择 .bag 文件\n已注册数据集\nDemo Room (合成房间)\ndemo_room\n合成室内房间点云序列:单回环,含桌椅墙壁,用于三种算法阶段的无环境演示。\n技术清单（原始字段）\nINS indoor_long_corridor01 (Livox MID-360, GLIM)\nins_longcorridor01\n服务器数据不可用，请展开技术清单查看原始原因\n技术清单（原始字段）\nOxford Spires (MrHash LiDAR, corrected poses)\noxford_mrhash_lidar\n服务器数据不可用，请展开技术清单查看原始原因\n技术清单（原始字段）\n②\n阶段算法\n演示数据包含位姿估计、表面重建与距离场三个模拟阶段。\n位姿估计\nRegistered Pose Import\n就绪\n输入：预计算位姿\n能力与原始信息\nGLIM\n就绪\n输入：激光雷达 / IMU\n能力与原始信息\nFAST-LIVO2\n就绪\n输入：激光雷达 / IMU / RGB 图像\n能力与原始信息\nLIO-SAM\n实验性\n输入：激光雷达 / IMU\n能力与原始信息\n表面重建\nMrHash (LiDAR)\n就绪\n输入：激光雷达 / 相机位姿\n能力与原始信息\nMrHash (RGB-D)\n已禁用\n输入：RGB 图像 / 深度",
+    "shot": {
+      "contentWidth": 1366,
+      "contentHeight": 2121
+    }
+  },
+  {
+    "label": "job-detail-1366",
+    "url": "/jobs/demo",
+    "title": "三维建图平台",
+    "viewport": {
+      "width": 1366,
+      "height": 768
+    },
+    "scroll": {
+      "doc": 1366,
+      "body": 1366
+    },
+    "overflow": false,
+    "bodyFont": "18px",
+    "buttonFont": "24px",
+    "h1Size": "30px",
+    "axisFont": "16px",
+    "sidebarWidth": 200,
+    "topbarHeight": 56,
+    "chartCount": 2,
+    "canvasCount": 1,
+    "roundedControlCount": 0,
+    "roundedExamples": [],
+    "metricValues": [],
+    "text": "三维建图平台\n三维重建工作台\n任务总览\n状态统计与任务列表\n新建任务\n上传数据并配置算法\n处理流程\n1\n位姿估计\n2\n表面重建\n3\n距离场\n三维建图平台\n/\n任务详情\n位姿估计 · 表面重建 · 距离场\ndemo\n演示任务\n已完成\n数据集 demo_room\n创建于 2026/9/21 10:29:12\n请求阶段 位姿估计 → 表面重建 → 距离场\n实时连接已建立\n展示模式\n一键运行（全部阶段）\n刷新\n删除\n处理管线\n①\n位姿估计\n已完成\n算法：GLIM · 状态 就绪\n输出 120 位姿 · 全包 — 帧\n阶段 100%\n已完成\n42 秒\n↻ 重跑\n②\n表面重建\n已完成\n算法：MrHash (LiDAR) · 状态 就绪\n120 / 120 帧\n阶段 100%\n已完成\n1 分 58 秒\n↻ 重跑\n③\n距离场\n已完成\n算法：Voxel-ESDF · 状态 就绪\n120 / 120 帧\n阶段 100%\n已完成\n55 秒\n↻ 重跑\n三维预览\n位姿估计\n可旋转 · 缩放 · 平移 · 重置视角\n重置视角\n拖拽旋转 · 滚轮缩放 · 右键平移 · 绿=起点 黄=轨迹切向（非位姿朝向） 红=终点\n帧：120\n位姿估计\n已完成\n阶段 1 / 3\n阶段算法\nGLIM · 就绪\n当前环节\n位姿估计完成\n阶段耗时\n42 秒\n输出 120 位姿 · 全包 — 帧\n阶段 100%\n已完成\n当前阶段不可运行：阶段已完成\n本次页面观测的进度\n100%\n80%\n60%\n40%\n20%\n0%\n00:10:27\n输入发布进度\n阶段进度\n只记录本页面打开后的真实读数；刷新页面后重新观测，不补造历史。\n各阶段耗时\n42 秒\n118 秒\n55 秒\n位姿估计\n表面重建\n距离场\n120\n100\n80\n60\n40\n20\n0\n仅展示已完成阶段产物清单中的真实运行耗时。\n产物、完整指标与算法细节\n按当前阶段展示 manifest 中的产物、指标和后端细节。\n展开 / 收起\n运行日志\n查看当前阶段日志；阶段运行时自动刷新。\n展开 / 收起\n设备与算法配置\n设备配置、阶段算法、复用位姿与运行模式。\n展开 / 收起\n运行范",
+    "shot": {
+      "contentWidth": 1366,
+      "contentHeight": 1842
+    }
+  },
+  {
+    "label": "job-detail-display-mode-1920",
+    "canvasBefore": {
+      "count": 1,
+      "width": 1126,
+      "height": 758
+    },
+    "entered": true,
+    "inDisplay": {
+      "entered": true,
+      "sidebarHidden": true,
+      "canvasMarker": "kept",
+      "viewerWidth": 1280,
+      "viewerHeight": 828,
+      "overflow": false
+    },
+    "displayShot": {
+      "contentWidth": 1920,
+      "contentHeight": 1515
+    },
+    "afterEscape": {
+      "displayMode": false,
+      "canvasMarker": "kept",
+      "viewerWidth": 1126,
+      "viewerHeight": 758,
+      "overflow": false
+    }
+  }
+]

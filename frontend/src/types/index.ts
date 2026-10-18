@@ -106,6 +106,9 @@ export interface JobSummary {
   dataset: string;
   preview_job: boolean;
   stages: Partial<Record<StageKey, string>>;
+  // 列表接口当前不返回这两个字段；旧任务按 stages 中的 not_integrated 回退判断。
+  backends?: Partial<Record<StageKey, string>>;
+  requested_stages?: StageKey[];
 }
 
 // ---- SSE 增量事件 ----
