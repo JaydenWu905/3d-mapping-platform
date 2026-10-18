@@ -1,0 +1,515 @@
+{
+  "generatedAt": "2026-10-18T06:56:34.022Z",
+  "jobId": "job_1792306497_d631cf",
+  "passed": 9,
+  "total": 9,
+  "results": [
+    {
+      "name": "正常新建入口创建并一键运行后台演示任务",
+      "passed": true,
+      "detail": {
+        "jobId": "job_1792306497_d631cf",
+        "initial": 2.29
+      }
+    },
+    {
+      "name": "表面运行时可查看实际位姿成果，后台进度继续增长",
+      "passed": true,
+      "detail": {
+        "before": 3.46,
+        "after": 9.5,
+        "scene": {
+          "waitingStage": "surface",
+          "waitingMode": "running",
+          "waitingScene": "true",
+          "waitingReveal": "0.0223",
+          "waitingPercent": "2.23",
+          "waitingAnimating": "true",
+          "waitingRoom": "2",
+          "waitingDirection": "2"
+        }
+      }
+    },
+    {
+      "name": "切回当前进度和同一房间方向，不重置任务",
+      "passed": true,
+      "detail": {
+        "waitingStage": "surface",
+        "waitingMode": "running",
+        "waitingScene": "true",
+        "waitingReveal": "0.1022",
+        "waitingPercent": "10.22",
+        "waitingAnimating": "true",
+        "waitingRoom": "2",
+        "waitingDirection": "2"
+      }
+    },
+    {
+      "name": "20次切换只有一个画布和一个事件连接，未产生任务操作请求",
+      "passed": true,
+      "detail": {
+        "streams": {
+          "active": 1,
+          "created": 1
+        },
+        "canvases": 1,
+        "extraMutations": 0
+      }
+    },
+    {
+      "name": "查看位姿成果时后台进入距离场，不抢走当前视图",
+      "passed": true,
+      "detail": {
+        "available": 2
+      }
+    },
+    {
+      "name": "距离场运行时可看实际表面网格，再回到距离场小车",
+      "passed": true,
+      "detail": {
+        "progress": 3.51
+      }
+    },
+    {
+      "name": "1366、390和展示模式布局正确，减少动态效果仍响应后台进度",
+      "passed": true,
+      "detail": {
+        "layouts": [
+          {
+            "width": 1366,
+            "doc": 1366,
+            "clipped": []
+          },
+          {
+            "width": 390,
+            "doc": 390,
+            "clipped": []
+          }
+        ],
+        "before": "0.0705",
+        "after": "0.1038"
+      }
+    },
+    {
+      "name": "后台三阶段各约30秒，完成后自动展示可加载距离场成果",
+      "passed": true,
+      "detail": {
+        "durations": {
+          "pose": 30.45,
+          "surface": 30.18,
+          "distance": 30.54
+        }
+      }
+    },
+    {
+      "name": "刷新和切换成果不丢任务，预览实际请求成功",
+      "passed": true,
+      "detail": {
+        "responses": [
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/pose/previews/trajectory_model",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/pose/previews/trajectory_model",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/pose/previews/trajectory_model",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/pose/previews/trajectory_model",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/pose/previews/trajectory_model",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/pose/previews/trajectory_model",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/pose/previews/trajectory_model",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/pose/previews/trajectory_model",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/pose/previews/trajectory_model",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/pose/previews/trajectory_model",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/pose/previews/trajectory_model",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/pose/previews/trajectory_model",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/pose/previews/trajectory_model",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/pose/previews/trajectory_model",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/pose/previews/trajectory_model",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/pose/previews/trajectory_model",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/pose/previews/trajectory_model",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/pose/previews/trajectory_model",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/pose/previews/trajectory_model",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/pose/previews/trajectory_model",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/pose/previews/trajectory_model",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/pose/previews/trajectory_model",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/pose/previews/trajectory_model",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/pose/previews/trajectory_model",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/surface/previews/surface_model",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/distance/previews/observed_xy",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/distance/previews/slice_xy",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/distance/previews/gradient",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/distance/previews/gradient",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/distance/previews/observed_xy",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/distance/previews/slice_xy",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/distance/previews/gradient",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/distance/previews/gradient",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/pose/previews/trajectory_model",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/pose/previews/trajectory_model",
+            "status": 200
+          },
+          {
+            "url": "http://127.0.0.1:5173/api/jobs/job_1792306497_d631cf/stages/surface/previews/surface_model",
+            "status": 200
+          }
+        ],
+        "errors": [],
+        "extraMutations": 0
+      }
+    }
+  ],
+  "job": {
+    "job_id": "job_1792306497_d631cf",
+    "created_at": "2026-10-18T14:54:57",
+    "status": "completed",
+    "dataset": "demo_room",
+    "backends": {
+      "pose": "registered_pose_import",
+      "surface": "mrhash_lidar",
+      "distance": "voxel_esdf"
+    },
+    "preview_job": false,
+    "requested_stages": [
+      "pose",
+      "surface",
+      "distance"
+    ],
+    "run_scope": {
+      "pose": "registered",
+      "surface_start_frame": 1,
+      "surface_end_frame": null
+    },
+    "run_mode": null,
+    "pose_reuse": null,
+    "validation_scope": null,
+    "fail_stage": null,
+    "device_config": null,
+    "stages": {
+      "pose": {
+        "stage": "pose",
+        "backend": "registered_pose_import",
+        "backend_display": "Registered Pose Import",
+        "backend_status": "ready",
+        "status": "completed",
+        "phase": "completed",
+        "progress": 100,
+        "current": 1500,
+        "total": 1500,
+        "unit": "frame",
+        "message": "Completed",
+        "elapsed_sec": 30.4,
+        "lidar_published": 0,
+        "lidar_total": 0,
+        "imu_published": 0,
+        "imu_total": 0,
+        "input_updated_at": null,
+        "started_at": "2026-10-18T14:54:57",
+        "finished_at": "2026-10-18T14:55:29",
+        "manifest": {
+          "schema_version": "0.1",
+          "job_id": "job_1792306497_d631cf",
+          "stage": "pose",
+          "backend": "registered_pose_import",
+          "status": "completed",
+          "frame_id": "world",
+          "unit": "meter",
+          "runtime_sec": 30.45,
+          "artifacts": [
+            {
+              "artifact_id": "trajectory_model",
+              "role": "preview",
+              "path": "trajectory_preview.json",
+              "content_type": "application/json"
+            },
+            {
+              "artifact_id": "trajectory_raw",
+              "role": "data",
+              "path": "trajectory.txt",
+              "content_type": "text/plain",
+              "download": true
+            }
+          ],
+          "metrics": {
+            "pose_count": 120,
+            "trajectory_length_m": 37.7,
+            "loop_closures": 1
+          },
+          "backend_details": {
+            "mock_backend": true,
+            "data_source": "demo preview (not a real algorithm run)",
+            "note": "Prepared demo artifacts presented as registered_pose_import results for phase-1 demo."
+          }
+        },
+        "can_run": false,
+        "run_blocked_reason": "Stage already completed"
+      },
+      "surface": {
+        "stage": "surface",
+        "backend": "mrhash_lidar",
+        "backend_display": "MrHash (LiDAR)",
+        "backend_status": "ready",
+        "status": "completed",
+        "phase": "completed",
+        "progress": 100,
+        "current": 2000,
+        "total": 2000,
+        "unit": "frame",
+        "message": "Completed",
+        "elapsed_sec": 30.2,
+        "lidar_published": 0,
+        "lidar_total": 0,
+        "imu_published": 0,
+        "imu_total": 0,
+        "input_updated_at": null,
+        "started_at": "2026-10-18T14:55:29",
+        "finished_at": "2026-10-18T14:56:00",
+        "manifest": {
+          "schema_version": "0.1",
+          "job_id": "job_1792306497_d631cf",
+          "stage": "surface",
+          "backend": "mrhash_lidar",
+          "status": "completed",
+          "frame_id": "world",
+          "unit": "meter",
+          "runtime_sec": 30.18,
+          "artifacts": [
+            {
+              "artifact_id": "surface_model",
+              "role": "preview",
+              "path": "surface_preview.glb",
+              "content_type": "model/gltf-binary"
+            },
+            {
+              "artifact_id": "surface_mesh",
+              "role": "data",
+              "path": "surface.ply",
+              "content_type": "application/octet-stream",
+              "download": true
+            },
+            {
+              "artifact_id": "navigation_input",
+              "role": "data",
+              "path": "navigation_input.ply",
+              "content_type": "application/octet-stream",
+              "download": true,
+              "note": "输入给下阶段(voxel_esdf)的简化点云/网格"
+            }
+          ],
+          "metrics": {
+            "vertices": 234,
+            "faces": 428,
+            "bbox_m": [
+              16,
+              16,
+              3
+            ]
+          },
+          "backend_details": {
+            "mock_backend": true,
+            "data_source": "demo preview (not a real algorithm run)",
+            "note": "Prepared demo artifacts presented as mrhash_lidar results for phase-1 demo."
+          }
+        },
+        "can_run": false,
+        "run_blocked_reason": "Stage already completed"
+      },
+      "distance": {
+        "stage": "distance",
+        "backend": "voxel_esdf",
+        "backend_display": "Voxel-ESDF",
+        "backend_status": "ready",
+        "status": "completed",
+        "phase": "completed",
+        "progress": 100,
+        "current": 1000000,
+        "total": 1000000,
+        "unit": "voxel",
+        "message": "Completed",
+        "elapsed_sec": 30.5,
+        "lidar_published": 0,
+        "lidar_total": 0,
+        "imu_published": 0,
+        "imu_total": 0,
+        "input_updated_at": null,
+        "started_at": "2026-10-18T14:56:00",
+        "finished_at": "2026-10-18T14:56:32",
+        "manifest": {
+          "schema_version": "0.1",
+          "job_id": "job_1792306497_d631cf",
+          "stage": "distance",
+          "backend": "voxel_esdf",
+          "status": "completed",
+          "frame_id": "world",
+          "unit": "meter",
+          "runtime_sec": 30.54,
+          "artifacts": [
+            {
+              "artifact_id": "gradient",
+              "role": "preview",
+              "path": "gradient.json",
+              "content_type": "application/json"
+            },
+            {
+              "artifact_id": "slice_xy",
+              "role": "preview",
+              "path": "slices/xy.png",
+              "content_type": "image/png"
+            },
+            {
+              "artifact_id": "slice_xz",
+              "role": "preview",
+              "path": "slices/xz.png",
+              "content_type": "image/png"
+            },
+            {
+              "artifact_id": "slice_yz",
+              "role": "preview",
+              "path": "slices/yz.png",
+              "content_type": "image/png"
+            },
+            {
+              "artifact_id": "observed_xy",
+              "role": "preview",
+              "path": "slices/observed_xy.png",
+              "content_type": "image/png"
+            },
+            {
+              "artifact_id": "observed_xz",
+              "role": "preview",
+              "path": "slices/observed_xz.png",
+              "content_type": "image/png"
+            },
+            {
+              "artifact_id": "observed_yz",
+              "role": "preview",
+              "path": "slices/observed_yz.png",
+              "content_type": "image/png"
+            },
+            {
+              "artifact_id": "slices_archive",
+              "role": "data",
+              "path": "slices.zip",
+              "content_type": "application/zip",
+              "download": true
+            }
+          ],
+          "metrics": {
+            "resolution_m": 0.1,
+            "voxel_count": 691200,
+            "max_distance_m": 9,
+            "slices": [
+              "xy",
+              "xz",
+              "yz"
+            ]
+          },
+          "backend_details": {
+            "mock_backend": true,
+            "data_source": "demo preview (not a real algorithm run)",
+            "note": "Prepared demo artifacts presented as voxel_esdf results for phase-1 demo."
+          }
+        },
+        "can_run": false,
+        "run_blocked_reason": "Stage already completed"
+      }
+    }
+  }
+}

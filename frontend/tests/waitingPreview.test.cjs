@@ -57,6 +57,7 @@ const {
   routeAt,
   sceneArea,
 } = loadTs(path.join(SRC, 'components/waitingPreview/route.ts'));
+const { sceneVariant, variantForRun } = loadTs(path.join(SRC, 'components/waitingPreview/variation.ts'));
 
 function makeStage(overrides = {}) {
   return {
@@ -388,7 +389,7 @@ assert.notDeepEqual(
 // 紧凑高度仍为底部说明留出区域，避免地图被遮住。
 const compact = sceneArea(390, 360);
 assert.ok(compact.w > 100 && compact.h > 60);
-assert.ok(compact.y + compact.h <= 360 - 164 + 1);
+assert.ok(compact.y + compact.h <= 360 - 118 + 1);
 const tall = sceneArea(1280, 760);
 assert.ok(tall.w > compact.w && tall.h > compact.h);
 
@@ -416,7 +417,9 @@ assert.doesNotMatch(componentSource, /progress:\s*time/);
 assert.match(componentSource, /useReducedMotion\(\)/);
 assert.match(componentSource, /data-waiting-reveal/);
 assert.match(componentSource, /展开量跟随进度；图形为示意，不是真实地图。/);
-assert.match(componentSource, /等待互动 · 非实时地图/);
+assert.match(componentSource, /等待动画 · 非实时地图/);
+assert.doesNotMatch(componentSource, /onClick|onPointer|换个方向|换个房间|暂停示意|继续示意/);
+assert.match(componentSource, /ref=\{wrapRef\}/);
 
 const pageSource = fs.readFileSync(
   path.join(SRC, 'pages/JobDetailPage.tsx'),
@@ -426,8 +429,38 @@ assert.match(pageSource, /hasUsablePreview\(stage\)/);
 assert.match(pageSource, /function previewHint\(stage: StageDetail\): string/);
 assert.match(pageSource, /未请求该阶段/);
 assert.match(pageSource, /无可用预览产物/);
-assert.match(pageSource, /<WaitingPreview stage=\{stage\} connected=\{connected\} \/>/);
-assert.match(pageSource, /key=\{`\$\{job\.job_id\}:\$\{stage\.stage\}`\}/);
+assert.match(pageSource, /<WaitingPreview stage=\{stage\} connected=\{connected\} runKey=/);
+assert.match(pageSource, /key=\{`\$\{job\.job_id\}:\$\{previewStage\.stage\}:\$\{preview\.mode\}`\}/);
 assert.doesNotMatch(pageSource, /progress\s*[<>=].*WaitingPreview/);
+
+/* ---------- 自动场景轮换 ---------- */
+
+for (let i = 1; i < 36; i += 1) {
+  assert.notEqual(sceneVariant(i).room, sceneVariant(i - 1).room);
+  assert.notEqual(sceneVariant(i).direction, sceneVariant(i - 1).direction);
+  if (i >= 3) assert.notEqual(sceneVariant(i).room, sceneVariant(i - 3).room);
+}
+assert.deepEqual(variantForRun('stable-attempt'), variantForRun('stable-attempt'));
+const autoA = variantForRun('new-attempt-a'), autoB = variantForRun('new-attempt-b');
+assert.notEqual(autoA.room, autoB.room);
+assert.notEqual(autoA.direction, autoB.direction);
+assert.deepEqual(variantForRun('new-attempt-a'), autoA);
+
+// 镜像房间后路线仍相邻、始终不穿过障碍，且四个出发位置不同。
+const { obstaclesForRoom } = loadTs(path.join(SRC, 'components/waitingPreview/route.ts'));
+for (let room = 0; room < 3; room += 1) {
+  const starts = new Set();
+  for (let direction = 0; direction < 4; direction += 1) {
+    const rotated = buildScannerMap(room, direction);
+    starts.add(JSON.stringify(routeAt(rotated, 0)));
+    assert.equal(revealedCellCount(rotated, 1), rotated.cells.length);
+    for (let i = 0; i < rotated.route.length; i += 1) {
+      const cell = rotated.route[i];
+      assert.ok(!obstaclesForRoom(room, direction).some(o => cell.x > o.x && cell.x < o.x + o.w && cell.y > o.y && cell.y < o.y + o.h));
+      if (i) assert.equal(Math.abs(cell.col - rotated.route[i - 1].col) + Math.abs(cell.row - rotated.route[i - 1].row), 1);
+    }
+  }
+  assert.equal(starts.size, 4);
+}
 
 console.log('Waiting preview states and lifecycle: passed');

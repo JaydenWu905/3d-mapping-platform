@@ -1,0 +1,61 @@
+{
+  "generatedAt": "2026-10-18T06:52:53.585Z",
+  "passed": 5,
+  "total": 5,
+  "results": [
+    {
+      "name": "20次切换后等待动画RAF为1，查看成果时为0，未积累查看器",
+      "passed": true,
+      "detail": {
+        "samples": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "waitingRaf": 1,
+        "canvases": 1
+      }
+    },
+    {
+      "name": "切断真实SSE代理连接后画面冻结，重连读取后台当前进度",
+      "passed": true,
+      "detail": {
+        "transport": "Transparent HTTP proxy forwarding unmodified backend SSE; actual TCP stream destroyed then reconnected",
+        "frozen": true,
+        "recovered": true,
+        "initial": 22.34,
+        "current": 31.67,
+        "connections": 2,
+        "forwardedBytes": 12129
+      }
+    },
+    {
+      "name": "真实演示任务表面失败后仍可加载位姿成果并显示失败状态",
+      "passed": true,
+      "detail": {
+        "jobId": "job_1792306327_e1f93f"
+      }
+    },
+    {
+      "name": "表面重试后取消，动画停止，位姿成果保留",
+      "passed": true,
+      "detail": {
+        "jobId": "job_1792306327_e1f93f"
+      }
+    },
+    {
+      "name": "旧纯动画地址已转到正常新建任务入口",
+      "passed": true,
+      "detail": {
+        "url": "http://127.0.0.1:5173/jobs/new"
+      }
+    }
+  ]
+}

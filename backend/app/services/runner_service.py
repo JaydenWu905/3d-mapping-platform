@@ -59,7 +59,7 @@ class RunnerService:
         if not self._jobs.stage_detail(job, stage, registry, labels).get("can_run"):
             raise StartStageError(_block_reason(job, stage))
 
-        if stage == "surface" and job.get("backends", {}).get("surface") in ("mrhash_lidar", "mrhash_rgbd"):
+        if stage == "surface" and self._needs_surface_input_prep(job):
             try:
                 prepare_surface_input(job_id, self._jobs)
             except Exception as exc:
@@ -100,7 +100,7 @@ class RunnerService:
                     await events.publish(job_id, "stage.log",
                                          {"stage": stage, "line": f"[run-all] {stage} already completed, skipped"})
                     continue
-                if stage == "surface" and job.get("backends", {}).get("surface") in ("mrhash_lidar", "mrhash_rgbd"):
+                if stage == "surface" and self._needs_surface_input_prep(job):
                     try:
                         prepared = await asyncio.to_thread(prepare_surface_input, job_id, jobs)
                         warnings = prepared["compatibility"]["warnings"]
@@ -157,12 +157,12 @@ class RunnerService:
         self._guard_retryable(job_id, stage)
         if any(self._running_stages(job_id)):
             raise JobBusyError("Another stage of this job is already running")
-        if stage == "pose":
-            job = self._jobs.load_job(job_id)
-            if job["stages"]["surface"]["status"] == "completed":
-                # A new Pose invalidates every Surface result tied to its old SHA.
-                self._reset_progress(job_id, "surface")
-                (self._jobs.stage_dir(job_id, "surface") / "result_manifest.json").unlink(missing_ok=True)
+        job = self._jobs.load_job(job_id)
+        # Any rerun invalidates every downstream artifact from the old inputs.
+        for dependent in STAGES[STAGES.index(stage) + 1:]:
+            if dependent in job.get("requested_stages", STAGES):
+                (self._jobs.stage_dir(job_id, dependent) / "result_manifest.json").unlink(missing_ok=True)
+                self._reset_progress(job_id, dependent)
         # Clear stale outputs so viewers do not show an old completed manifest.
         stage_dir = self._jobs.stage_dir(job_id, stage)
         for name in ("result_manifest.json", "progress.json"):
@@ -171,6 +171,8 @@ class RunnerService:
                 p.unlink()
         self._reset_progress(job_id, stage)
         self.start_stage(job_id, stage)
+        # Existing event makes all connected pages re-read the invalidated manifests.
+        asyncio.create_task(self._events.publish(job_id, "stage.result", {"stage": stage, "status": "waiting"}))
 
     def _reset_progress(self, job_id: str, stage: str) -> None:
         job = self._jobs.load_job(job_id)
@@ -207,6 +209,12 @@ class RunnerService:
         if has_real_runner(stage, backend):
             return self.subprocess_adapter
         raise StartStageError(missing_runner_reason(stage, backend))
+
+    def _needs_surface_input_prep(self, job: dict[str, Any]) -> bool:
+        if job.get("backends", {}).get("surface") not in ("mrhash_lidar", "mrhash_rgbd"):
+            return False
+        # Mirror adapter selection: mock datasets replay fixtures, not real inputs.
+        return self._jobs.datasets.get(job.get("dataset", "")).execution != "mock"
 
     def _running_stages(self, job_id: str) -> list[str]:
         out = []

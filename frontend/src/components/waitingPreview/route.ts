@@ -12,6 +12,7 @@ export type RouteCell = Point & {
 
 export type ScannerMap = {
   room: number;
+  direction: number;
   cols: number;
   rows: number;
   route: RouteCell[];
@@ -48,22 +49,28 @@ export function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
-export function obstaclesForRoom(room: number): Obstacle[] {
-  return ROOM_OBSTACLES[((room % 3) + 3) % 3];
+export function obstaclesForRoom(room: number, direction = 0): Obstacle[] {
+  return ROOM_OBSTACLES[((room % 3) + 3) % 3].map(o => ({
+    ...o,
+    x: direction & 1 ? 1 - o.x - o.w : o.x,
+    y: direction & 2 ? 1 - o.y - o.h : o.y,
+  }));
 }
 
 /**
  * 生成一条覆盖房间内空闲格子的蛇形路线。
  * 结果只取决于房间编号，是纯粹的示意几何，与后端进度和真实坐标无关。
  */
-export function buildScannerMap(room: number): ScannerMap {
-  const obstacles = obstaclesForRoom(room);
+export function buildScannerMap(room: number, direction = 0): ScannerMap {
+  const obstacles = obstaclesForRoom(room, direction);
   const cells: RouteCell[] = [];
   const byKey = new Map<string, RouteCell>();
 
-  for (let row = ROWS - 1; row >= 0; row -= 1) {
+  for (let rowIndex = ROWS - 1; rowIndex >= 0; rowIndex -= 1) {
+    const row = direction & 2 ? ROWS - 1 - rowIndex : rowIndex;
     for (let i = 0; i < COLS; i += 1) {
-      const col = row % 2 ? i : COLS - 1 - i;
+      const baseCol = rowIndex % 2 ? i : COLS - 1 - i;
+      const col = direction & 1 ? COLS - 1 - baseCol : baseCol;
       const x = (col + 0.5) / COLS;
       const y = (row + 0.5) / ROWS;
       const blocked = obstacles.some(
@@ -90,7 +97,7 @@ export function buildScannerMap(room: number): ScannerMap {
 
   const first = cells[0];
   if (!first) {
-    return { room, cols: COLS, rows: ROWS, route: [], lengths: [0], cells: [] };
+    return { room, direction, cols: COLS, rows: ROWS, route: [], lengths: [0], cells: [] };
   }
 
   const route: RouteCell[] = [first];
@@ -159,7 +166,7 @@ export function buildScannerMap(room: number): ScannerMap {
     cell.clearance = Math.min(toWalls, ...toObstacles);
   });
 
-  return { room, cols: COLS, rows: ROWS, route, lengths, cells: ordered };
+  return { room, direction, cols: COLS, rows: ROWS, route, lengths, cells: ordered };
 }
 
 /** 按累计路线长度插值；progress 只应来自服务端有效进度。 */
@@ -186,16 +193,16 @@ export function revealedCellCount(map: ScannerMap, progress: number): number {
 }
 
 /**
- * 画布内示意地图的位置。上下留出状态与操作区，避免窄屏时被遮住。
+ * 画布内示意地图的位置。上下留出简短说明，避免窄屏时被遮住。
  */
 export function sceneArea(width: number, height: number): SceneArea {
   const padX = Math.max(14, Math.min(48, width * 0.045));
   const compact = height < 520;
   const top = compact ? 56 : Math.max(48, Math.min(68, height * 0.12));
-  // 底部说明与操作在窄屏最多三行，必须为它们留出稳定的区域。
+  // 自动播放没有操作区，把腾出的空间留给地图。
   const bottom = compact
-    ? 164
-    : Math.max(140, Math.min(184, height * 0.23));
+    ? 118
+    : Math.max(112, Math.min(144, height * 0.19));
   const availableW = Math.max(40, width - padX * 2);
   const availableH = Math.max(40, height - top - bottom);
 

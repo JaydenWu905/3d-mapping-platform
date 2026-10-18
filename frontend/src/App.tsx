@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
 import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
@@ -79,6 +79,7 @@ function Shell() {
 
         <Box component="main" className="app-main" sx={{ flex: 1, minWidth: 0 }}>
           <Routes>
+            <Route path="/demo/waiting-preview" element={<Navigate to="/jobs/new" replace />} />
             <Route path="/" element={<JobsPage />} />
             <Route path="/jobs/new" element={<NewJobPage />} />
             <Route path="/jobs/:jobId" element={<JobDetailPage />} />

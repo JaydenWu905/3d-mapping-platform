@@ -12,6 +12,8 @@ All metrics embedded here are clearly demo numbers, never real algorithm output.
 from __future__ import annotations
 
 import asyncio
+import math
+import os
 import random
 import shutil
 import time
@@ -36,11 +38,11 @@ class _Phase:
         self.message = message
 
 
-# Per-stage simulated behaviour. Durations are a few seconds for demo purposes.
+# Per-stage simulated behaviour. All demo stages run for about 30 seconds.
 # Progress is not purely linear: each phase uses a different slope.
 _STAGE_PROFILES: dict[str, dict[str, Any]] = {
     "pose": {
-        "duration_sec": 5.5,
+        "duration_sec": 30.0,
         "total": 1500,
         "unit": "frame",
         "phases": [
@@ -51,7 +53,7 @@ _STAGE_PROFILES: dict[str, dict[str, Any]] = {
         ],
     },
     "surface": {
-        "duration_sec": 8.0,
+        "duration_sec": 30.0,
         "total": 2000,
         "unit": "frame",
         "phases": [
@@ -62,7 +64,7 @@ _STAGE_PROFILES: dict[str, dict[str, Any]] = {
         ],
     },
     "distance": {
-        "duration_sec": 5.0,
+        "duration_sec": 30.0,
         "total": 1_000_000,
         "unit": "voxel",
         "phases": [
@@ -82,6 +84,9 @@ class MockRunnerAdapter(RunnerAdapter):
         self._jobs = job_service
         self._events = event_service
         self._cancel: set[tuple[str, str]] = set()
+        self._duration_sec = float(os.environ.get("MAPPING_MOCK_STAGE_DURATION_SEC", "30"))
+        if not math.isfinite(self._duration_sec) or not 0 < self._duration_sec <= 3600:
+            raise ValueError("MAPPING_MOCK_STAGE_DURATION_SEC must be finite and in (0, 3600]")
 
     # ------------------------------------------------------------- interface
     def cancel(self, job_id: str, stage: str) -> None:
@@ -91,7 +96,6 @@ class MockRunnerAdapter(RunnerAdapter):
         self._cancel.discard((job_id, stage))
         started = time.monotonic()
         job = self._jobs.load_job(job_id)
-        stage_entry = self._jobs.stage_mark(job, stage)
         profile = _STAGE_PROFILES[stage]
 
         # Signals "running" in job.json first (persisted for page refresh).
@@ -109,16 +113,18 @@ class MockRunnerAdapter(RunnerAdapter):
 
         demo_ok = self._ensure_demo_data(job_id, stage, job.get("dataset"))
 
-        duration = profile["duration_sec"]
-        ticks = 90
+        duration = self._duration_sec
+        ticks = min(90, max(2, math.ceil(duration / 0.05)))
         n = 0
         prev_phase = None
+        previous_fraction = 0.0
         while n < ticks:
             if (job_id, stage) in self._cancel:
                 return await self._finish_cancelled(job_id, stage, backend, started)
 
             fraction = n / ticks
-            prog_frac = self._pace(fraction)
+            prog_frac = max(previous_fraction, self._pace(fraction))
+            previous_fraction = prog_frac
             phase = self._phase_for(profile, prog_frac)
             if phase.name != prev_phase:
                 await self._log(job_id, stage, f"[mock:{backend}] phase -> {phase.name}")
@@ -135,11 +141,19 @@ class MockRunnerAdapter(RunnerAdapter):
                 elapsed_sec=round(time.monotonic() - started, 1),
                 updated_at=time.strftime("%Y-%m-%dT%H:%M:%S"),
             )
+            if stage == "pose" and backend == "glim":
+                # Explicit mock input-publishing/export phases using existing fields.
+                publishing = prog_frac < 0.9
+                prog.update(
+                    phase="input_publishing" if publishing else "waiting_glim_export" if prog_frac < 0.97 else "associating",
+                    lidar_total=profile["total"],
+                    lidar_published=min(profile["total"], int(prog_frac / 0.9 * profile["total"])),
+                )
             atomic_write_json(self._jobs.stage_dir(job_id, stage) / "progress.json", prog)
             await self._emit_progress(job_id, stage, prog)
 
             # Simulated failure path (only when the job asks for it).
-            if job.get("fail_stage") == stage and prog_frac > 0.38 and n % 3 == 0:
+            if job.get("fail_stage") == stage and prog_frac > 0.38:
                 await self._log(job_id, stage, f"[mock:{backend}] ERROR: estimated state diverged at {current}", level="error")
                 await self._log(job_id, stage, f"[mock:{backend}] terminate run (simulated failure for demo)")
                 prog.update(status="failed", phase=phase.name, progress=round(prog_frac * 100.0, 2),
@@ -151,7 +165,7 @@ class MockRunnerAdapter(RunnerAdapter):
                 await self._write_failed_manifest(job_id, stage, backend, started, prog_frac)
                 return StageResult(stage, "failed", "Simulated failure (demo)")
 
-            await asyncio.sleep(duration / ticks)
+            await asyncio.sleep(max(0.0, started + (n + 1) * duration / ticks - time.monotonic()))
             n += 1
 
         if (job_id, stage) in self._cancel:
@@ -288,6 +302,9 @@ class MockRunnerAdapter(RunnerAdapter):
             "message": prog.get("message", ""),
             "elapsed_sec": prog.get("elapsed_sec", 0.0),
         }
+        for field in ("lidar_published", "lidar_total", "imu_published", "imu_total"):
+            if field in prog:
+                payload[field] = prog[field]
         await self._events.publish(job_id, "stage.progress", payload)
 
     async def _log(self, job_id: str, stage: str, line: str, level: str = "info") -> None:

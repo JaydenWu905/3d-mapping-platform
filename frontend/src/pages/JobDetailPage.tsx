@@ -13,6 +13,8 @@ import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
 import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
 
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded';
@@ -35,6 +37,7 @@ import {
   blockedReasonLabel,
   formatElapsed,
   progressLabel,
+  progressBarState,
   stageMessageLabel,
   stagePhaseLabel,
   stageProgressText,
@@ -43,6 +46,7 @@ import { StageProgressBar } from '../components/StageProgressBar';
 import { StatusBadge } from '../components/StatusBadge';
 import { WaitingPreview } from '../components/WaitingPreview';
 import { hasUsablePreview } from '../components/waitingPreview/artifacts';
+import { choosePreviewStage, deriveTaskPreview, initialPreviewChoice } from '../components/waitingPreview/taskPreviewState';
 import { useJob } from '../hooks/useJob';
 import { useObservedProgress } from '../hooks/useObservedProgress';
 import { useReducedMotion } from '../hooks/useReducedMotion';
@@ -75,14 +79,14 @@ function isActiveStage(stage: StageDetail): boolean {
   return ACTIVE_STATUSES.includes(stage.status);
 }
 
-/** 预览容器右上角提示：只有真正可交互的示意图才提示“等待互动”。 */
+/** 已有成果保留真实查看器的交互提示。 */
 function previewHint(stage: StageDetail): string {
   if (hasUsablePreview(stage)) return '可旋转 · 缩放 · 平移 · 重置视角';
   if (stage.status === 'not_integrated') return '未请求该阶段';
   if (stage.status === 'failed' || stage.status === 'cancelled' || stage.status === 'completed') {
     return '无可用预览产物';
   }
-  return '等待互动 · 非实时地图';
+  return '等待动画 · 非实时地图';
 }
 
 function validationText(scope: string | undefined): string {
@@ -111,6 +115,9 @@ export function JobDetailPage() {
   const { job, error, connected, refresh, actions } = useJob(jobId);
   const navigate = useNavigate();
   const [selectedStage, setSelectedStage] = useState<string>('pose');
+  const [previewChoice, setPreviewChoice] = useState(() => initialPreviewChoice(jobId));
+  const preview = deriveTaskPreview(job, previewChoice);
+  const [datasetMeta, setDatasetMeta] = useState<{ dataset: string; execution: unknown } | null>(null);
   const [busy, setBusy] = useState(false);
   const [displayMode, setDisplayMode] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -118,6 +125,21 @@ export function JobDetailPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const everConnected = useRef(false);
   const reducedMotion = useReducedMotion();
+
+  useEffect(() => {
+    const dataset = job?.dataset;
+    if (!dataset) return undefined;
+    let cancelled = false;
+    void api.getDatasets().then(datasets => {
+      if (!cancelled) setDatasetMeta({ dataset, execution: datasets.find(item => item.id === dataset)?.input_manifest?.execution });
+    }).catch(() => { /* 不影响任务和已有产物加载。 */ });
+    return () => { cancelled = true; };
+  }, [job?.dataset]);
+
+  // 详情可以跟随正在看的阶段，但执行阶段始终独立从服务端派生。
+  useEffect(() => {
+    if (preview.viewStageKey) setSelectedStage(preview.viewStageKey);
+  }, [jobId, preview.viewStageKey]);
 
   useEffect(() => {
     if (connected) everConnected.current = true;
@@ -284,6 +306,14 @@ export function JobDetailPage() {
   }
 
   const requestedStages = visibleStageKeys(job);
+  const previewStage = preview.viewStageKey ? job.stages[preview.viewStageKey] : null;
+  const activeStage = preview.activeStageKey ? job.stages[preview.activeStageKey] : null;
+  const activeBar = activeStage ? progressBarState(activeStage) : null;
+  const isDemo = (datasetMeta?.dataset === job.dataset && datasetMeta.execution === 'mock') || job.preview_job
+    || Object.values(job.stages).some(item => item.manifest?.backend_details?.mock_backend === true);
+  const missingResults = job.status === 'completed'
+    ? requestedStages.filter(key => !hasUsablePreview(job.stages[key])) : [];
+  const terminalIssue = requestedStages.find(key => ['failed', 'cancelled'].includes(job.stages[key].status));
   const twoStage = requestedStages.length === 2;
   const jobLocked =
     job.status === 'completed' || ['running', 'queued', 'cancelling'].includes(job.status);
@@ -311,7 +341,7 @@ export function JobDetailPage() {
               >
                 {job.job_id}
               </Typography>
-              {job.preview_job ? (
+              {isDemo ? (
                 <Box
                   component="span"
                   sx={{
@@ -324,7 +354,7 @@ export function JobDetailPage() {
                     borderColor: 'warning.main',
                   }}
                 >
-                  演示任务
+                  演示任务 · 合成数据
                 </Box>
               ) : null}
               <StatusBadge status={job.status} size="medium" />
@@ -452,7 +482,10 @@ export function JobDetailPage() {
           job={job}
           selectedStage={selectedStage}
           busy={busy}
-          onSelectStage={setSelectedStage}
+          onSelectStage={key => {
+            setSelectedStage(key);
+            if (isStageKey(key)) setPreviewChoice(choosePreviewStage(job, key));
+          }}
           onStart={(key) => void run(() => actions.startStage(key))}
           onCancel={(key) => void run(() => actions.cancelStage(key))}
           onRetry={(key) => void run(() => actions.retryStage(key))}
@@ -469,6 +502,9 @@ export function JobDetailPage() {
       >
         <Box
           className="detail-viewer"
+          data-preview-mode={preview.mode}
+          data-active-stage={preview.activeStageKey ?? ''}
+          data-view-stage={preview.viewStageKey ?? ''}
           sx={{
             minWidth: 0,
             bgcolor: 'background.paper',
@@ -476,6 +512,16 @@ export function JobDetailPage() {
             borderColor: 'divider',
           }}
         >
+          <Box className="task-preview-live" role="status" aria-live="polite">
+            <Typography component="strong">
+              {activeStage ? `后台正在执行：${STAGE_NAMES[activeStage.stage as StageKey]}`
+                : terminalIssue ? `${STAGE_NAMES[terminalIssue]}${job.stages[terminalIssue].status === 'failed' ? '运行失败' : '已取消'}，已有成果仍可查看`
+                : job.status === 'completed' ? '任务已完成' : job.status === 'running' ? '正在衔接下一阶段…' : '任务尚未开始'}
+            </Typography>
+            {activeStage ? <Typography>{stagePhaseLabel(activeStage)}{activeBar?.percent != null ? ` · ${activeBar.kind === 'input' ? '输入发布' : '阶段进度'} ${Math.round(activeBar.percent)}%` : ' · 进度未上报'}</Typography> : null}
+            {!connected && everConnected.current ? <Typography color="warning.main">连接中断，正在重连</Typography> : null}
+          </Box>
+          {missingResults.length ? <Alert severity="warning" sx={{ borderRadius: 0 }}>{missingResults.map(key => STAGE_NAMES[key]).join('、')}已完成但缺少可用预览，请检查产物清单。</Alert> : null}
           <Stack
             direction="row"
             spacing={1}
@@ -484,28 +530,47 @@ export function JobDetailPage() {
           >
             <Typography sx={{ fontSize: 16, fontWeight: 700 }}>三维预览</Typography>
             <Typography sx={{ fontSize: 14, color: 'text.secondary' }}>
-              {stage ? STAGE_NAMES[stage.stage as StageKey] ?? STAGE_LABELS[stage.stage] : ''}
+              {previewStage ? STAGE_NAMES[previewStage.stage as StageKey] : ''}
             </Typography>
             <Box sx={{ flex: 1 }} />
             <Typography sx={{ fontSize: 12, color: 'text.disabled' }}>
-              {stage ? previewHint(stage) : ''}
+              {previewStage ? preview.mode === 'results' ? previewHint(previewStage) : '自动小车 · 非实时地图' : ''}
             </Typography>
           </Stack>
 
+          <Box className="task-preview-toolbar">
+            <ToggleButtonGroup exclusive size="small" value={preview.mode} aria-label="预览内容" onChange={(_event, mode: 'animation' | 'results' | null) => {
+              if (!mode) return;
+              setPreviewChoice({ jobId, mode, resultStageKey: preview.resultStageKey, animationStageKey: null });
+            }}>
+              <ToggleButton value="animation" data-preview-mode-button="animation" disabled={job.status === 'completed' && !activeStage && preview.availableResults.length > 0}>当前任务动画</ToggleButton>
+              <ToggleButton value="results" data-preview-mode-button="results" disabled={!preview.availableResults.length}>已有成果{preview.availableResults.length ? `（${preview.availableResults.length}）` : ''}</ToggleButton>
+            </ToggleButtonGroup>
+            {!preview.availableResults.length ? <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>成果生成后即可切换查看</Typography> : null}
+            {preview.mode === 'results' ? <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap aria-label="选择已有成果">
+              {preview.availableResults.map(key => <Button key={key} size="small" data-result-stage={key} aria-pressed={preview.resultStageKey === key} variant={preview.resultStageKey === key ? 'contained' : 'outlined'} onClick={() => {
+                setPreviewChoice({ jobId, mode: 'results', resultStageKey: key, animationStageKey: null });
+                setSelectedStage(key);
+              }}>{STAGE_NAMES[key]}</Button>)}
+            </Stack> : null}
+            {isDemo ? <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>后台演示任务 · 每阶段约30秒 · 成果为预制合成示例</Typography> : null}
+          </Box>
+
           <Box sx={{ p: 1.5, minWidth: 0 }}>
-            {stage ? (
+            {previewStage ? (
               <StageViewer
-                key={`${job.job_id}:${stage.stage}`}
+                key={`${job.job_id}:${previewStage.stage}:${preview.mode}`}
                 jobId={job.job_id}
-                stage={stage}
-                manifest={stage.manifest}
+                stage={previewStage}
+                manifest={previewStage.manifest}
                 connected={connected}
+                waitingOnly={preview.mode === 'animation'}
               />
             ) : (
               <Box className="viewer-empty">该任务没有阶段信息。</Box>
             )}
-            {stage?.stage === 'surface' && stage.manifest?.metrics ? (
-              <PreviewNote metrics={stage.manifest.metrics} />
+            {preview.mode === 'results' && previewStage?.stage === 'surface' && previewStage.manifest?.metrics ? (
+              <PreviewNote metrics={previewStage.manifest.metrics} />
             ) : null}
           </Box>
         </Box>
@@ -942,11 +1007,13 @@ function StageViewer({
   stage,
   manifest,
   connected,
+  waitingOnly,
 }: {
   jobId: string;
   stage: StageDetail;
   manifest: Manifest | null;
   connected: boolean;
+  waitingOnly: boolean;
 }) {
   const slices = useMemo(() => {
     const value = manifest?.metrics?.slices;
@@ -955,10 +1022,12 @@ function StageViewer({
 
   const hasTraj = manifestArtifact(stage, 'trajectory_model') !== null;
 
+  if (waitingOnly) return <WaitingPreview stage={stage} connected={connected} runKey={`${jobId}:${stage.stage}:${stage.started_at ?? 'pending'}`} />;
+
   // 查看器按阶段键固定映射（架构约束：不按算法分支）。
   if (stage.stage === 'pose') {
     if (hasTraj) return <TrajectoryViewer jobId={jobId} stage={stage.stage} />;
-    return <WaitingPreview stage={stage} connected={connected} />;
+    return <WaitingPreview stage={stage} connected={connected} runKey={`${jobId}:${stage.stage}:${stage.started_at ?? 'pending'}`} />;
   }
 
   if (stage.stage === 'surface') {
@@ -971,7 +1040,7 @@ function StageViewer({
         />
       );
     }
-    return <WaitingPreview stage={stage} connected={connected} />;
+    return <WaitingPreview stage={stage} connected={connected} runKey={`${jobId}:${stage.stage}:${stage.started_at ?? 'pending'}`} />;
   }
 
   if (stage.stage === 'distance') {
@@ -985,7 +1054,7 @@ function StageViewer({
         />
       );
     }
-    return <WaitingPreview stage={stage} connected={connected} />;
+    return <WaitingPreview stage={stage} connected={connected} runKey={`${jobId}:${stage.stage}:${stage.started_at ?? 'pending'}`} />;
   }
 
   return null;

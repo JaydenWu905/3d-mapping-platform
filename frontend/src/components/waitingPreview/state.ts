@@ -24,7 +24,7 @@ export type WaitingPreviewState = {
   busy: boolean;
   standby: boolean;
   showScene: boolean;
-  /** 是否允许装饰动效；仍需叠加暂停、减少动态效果和页面隐藏。 */
+  /** 是否允许装饰动效；仍需叠加减少动态效果和页面隐藏。 */
   animate: boolean;
   title: string;
   detail: string;
@@ -243,7 +243,7 @@ export function deriveWaitingPreviewState(
       showScene: true,
       animate: false,
       title: '阶段尚未开始',
-      detail: '运行后会显示等待互动；展开量只跟随服务端进度。',
+      detail: '运行后会显示等待动画；展开量只跟随有效进度。',
       percentText: '尚未开始',
       legend: '尚未展开',
     };
@@ -283,9 +283,9 @@ export function deriveWaitingPreviewState(
     legend: standby
       ? '输入发布完毕 · 小车待命'
       : stageKey === 'pose'
-        ? '蓝色路线 · 展开量只跟随进度'
+        ? '蓝色路线示意'
         : stageKey === 'surface'
-          ? '紫色三角网格 · 随进度铺开'
-          : '距离色块 · 随进度铺开（示意）',
+          ? '紫色三角网格示意'
+          : '距离色块示意',
   };
 }

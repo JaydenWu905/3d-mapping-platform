@@ -1,0 +1,12 @@
+{
+  "typecheck": { "command": "npm run typecheck", "exitCode": 0 },
+  "build": { "command": "npm run build", "exitCode": 0, "warning": "Existing production chunks exceed 500 kB" },
+  "suites": [
+    { "file": "tests/taskPreview.test.cjs", "exitCode": 0 },
+    { "file": "tests/waitingPreview.test.cjs", "exitCode": 0 },
+    { "file": "tests/poseProgress.test.cjs", "exitCode": 0 },
+    { "file": "tests/jobDisplay.test.cjs", "exitCode": 0 },
+    { "file": "tests/progressHistory.test.cjs", "exitCode": 0 }
+  ],
+  "scopeCheck": "frontend/src/api/api.ts, backend/app/api and backend/app/models unchanged; git diff --check passed"
+}

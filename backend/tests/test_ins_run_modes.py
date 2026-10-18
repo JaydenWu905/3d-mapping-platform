@@ -18,6 +18,7 @@ class InsRunModeTests(unittest.IsolatedAsyncioTestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             definition = real_dataset(runtime={}, surface={'backend':'mrhash_lidar','mrhash_profile':'ins_livox_mid360_custom','integration_end_frame':100})
+            definition.input_manifest = {**definition.input_manifest, 'device_profile': {'id': 'run-mode-fixture', 'version': 'test'}}
             definition.source_file = lambda key: root / 'bag.bag'
             service = JobService(root/'jobs', SimpleNamespace(get=lambda _:definition))
             for mode, limit in [('full',None),('short',100)]:
@@ -52,7 +53,7 @@ class InsRunModeTests(unittest.IsolatedAsyncioTestCase):
                     from app.models.job import derive_job_status
                     j['stages'][s]['status']=value
                     j['status']=derive_job_status(j)
-                jobs=SimpleNamespace(load_job=lambda _:job,stage_dir=lambda _,s:root/s,set_stage_status=status,stage_detail=lambda *a:{'can_run':True})
+                jobs=SimpleNamespace(load_job=lambda _:job,stage_dir=lambda _,s:root/s,set_stage_status=status,stage_detail=lambda *a:{'can_run':True},datasets=SimpleNamespace(get=lambda _:SimpleNamespace(execution='real')))
                 runner=RunnerService(jobs,Events())
                 def launch(jid,stage):
                     async def run():

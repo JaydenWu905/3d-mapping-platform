@@ -1,0 +1,68 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const ts = require('typescript');
+const cache = new Map();
+function load(file) {
+  if(cache.has(file))return cache.get(file).exports;
+  const module={exports:{}};cache.set(file,module);
+  const compiled=ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+  const localRequire=specifier=>{
+    const base=path.resolve(path.dirname(file),specifier);
+    const target=[base+'.ts',path.join(base,'index.ts')].find(p=>fs.existsSync(p));
+    if(!target)throw new Error('Missing module '+specifier);
+    return load(target);
+  };
+  new Function('exports','require','module',compiled)(module.exports,localRequire,module);
+  return module.exports;
+}
+const {deriveTaskPreview,initialPreviewChoice,choosePreviewStage}=load(path.resolve(__dirname,'../src/components/waitingPreview/taskPreviewState.ts'));
+const keys=['pose','surface','distance'];
+const artifact={pose:'trajectory_model',surface:'surface_model',distance:'slice_xy'};
+function makeJob(states,jobStatus='running',id='job-a') {
+  return {job_id:id,status:jobStatus,requested_stages:keys,stages:Object.fromEntries(keys.map((key,i)=>[key,{stage:key,status:states[i],progress:20,manifest:states[i]==='completed'?{status:'completed',artifacts:[{artifact_id:artifact[key]}]}:null}]))};
+}
+const initial=initialPreviewChoice('job-a');
+const pose=makeJob(['running','waiting','waiting']);
+assert.equal(deriveTaskPreview(pose,initial).mode,'animation');
+assert.deepEqual(deriveTaskPreview(pose,initial).availableResults,[]);
+const surface=makeJob(['completed','running','waiting']);
+assert.equal(deriveTaskPreview(surface,initial).viewStageKey,'surface');
+assert.deepEqual(deriveTaskPreview(surface,initial).availableResults,['pose']);
+const pinned=choosePreviewStage(surface,'pose');
+surface.stages.surface.progress=70;
+assert.equal(deriveTaskPreview(surface,pinned).viewStageKey,'pose');
+assert.equal(deriveTaskPreview(surface,pinned).activeStageKey,'surface');
+assert.equal(deriveTaskPreview(surface,pinned).mode,'results');
+const distance=makeJob(['completed','completed','running']);
+assert.equal(deriveTaskPreview(distance,pinned).viewStageKey,'pose');
+assert.deepEqual(deriveTaskPreview(distance,pinned).availableResults,['pose','surface']);
+const mesh=choosePreviewStage(distance,'surface');
+assert.equal(deriveTaskPreview(distance,mesh).viewStageKey,'surface');
+assert.equal(deriveTaskPreview(distance,initial).viewStageKey,'distance');
+assert.equal(deriveTaskPreview(distance,choosePreviewStage(distance,'distance')).mode,'animation');
+const complete=makeJob(['completed','completed','completed'],'completed');
+assert.equal(deriveTaskPreview(complete,initial).viewStageKey,'distance');
+assert.equal(deriveTaskPreview(complete,initial).mode,'results');
+assert.equal(deriveTaskPreview(complete,pinned).viewStageKey,'pose');
+assert.equal(deriveTaskPreview(complete,{...pinned,mode:'animation'}).viewStageKey,'distance');
+const failed=makeJob(['completed','failed','waiting'],'failed');
+assert.equal(deriveTaskPreview(failed,initial).viewStageKey,'pose');
+assert.equal(deriveTaskPreview(failed,initial).mode,'results');
+const invalidated=makeJob(['running','waiting','waiting']);
+const invalidView=deriveTaskPreview(invalidated,mesh);
+assert.equal(invalidView.mode,'animation');
+assert.equal(invalidView.viewStageKey,'pose');
+const other=makeJob(['completed','running','waiting'],'running','job-b');
+assert.equal(deriveTaskPreview(other,pinned).viewStageKey,'surface');
+const missing=makeJob(['completed','completed','completed'],'completed');
+for(const key of keys)missing.stages[key].manifest=null;
+assert.equal(deriveTaskPreview(missing,initial).mode,'animation');
+assert.deepEqual(deriveTaskPreview(missing,initial).availableResults,[]);
+const waitingView=deriveTaskPreview(surface,choosePreviewStage(surface,'distance'));
+assert.equal(waitingView.viewStageKey,'distance');
+assert.equal(waitingView.activeStageKey,'surface');
+const twoStage=makeJob(['completed','completed','completed'],'completed');
+twoStage.requested_stages=['pose','surface'];twoStage.stages.distance.status='not_integrated';
+assert.deepEqual(deriveTaskPreview(twoStage,initial).availableResults,['pose','surface']);
+console.log('Task preview selection, sticky results and invalidation: passed');

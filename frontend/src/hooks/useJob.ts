@@ -55,15 +55,18 @@ export function useJob(jobId: string | undefined): JobState {
     if (!id) return;
     try {
       setError(null);
-      setJob(await api.getJob(id));
+      const snapshot = await api.getJob(id);
+      if (jobIdRef.current === id) setJob(snapshot);
     } catch (e) {
-      setError(messageOf(e));
+      if (jobIdRef.current === id) setError(messageOf(e));
     }
   }, []);
 
   useEffect(() => {
+    setJob(null);
+    setError(null);
     void refresh();
-  }, [refresh]);
+  }, [jobId, refresh]);
 
   useEffect(() => {
     if (!jobId) return undefined;

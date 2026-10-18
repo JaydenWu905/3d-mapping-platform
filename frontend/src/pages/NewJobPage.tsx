@@ -377,6 +377,7 @@ export function NewJobPage() {
       };
       const job = await api.createJob(body);
       if (real) await api.runPlanned(job.job_id);
+      else await api.runAll(job.job_id);
       navigate(`/jobs/${job.job_id}`);
     } catch (e: unknown) {
       setError(messageOf(e));
@@ -649,6 +650,11 @@ export function NewJobPage() {
                               {ds.description}
                             </Typography>
                           ) : null}
+                          {ds.input_manifest?.execution === 'mock' ? (
+                            <Typography sx={{ mt: 0.5, fontSize: 13, color: 'primary.dark', fontWeight: 600 }}>
+                              演示任务 · 合成数据 · 后台每阶段约30秒
+                            </Typography>
+                          ) : null}
                           {unavailable ? (
                             <Alert
                               severity="error"
@@ -882,7 +888,7 @@ export function NewJobPage() {
               onClick={() => void submit()}
               disabled={submitting || requiredStages.some((stage) => !selected[stage])}
             >
-              {submitting ? '创建中…' : real ? '创建并一键运行' : '创建任务'}
+              {submitting ? '创建中…' : '创建并一键运行'}
             </Button>
             <Button variant="text" onClick={() => navigate('/')} disabled={submitting}>
               取消

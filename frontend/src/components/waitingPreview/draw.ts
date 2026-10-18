@@ -1,6 +1,6 @@
 import type { StageKey } from '../../types';
 import { clamp, obstaclesForRoom, routeAt, sceneArea } from './route';
-import type { Point, SceneArea, ScannerMap } from './route';
+import type { SceneArea, ScannerMap } from './route';
 
 const BLUE = '#1877F2';
 const PURPLE = '#8E33FF';
@@ -16,8 +16,6 @@ export type WaitingSceneOptions = {
   stage: StageKey;
   standby: boolean;
   time: number;
-  target: Point | null;
-  targetUntil: number;
 };
 
 export function stageColor(stage: StageKey): string {
@@ -36,7 +34,7 @@ function withAlpha(hex: string, alpha: number): string {
 
 /**
  * 绘制等待区示意场景。
- * 展开量完全由 options.progress 决定；time 只影响小车局部巡航、扫描线和目标脉冲。
+ * 展开量完全由 options.progress 决定；time 只影响小车局部巡航和扫描线。
  */
 export function drawWaitingScene(
   ctx: CanvasRenderingContext2D,
@@ -44,7 +42,7 @@ export function drawWaitingScene(
   height: number,
   options: WaitingSceneOptions,
 ): SceneArea {
-  const { map, progress, stage, standby, time, target, targetUntil } = options;
+  const { map, progress, stage, standby, time } = options;
   const area = sceneArea(width, height);
   const color = stageColor(stage);
 
@@ -146,7 +144,7 @@ export function drawWaitingScene(
   ctx.lineWidth = 3;
   ctx.strokeRect(area.x, area.y, area.w, area.h);
 
-  const obstacles = obstaclesForRoom(map.room);
+  const obstacles = obstaclesForRoom(map.room, map.direction);
 
   obstacles.forEach((obstacle, index) => {
     rect(
@@ -246,12 +244,9 @@ export function drawWaitingScene(
 
   const rx = px(robotPosition.x);
   const ry = py(robotPosition.y);
-  const sweep =
-    target && time < targetUntil
-      ? Math.atan2(py(target.y) - ry, px(target.x) - rx)
-      : standby
-        ? -Math.PI / 2 + Math.sin(time * 0.5) * 0.25
-        : time * 0.62;
+  const sweep = map.direction * Math.PI / 2 + (standby
+    ? -Math.PI / 2 + Math.sin(time * 0.5) * 0.25
+    : time * 0.62);
 
   const contacts: Array<[number, number]> = [];
   for (let index = 0; index < 32; index += 1) {
@@ -300,17 +295,6 @@ export function drawWaitingScene(
     if (index % 2 !== 0) return;
     rect(x - 1.7, y - 1.7, 3.4, 3.4, index % 7 === 0 ? PURPLE : color);
   });
-
-  if (target && time < targetUntil) {
-    const tx = px(target.x);
-    const ty = py(target.y);
-    const pulse = 4 + (Math.sin(time * 3) + 1) * 3;
-    ctx.strokeStyle = 'rgba(142, 51, 255, 0.28)';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(tx - pulse, ty - pulse, pulse * 2, pulse * 2);
-    line(tx - 9, ty, tx + 9, ty, PURPLE, 1.4);
-    line(tx, ty - 9, tx, ty + 9, PURPLE, 1.4);
-  }
 
   const scale = clamp(Math.min(area.w, area.h) / 280, 0.82, 1.3);
   ctx.save();

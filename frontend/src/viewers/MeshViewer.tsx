@@ -38,8 +38,11 @@ function Model({ url, mode, reset }: { url: string; mode: Mode; reset: number })
     const clone = scene.clone(true);
     clone.traverse(object => {
       if (!(object instanceof THREE.Mesh)) return;
-      if (mode === 'normal') object.material = new THREE.MeshNormalMaterial({ side: THREE.DoubleSide });
-      else if (mode === 'gray') object.material = new THREE.MeshStandardMaterial({ color: '#b8b8b8', vertexColors: false, metalness: 0, roughness: 0.9, side: THREE.DoubleSide });
+      // GLTFLoader uses face normals for meshes without NORMAL attributes.
+      // Preserve that fallback when replacing its material for display modes.
+      const flatShading = !object.geometry.hasAttribute('normal');
+      if (mode === 'normal') object.material = new THREE.MeshNormalMaterial({ side: THREE.DoubleSide, flatShading });
+      else if (mode === 'gray') object.material = new THREE.MeshStandardMaterial({ color: '#b8b8b8', vertexColors: false, metalness: 0, roughness: 0.9, side: THREE.DoubleSide, flatShading });
       else object.material = Array.isArray(object.material) ? object.material.map(m => m.clone()) : object.material.clone();
     });
     return clone;
