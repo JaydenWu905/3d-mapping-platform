@@ -56,6 +56,7 @@ const {
   revealedCellCount,
   routeAt,
   sceneArea,
+  advanceRobotProgress,
 } = loadTs(path.join(SRC, 'components/waitingPreview/route.ts'));
 const { sceneVariant, variantForRun } = loadTs(path.join(SRC, 'components/waitingPreview/variation.ts'));
 
@@ -364,6 +365,32 @@ assert.ok(Math.abs(routeEnd.y - map.route.at(-1).y) < 1e-9);
 
 // 同一进度多次取值一致（不随绘制时间变化）。
 assert.deepEqual(routeAt(map, 0.37), routeAt(map, 0.37));
+
+// 相邻网格横向、纵向的显示距离相同，换方向时不会忽快忽慢。
+for (let i = 1; i < map.lengths.length; i += 1) {
+  assert.ok(Math.abs(map.lengths[i] - map.lengths[i - 1] - 1 / map.rows) < 1e-9);
+}
+
+// 服务器目标大幅跳变时，小车仍逐帧沿路径连续移动，并能以同样速度后退。
+const routeLength = map.lengths.at(-1);
+const dt = 1 / 30;
+const frameDistance = 9 / map.rows * dt;
+let cursor = 0.1;
+for (let frame = 0; frame < 60; frame += 1) {
+  const next = advanceRobotProgress(map, cursor, 0.9, dt);
+  assert.ok(next > cursor && next < 0.9);
+  assert.ok(Math.abs((next - cursor) * routeLength - frameDistance) < 1e-9);
+  const before = routeAt(map, cursor), after = routeAt(map, next);
+  assert.ok(Math.hypot((after.x - before.x) * map.cols / map.rows, after.y - before.y) <= frameDistance + 1e-9);
+  cursor = next;
+}
+const backwards = advanceRobotProgress(map, cursor, 0, dt);
+assert.ok(backwards < cursor && backwards > 0);
+assert.ok(Math.abs((cursor - backwards) * routeLength - frameDistance) < 1e-9);
+assert.equal(advanceRobotProgress(map, 0.3, 0.3, dt), 0.3);
+assert.equal(advanceRobotProgress(map, 0.3, 0.9, 0), 0.3);
+assert.equal(advanceRobotProgress(map, 0.3, 0.30001, dt), 0.30001);
+assert.equal(advanceRobotProgress(map, 0.3, 0.9, 10), advanceRobotProgress(map, 0.3, 0.9, 0.1));
 
 const counts = [0, 0.2, 0.5, 0.8, 1].map((progress) =>
   revealedCellCount(map, progress),

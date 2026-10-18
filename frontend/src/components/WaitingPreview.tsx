@@ -7,7 +7,7 @@ import {
 import type { StageDetail } from '../types';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { drawWaitingScene, stageColor } from './waitingPreview/draw';
-import { buildScannerMap } from './waitingPreview/route';
+import { advanceRobotProgress, buildScannerMap } from './waitingPreview/route';
 import { variantForRun } from './waitingPreview/variation';
 import {
   deriveWaitingPreviewState,
@@ -58,10 +58,11 @@ export function WaitingPreview({ stage, connected, runKey }: WaitingPreviewProps
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const rafRef = useRef<number | null>(null);
   const timeRef = useRef(0);
+  const robotProgressRef = useRef(state.reveal);
   const lastTickRef = useRef(0);
   const lastDrawRef = useRef(0);
-  const sceneRef = useRef({ map, state });
-  sceneRef.current = { map, state };
+  const sceneRef = useRef({ map, state, reducedMotion });
+  sceneRef.current = { map, state, reducedMotion };
 
   const renderFrame = useCallback((advance: boolean) => {
     const canvas = canvasRef.current;
@@ -82,6 +83,7 @@ export function WaitingPreview({ stage, connected, runKey }: WaitingPreviewProps
     if (!ctx) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
+    const snapshot = sceneRef.current;
     if (advance) {
       const now = performance.now();
       const delta = lastTickRef.current
@@ -89,13 +91,17 @@ export function WaitingPreview({ stage, connected, runKey }: WaitingPreviewProps
         : 0;
       lastTickRef.current = now;
       timeRef.current += delta;
+      if (!snapshot.state.standby) {
+        robotProgressRef.current = advanceRobotProgress(snapshot.map, robotProgressRef.current, snapshot.state.reveal, delta);
+      }
     }
 
-    const snapshot = sceneRef.current;
     if (!snapshot.state.showScene) return;
+    if (snapshot.reducedMotion) robotProgressRef.current = snapshot.state.reveal;
     drawWaitingScene(ctx, width, height, {
       map: snapshot.map,
       progress: snapshot.state.reveal,
+      robotProgress: robotProgressRef.current,
       stage: snapshot.state.stage,
       standby: snapshot.state.standby,
       time: timeRef.current,
@@ -111,6 +117,7 @@ export function WaitingPreview({ stage, connected, runKey }: WaitingPreviewProps
   // 新一轮使用新的自动场景，清空上一轮的动画计时。
   useEffect(() => {
     timeRef.current = 0;
+    robotProgressRef.current = sceneRef.current.state.reveal;
     lastTickRef.current = 0;
     lastDrawRef.current = 0;
     renderFrame(false);

@@ -149,7 +149,7 @@ export function buildScannerMap(room: number, direction = 0): ScannerMap {
   for (let i = 1; i < route.length; i += 1) {
     lengths.push(
       lengths[i - 1] +
-        Math.hypot(route[i].x - route[i - 1].x, route[i].y - route[i - 1].y),
+        Math.hypot((route[i].x - route[i - 1].x) * MAP_ASPECT, route[i].y - route[i - 1].y),
     );
   }
 
@@ -169,7 +169,7 @@ export function buildScannerMap(room: number, direction = 0): ScannerMap {
   return { room, direction, cols: COLS, rows: ROWS, route, lengths, cells: ordered };
 }
 
-/** 按累计路线长度插值；progress 只应来自服务端有效进度。 */
+/** 按地图实际长宽比累计的路线长度插值，横向和纵向保持相同速度。 */
 export function routeAt(map: ScannerMap, progress: number): Point {
   const route = map.route;
   if (route.length === 0) return { x: 0.5, y: 0.5 };
@@ -190,6 +190,17 @@ export function routeAt(map: ScannerMap, progress: number): Point {
 export function revealedCellCount(map: ScannerMap, progress: number): number {
   if (progress <= 0) return 0;
   return map.cells.filter((cell) => cell.reveal <= progress + 1e-9).length;
+}
+
+/** 小车以每秒九个网格匀速追随进度，进度跳变或回退时也沿原路线移动。 */
+export function advanceRobotProgress(map: ScannerMap, current: number, target: number, deltaSec: number): number {
+  const total = map.lengths[map.lengths.length - 1] || 0;
+  if (total <= 0) return clamp(current, 0, 1);
+  const from = clamp(current, 0, 1);
+  const to = clamp(target, 0, 1);
+  // 后台标签页恢复和长帧不补走大段路线，防止出现瞬移。
+  const step = (9 / map.rows) * clamp(deltaSec, 0, 0.1) / total;
+  return from + clamp(to - from, -step, step);
 }
 
 /**

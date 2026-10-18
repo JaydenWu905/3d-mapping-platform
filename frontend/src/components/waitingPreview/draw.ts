@@ -13,6 +13,7 @@ const SURFACE_COLORS = ['#ddc4ff', '#cfa5ff', '#bb80fa'];
 export type WaitingSceneOptions = {
   map: ScannerMap;
   progress: number;
+  robotProgress: number;
   stage: StageKey;
   standby: boolean;
   time: number;
@@ -34,7 +35,7 @@ function withAlpha(hex: string, alpha: number): string {
 
 /**
  * 绘制等待区示意场景。
- * 展开量完全由 options.progress 决定；time 只影响小车局部巡航和扫描线。
+ * 展开量完全由 options.progress 决定；小车位置单独平滑，time 只影响扫描线。
  */
 export function drawWaitingScene(
   ctx: CanvasRenderingContext2D,
@@ -42,7 +43,7 @@ export function drawWaitingScene(
   height: number,
   options: WaitingSceneOptions,
 ): SceneArea {
-  const { map, progress, stage, standby, time } = options;
+  const { map, progress, robotProgress, stage, standby, time } = options;
   const area = sceneArea(width, height);
   const color = stageColor(stage);
 
@@ -231,12 +232,8 @@ export function drawWaitingScene(
     ctx.stroke();
   }
 
-  const patrol =
-    progress > 0 && !standby
-      ? Math.min(0.012, progress) * ((1 + Math.sin(time * 1.3)) / 2)
-      : 0;
-  const robotPosition = routeAt(map, Math.max(0, progress - patrol));
-  const ahead = routeAt(map, Math.min(1, Math.max(0, progress - patrol) + 0.003));
+  const robotPosition = routeAt(map, robotProgress);
+  const ahead = routeAt(map, Math.min(1, robotProgress + 0.003));
   const robotAngle = Math.atan2(
     ahead.y - robotPosition.y,
     ahead.x - robotPosition.x,

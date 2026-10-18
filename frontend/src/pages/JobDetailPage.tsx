@@ -365,23 +365,15 @@ export function JobDetailPage() {
               spacing={2}
               flexWrap="wrap"
               useFlexGap
+              className="job-meta"
               sx={{ mt: 1, color: 'text.secondary', rowGap: 0.5 }}
             >
-              <Typography sx={{ fontSize: 14 }}>
-                数据集 <Box component="strong" sx={{ color: 'text.primary' }}>{job.dataset}</Box>
+              <Typography sx={{ fontSize: 14, display: 'flex', alignItems: 'baseline', gap: 0.75, flexWrap: 'wrap' }}>
+                数据集 <Box component="strong" sx={{ color: 'text.primary', fontSize: 18, fontWeight: 700, overflowWrap: 'anywhere' }}>{job.dataset}</Box>
               </Typography>
-              <Typography sx={{ fontSize: 14 }}>创建于 {formatDate(job.created_at)}</Typography>
-              <Typography sx={{ fontSize: 14 }}>
-                请求阶段 {requestedStages.map((key) => STAGE_NAMES[key]).join(' → ') || '—'}
+              <Typography sx={{ fontSize: 14, display: 'flex', alignItems: 'baseline', gap: 0.75, flexWrap: 'wrap' }}>
+                创建于 <Box component="strong" sx={{ color: 'text.primary', fontSize: 18, fontWeight: 700 }}>{formatDate(job.created_at)}</Box>
               </Typography>
-              {job.fail_stage ? (
-                <Typography sx={{ fontSize: 14 }}>
-                  模拟失败阶段{' '}
-                  <Box component="strong" sx={{ color: 'error.main' }}>
-                    {isStageKey(job.fail_stage) ? STAGE_NAMES[job.fail_stage] : job.fail_stage}
-                  </Box>
-                </Typography>
-              ) : null}
             </Stack>
 
             <Stack
@@ -412,6 +404,14 @@ export function JobDetailPage() {
                 {connectionText}
               </Typography>
             </Stack>
+            {job.fail_stage ? (
+              <Typography sx={{ mt: 0.5, fontSize: 14 }}>
+                模拟失败阶段{' '}
+                <Box component="strong" sx={{ color: 'error.main' }}>
+                  {isStageKey(job.fail_stage) ? STAGE_NAMES[job.fail_stage] : job.fail_stage}
+                </Box>
+              </Typography>
+            ) : null}
           </Box>
 
           <Stack
@@ -543,7 +543,7 @@ export function JobDetailPage() {
               if (!mode) return;
               setPreviewChoice({ jobId, mode, resultStageKey: preview.resultStageKey, animationStageKey: null });
             }}>
-              <ToggleButton value="animation" data-preview-mode-button="animation" disabled={job.status === 'completed' && !activeStage && preview.availableResults.length > 0}>当前任务动画</ToggleButton>
+              <ToggleButton value="animation" data-preview-mode-button="animation" disabled={job.status === 'completed' && !activeStage && preview.availableResults.length > 0}>实时进度</ToggleButton>
               <ToggleButton value="results" data-preview-mode-button="results" disabled={!preview.availableResults.length}>已有成果{preview.availableResults.length ? `（${preview.availableResults.length}）` : ''}</ToggleButton>
             </ToggleButtonGroup>
             {!preview.availableResults.length ? <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>成果生成后即可切换查看</Typography> : null}
