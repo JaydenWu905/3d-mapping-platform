@@ -1,0 +1,351 @@
+{
+  "checks": {
+    "waitingExport": {
+      "stage": "pose",
+      "mode": "running",
+      "scene": "true",
+      "reveal": 1,
+      "percent": "100.00",
+      "animating": "true",
+      "text": "等待互动 · 非实时地图位姿估计输入发布 100%输入已发布，等待轨迹导出/关联位姿估计尚未完成；真实轨迹预览可用后会自动替换此示意。暂停示意换个方向换个房间输入发布完毕 · 小车待命 · 展开量跟随进度；图形为示意，不是真实地图。",
+      "className": "waiting-preview waiting-preview--running MuiBox-root css-100wf79",
+      "height": 760,
+      "width": 1127.59375
+    },
+    "disconnected": {
+      "stage": "pose",
+      "mode": "running",
+      "scene": "true",
+      "reveal": 1,
+      "percent": "100.00",
+      "animating": "false",
+      "text": "等待互动 · 非实时地图位姿估计输入发布 100%连接中断，正在重连画面保留最后一次有效状态；连接恢复后会按新快照更新。换个方向换个房间输入发布完毕 · 小车待命 · 展开量跟随进度；图形为示意，不是真实地图。",
+      "className": "waiting-preview waiting-preview--running MuiBox-root css-100wf79",
+      "height": 760,
+      "width": 1127.59375
+    },
+    "recovered": {
+      "stage": "pose",
+      "mode": "running",
+      "scene": "true",
+      "reveal": 1,
+      "percent": "100.00",
+      "animating": "true",
+      "text": "等待互动 · 非实时地图位姿估计输入发布 100%输入已发布，等待轨迹导出/关联位姿估计尚未完成；真实轨迹预览可用后会自动替换此示意。暂停示意换个方向换个房间输入发布完毕 · 小车待命 · 展开量跟随进度；图形为示意，不是真实地图。",
+      "className": "waiting-preview waiting-preview--running MuiBox-root css-100wf79",
+      "height": 760,
+      "width": 1127.59375
+    },
+    "progress80": {
+      "stage": "pose",
+      "mode": "running",
+      "scene": "true",
+      "reveal": 0.8,
+      "percent": "80.00",
+      "animating": "true",
+      "text": "等待互动 · 非实时地图位姿估计阶段进度 80%正在估计位姿蓝色路线随本阶段进度展开；真实轨迹就绪后自动替换。暂停示意换个方向换个房间蓝色路线 · 展开量只跟随进度 · 展开量跟随进度；图形为示意，不是真实地图。",
+      "className": "waiting-preview waiting-preview--running MuiBox-root css-100wf79",
+      "height": 760,
+      "width": 1127.59375
+    },
+    "progressFallback": {
+      "stage": "pose",
+      "mode": "running",
+      "scene": "true",
+      "reveal": 0.3,
+      "percent": "30.00",
+      "animating": "true",
+      "text": "等待互动 · 非实时地图位姿估计阶段进度 30%正在估计位姿蓝色路线随本阶段进度展开；真实轨迹就绪后自动替换。暂停示意换个方向换个房间蓝色路线 · 展开量只跟随进度 · 展开量跟随进度；图形为示意，不是真实地图。",
+      "className": "waiting-preview waiting-preview--running MuiBox-root css-100wf79",
+      "height": 760,
+      "width": 1127.59375
+    },
+    "paused": {
+      "stage": "pose",
+      "mode": "running",
+      "scene": "true",
+      "reveal": 0.8,
+      "percent": "80.00",
+      "animating": "false",
+      "text": "等待互动 · 非实时地图位姿估计已暂停阶段进度 80%正在估计位姿蓝色路线随本阶段进度展开；真实轨迹就绪后自动替换。继续示意换个方向换个房间蓝色路线 · 展开量只跟随进度 · 展开量跟随进度；图形为示意，不是真实地图。",
+      "className": "waiting-preview waiting-preview--running MuiBox-root css-100wf79",
+      "height": 760,
+      "width": 1127.59375
+    },
+    "localInteractions": {
+      "stage": "pose",
+      "mode": "running",
+      "scene": "true",
+      "reveal": 0.8,
+      "percent": "80.00",
+      "animating": "true",
+      "text": "等待互动 · 非实时地图位姿估计阶段进度 80%正在估计位姿蓝色路线随本阶段进度展开；真实轨迹就绪后自动替换。暂停示意换个方向换个房间蓝色路线 · 展开量只跟随进度 · 展开量跟随进度；图形为示意，不是真实地图。",
+      "className": "waiting-preview waiting-preview--running MuiBox-root css-100wf79",
+      "height": 760,
+      "width": 1127.59375,
+      "mutating": []
+    },
+    "states": {
+      "queued": {
+        "stage": "pose",
+        "mode": "queued",
+        "scene": "true",
+        "reveal": 0,
+        "percent": "",
+        "animating": "false",
+        "text": "等待互动 · 非实时地图位姿估计排队中任务排队中开始处理后，示意画面才会随有效进度展开。换个方向换个房间尚未展开 · 展开量跟随进度；图形为示意，不是真实地图。",
+        "className": "waiting-preview waiting-preview--queued MuiBox-root css-100wf79",
+        "height": 760,
+        "width": 1127.59375
+      },
+      "unknown": {
+        "stage": "pose",
+        "mode": "running",
+        "scene": "true",
+        "reveal": 0,
+        "percent": "",
+        "animating": "true",
+        "text": "等待互动 · 非实时地图位姿估计进度未上报正在发布输入蓝色路线随输入发布进度展开；动画本身不会改变进度。暂停示意换个方向换个房间蓝色路线 · 展开量只跟随进度 · 展开量跟随进度；图形为示意，不是真实地图。",
+        "className": "waiting-preview waiting-preview--running MuiBox-root css-100wf79",
+        "height": 760,
+        "width": 1127.59375
+      },
+      "completed-missing": {
+        "stage": "pose",
+        "mode": "completed-missing",
+        "scene": "false",
+        "reveal": 0,
+        "percent": "",
+        "animating": "false",
+        "text": "等待互动 · 非实时地图位姿估计已完成 · 缺少产物阶段已完成，但没有可用的预览产物请检查产物清单或下载完整产物；不会用示意动画代替真实结果。图形为示意，不是真实地图；不会用示意动画代替真实结果。",
+        "className": "waiting-preview waiting-preview--completed-missing MuiBox-root css-100wf79",
+        "height": 760,
+        "width": 1127.59375
+      },
+      "failed": {
+        "stage": "pose",
+        "mode": "failed",
+        "scene": "false",
+        "reveal": 0,
+        "percent": "",
+        "animating": "false",
+        "text": "等待互动 · 非实时地图位姿估计运行失败阶段运行失败请查看阶段状态与错误信息；等待动效已停止。图形为示意，不是真实地图；不会用示意动画代替真实结果。",
+        "className": "waiting-preview waiting-preview--failed MuiBox-root css-100wf79",
+        "height": 760,
+        "width": 1127.59375
+      },
+      "cancelling": {
+        "stage": "pose",
+        "mode": "cancelling",
+        "scene": "true",
+        "reveal": 0,
+        "percent": "",
+        "animating": "false",
+        "text": "等待互动 · 非实时地图位姿估计取消中正在取消阶段已停止等待动效，等待取消结果。已停止 · 等待取消 · 展开量跟随进度；图形为示意，不是真实地图。",
+        "className": "waiting-preview waiting-preview--cancelling MuiBox-root css-100wf79",
+        "height": 760,
+        "width": 1127.59375
+      },
+      "cancelled": {
+        "stage": "pose",
+        "mode": "cancelled",
+        "scene": "false",
+        "reveal": 0,
+        "percent": "",
+        "animating": "false",
+        "text": "等待互动 · 非实时地图位姿估计已取消阶段已取消等待动效已停止；重新运行后会按新的进度重新绘制。图形为示意，不是真实地图；不会用示意动画代替真实结果。",
+        "className": "waiting-preview waiting-preview--cancelled MuiBox-root css-100wf79",
+        "height": 760,
+        "width": 1127.59375
+      },
+      "running": {
+        "stage": "pose",
+        "mode": "running",
+        "scene": "true",
+        "reveal": 1,
+        "percent": "100.00",
+        "animating": "true",
+        "text": "等待互动 · 非实时地图位姿估计输入发布 100%输入已发布，等待轨迹导出/关联位姿估计尚未完成；真实轨迹预览可用后会自动替换此示意。暂停示意换个方向换个房间输入发布完毕 · 小车待命 · 展开量跟随进度；图形为示意，不是真实地图。",
+        "className": "waiting-preview waiting-preview--running MuiBox-root css-100wf79",
+        "height": 760,
+        "width": 1127.59375
+      }
+    },
+    "responsive": {
+      "1366x768": {
+        "root": {
+          "x": 241,
+          "y": 80.171875,
+          "width": 739.796875,
+          "height": 458
+        },
+        "overflow": 0,
+        "controls": {
+          "root": {
+            "x": 241,
+            "y": 80.171875,
+            "width": 739.796875,
+            "height": 458
+          },
+          "boxes": [
+            {
+              "text": "暂停示意",
+              "x": 256,
+              "y": 465.28125,
+              "w": 74,
+              "h": 32
+            },
+            {
+              "text": "换个方向",
+              "x": 338,
+              "y": 465.28125,
+              "w": 74,
+              "h": 32
+            },
+            {
+              "text": "换个房间",
+              "x": 420,
+              "y": 465.28125,
+              "w": 74,
+              "h": 32
+            }
+          ],
+          "outside": [],
+          "overlaps": []
+        }
+      },
+      "390x844": {
+        "root": {
+          "x": 25,
+          "y": 79.609375,
+          "width": 340,
+          "height": 360
+        },
+        "overflow": 0,
+        "controls": {
+          "root": {
+            "x": 25,
+            "y": 79.609375,
+            "width": 340,
+            "height": 360
+          },
+          "boxes": [
+            {
+              "text": "暂停示意",
+              "x": 36,
+              "y": 344.828125,
+              "w": 68,
+              "h": 30
+            },
+            {
+              "text": "换个方向",
+              "x": 112,
+              "y": 344.828125,
+              "w": 68,
+              "h": 30
+            },
+            {
+              "text": "换个房间",
+              "x": 188,
+              "y": 344.828125,
+              "w": 68,
+              "h": 30
+            }
+          ],
+          "outside": [],
+          "overlaps": []
+        }
+      }
+    },
+    "displayMode": {
+      "height": 830,
+      "normalHeight": 760,
+      "overflow": 0,
+      "controls": {
+        "root": {
+          "x": 31,
+          "y": 452.484375,
+          "width": 1281.59375,
+          "height": 830
+        },
+        "boxes": [
+          {
+            "text": "暂停示意",
+            "x": 46,
+            "y": 1209.59375,
+            "w": 74,
+            "h": 32
+          },
+          {
+            "text": "换个方向",
+            "x": 128,
+            "y": 1209.59375,
+            "w": 74,
+            "h": 32
+          },
+          {
+            "text": "换个房间",
+            "x": 210,
+            "y": 1209.59375,
+            "w": 74,
+            "h": 32
+          }
+        ],
+        "outside": [],
+        "overlaps": []
+      }
+    },
+    "cycle20": {
+      "waiting": 1,
+      "viewer3d": 0,
+      "esdf": 0,
+      "canvases": 1,
+      "selected": "surface"
+    },
+    "heap": {
+      "Documents": 1,
+      "JSEventListeners": 409,
+      "Nodes": 2410,
+      "JSHeapUsedSize": 21880188
+    },
+    "reducedMotion": {
+      "stage": "pose",
+      "mode": "running",
+      "scene": "true",
+      "reveal": 0.2,
+      "percent": "20.00",
+      "animating": "false",
+      "text": "等待互动 · 非实时地图位姿估计静态显示阶段进度 20%正在估计位姿蓝色路线随本阶段进度展开；真实轨迹就绪后自动替换。换个方向换个房间蓝色路线 · 展开量只跟随进度 · 展开量跟随进度；图形为示意，不是真实地图。",
+      "className": "waiting-preview waiting-preview--running MuiBox-root css-100wf79",
+      "height": 760,
+      "width": 1127.59375,
+      "revealAfterSnapshot": 0.6,
+      "frameChangedOnSnapshot": true
+    }
+  },
+  "screenshots": [
+    "09-waiting-export-1920.png",
+    "10-disconnect-1920.png",
+    "11-reconnect-1920.png",
+    "12-progress-80-1920.png",
+    "13-progress-fallback-30-1920.png",
+    "14-paused-static-1920.png",
+    "15-queued-1920.png",
+    "16-unknown-1920.png",
+    "17-completed-missing-1920.png",
+    "18-failed-1920.png",
+    "19-cancelling-1920.png",
+    "20-cancelled-1920.png",
+    "21-associating-1920.png",
+    "20-responsive-1366x768.png",
+    "21-responsive-390.png",
+    "22-display-mode-1920.png",
+    "23-cycle20-1920.png",
+    "24-reduced-motion-1920.png"
+  ],
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "badResponses": [],
+  "warnings": []
+}

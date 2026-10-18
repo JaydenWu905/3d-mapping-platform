@@ -41,6 +41,8 @@ import {
 } from '../components/progressLabel';
 import { StageProgressBar } from '../components/StageProgressBar';
 import { StatusBadge } from '../components/StatusBadge';
+import { WaitingPreview } from '../components/WaitingPreview';
+import { hasUsablePreview } from '../components/waitingPreview/artifacts';
 import { useJob } from '../hooks/useJob';
 import { useObservedProgress } from '../hooks/useObservedProgress';
 import { useReducedMotion } from '../hooks/useReducedMotion';
@@ -71,6 +73,16 @@ function manifestArtifact(stage: StageDetail, artifactId: string) {
 
 function isActiveStage(stage: StageDetail): boolean {
   return ACTIVE_STATUSES.includes(stage.status);
+}
+
+/** 预览容器右上角提示：只有真正可交互的示意图才提示“等待互动”。 */
+function previewHint(stage: StageDetail): string {
+  if (hasUsablePreview(stage)) return '可旋转 · 缩放 · 平移 · 重置视角';
+  if (stage.status === 'not_integrated') return '未请求该阶段';
+  if (stage.status === 'failed' || stage.status === 'cancelled' || stage.status === 'completed') {
+    return '无可用预览产物';
+  }
+  return '等待互动 · 非实时地图';
 }
 
 function validationText(scope: string | undefined): string {
@@ -476,17 +488,18 @@ export function JobDetailPage() {
             </Typography>
             <Box sx={{ flex: 1 }} />
             <Typography sx={{ fontSize: 12, color: 'text.disabled' }}>
-              可旋转 · 缩放 · 平移 · 重置视角
+              {stage ? previewHint(stage) : ''}
             </Typography>
           </Stack>
 
           <Box sx={{ p: 1.5, minWidth: 0 }}>
             {stage ? (
               <StageViewer
+                key={`${job.job_id}:${stage.stage}`}
                 jobId={job.job_id}
                 stage={stage}
                 manifest={stage.manifest}
-                active={isActiveStage(stage)}
+                connected={connected}
               />
             ) : (
               <Box className="viewer-empty">该任务没有阶段信息。</Box>
@@ -928,12 +941,12 @@ function StageViewer({
   jobId,
   stage,
   manifest,
-  active,
+  connected,
 }: {
   jobId: string;
   stage: StageDetail;
   manifest: Manifest | null;
-  active: boolean;
+  connected: boolean;
 }) {
   const slices = useMemo(() => {
     const value = manifest?.metrics?.slices;
@@ -942,20 +955,10 @@ function StageViewer({
 
   const hasTraj = manifestArtifact(stage, 'trajectory_model') !== null;
 
-  if (active && !manifest) {
-    return (
-      <Box className="viewer-empty">阶段运行中或排队中，完成后自动生成 3D 预览…</Box>
-    );
-  }
-
   // 查看器按阶段键固定映射（架构约束：不按算法分支）。
   if (stage.stage === 'pose') {
     if (hasTraj) return <TrajectoryViewer jobId={jobId} stage={stage.stage} />;
-    return (
-      <Box className="viewer-empty">
-        位姿估计阶段暂无轨迹预览（产物清单中缺少 trajectory_model）。
-      </Box>
-    );
+    return <WaitingPreview stage={stage} connected={connected} />;
   }
 
   if (stage.stage === 'surface') {
@@ -968,22 +971,21 @@ function StageViewer({
         />
       );
     }
-    return (
-      <Box className="viewer-empty">
-        表面重建阶段暂无网格预览（产物清单中缺少 surface_model）。
-      </Box>
-    );
+    return <WaitingPreview stage={stage} connected={connected} />;
   }
 
   if (stage.stage === 'distance') {
-    return (
-      <EsdfViewer
-        jobId={jobId}
-        stage={stage.stage}
-        slices={slices}
-        artifacts={manifest?.artifacts ?? []}
-      />
-    );
+    if (hasUsablePreview(stage)) {
+      return (
+        <EsdfViewer
+          jobId={jobId}
+          stage={stage.stage}
+          slices={slices}
+          artifacts={manifest?.artifacts ?? []}
+        />
+      );
+    }
+    return <WaitingPreview stage={stage} connected={connected} />;
   }
 
   return null;

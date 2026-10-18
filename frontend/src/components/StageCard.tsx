@@ -51,6 +51,7 @@ export function StageCard({
   return (
     <Box
       onClick={onSelect}
+      data-stage-key={stageKey}
       aria-current={selected ? 'step' : undefined}
       sx={{
         p: 1.5,

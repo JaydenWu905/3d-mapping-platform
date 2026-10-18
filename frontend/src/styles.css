@@ -54,7 +54,8 @@ body.display-mode .app-main {
   padding: 12px 18px 20px;
 }
 
-body.display-mode .detail-viewer .viewer-3d {
+body.display-mode .detail-viewer .viewer-3d,
+body.display-mode .detail-viewer .waiting-preview {
   height: calc(100vh - 250px);
   min-height: 420px;
 }
@@ -232,6 +233,147 @@ body.display-mode .detail-duration-chart {
 
 .detail-viewer .viewer-3d {
   height: clamp(420px, calc(100vh - 310px), 760px);
+}
+
+/* ---------- 等待区示意（非实时地图） ---------- */
+
+.waiting-preview {
+  position: relative;
+  width: 100%;
+  height: clamp(420px, calc(100vh - 310px), 760px);
+  border: 1px solid #dfe3e8;
+  border-radius: 0;
+  background: #f0f4f9;
+  overflow: hidden;
+}
+
+.waiting-preview__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+  touch-action: manipulation;
+}
+
+.waiting-preview__top {
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 14px 18px;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(249, 250, 251, 0.97) 45%, rgba(249, 250, 251, 0));
+}
+
+.waiting-preview__tag {
+  flex: none;
+  padding: 3px 8px;
+  border: 1px solid #c4cdd5;
+  border-radius: 0;
+  background: #fff;
+  color: #637381;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.waiting-preview__stage {
+  flex: none;
+  color: #212b36;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.waiting-preview__motion,
+.waiting-preview__percent {
+  flex: none;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+}
+
+.waiting-preview__motion {
+  color: #637381;
+}
+
+.waiting-preview__percent {
+  color: var(--waiting-accent, #1877f2);
+  font-weight: 700;
+}
+
+.waiting-preview__bottom {
+  position: absolute;
+  inset: auto 0 0 0;
+  z-index: 2;
+  padding: 44px 14px 12px;
+  pointer-events: none;
+  background: linear-gradient(0deg, rgba(249, 250, 251, 0.98) 62%, rgba(249, 250, 251, 0));
+}
+
+.waiting-preview__title {
+  color: #212b36;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.waiting-preview__detail {
+  max-width: 760px;
+  margin-top: 2px;
+  color: #637381;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.waiting-preview__actions {
+  margin-top: 8px;
+  pointer-events: auto;
+}
+
+.waiting-preview__actions .MuiButton-root {
+  min-height: 32px;
+  padding: 4px 12px;
+  background: #fff;
+  font-size: 12px;
+}
+
+.waiting-preview__footnote {
+  margin-top: 6px;
+  color: #637381;
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.waiting-preview__notice {
+  position: absolute;
+  inset: 58px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  overflow: auto;
+  background-color: #f0f4f9;
+  background-image:
+    linear-gradient(#e1e8f0 1px, transparent 1px),
+    linear-gradient(90deg, #e1e8f0 1px, transparent 1px);
+  background-size: 34px 34px;
+}
+
+.waiting-preview__notice .MuiAlert-root {
+  width: 100%;
+  border-radius: 0;
+  pointer-events: none;
+}
+
+.waiting-preview__notice .waiting-preview__footnote {
+  max-width: 560px;
+  margin-top: 0;
+  text-align: center;
 }
 
 .detail-viewer .esdf-viewer {
@@ -749,8 +891,69 @@ body.display-mode .detail-duration-chart {
     height: 340px;
   }
 
-  .detail-viewer .viewer-3d {
+  .detail-viewer .viewer-3d,
+  .detail-viewer .waiting-preview {
     height: 360px;
+  }
+
+  body.display-mode .detail-viewer .viewer-3d,
+  body.display-mode .detail-viewer .waiting-preview {
+    height: min(460px, calc(100vh - 210px));
+    min-height: 320px;
+  }
+
+  .waiting-preview__top {
+    gap: 6px;
+    padding: 8px 10px 14px;
+  }
+
+  .waiting-preview__tag {
+    font-size: 11px;
+  }
+
+  .waiting-preview__stage {
+    font-size: 13px;
+  }
+
+  .waiting-preview__motion,
+  .waiting-preview__percent {
+    font-size: 12px;
+  }
+
+  .waiting-preview__bottom {
+    padding: 34px 10px 8px;
+  }
+
+  .waiting-preview__title {
+    font-size: 14px;
+  }
+
+  .waiting-preview__detail {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .waiting-preview__actions {
+    margin-top: 6px;
+  }
+
+  .waiting-preview__actions .MuiButton-root {
+    min-height: 30px;
+    padding: 3px 10px;
+    font-size: 11.5px;
+  }
+
+  .waiting-preview__footnote {
+    font-size: 10.5px;
+  }
+
+  .waiting-preview__notice {
+    inset: 46px 10px 10px;
+    padding: 12px;
   }
 
   .detail-viewer .esdf-stage {
