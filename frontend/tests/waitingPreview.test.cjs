@@ -416,7 +416,7 @@ assert.notDeepEqual(
 // 紧凑高度仍为底部说明留出区域，避免地图被遮住。
 const compact = sceneArea(390, 360);
 assert.ok(compact.w > 100 && compact.h > 60);
-assert.ok(compact.y + compact.h <= 360 - 118 + 1);
+assert.ok(compact.y + compact.h <= 360 - 76 + 1);
 const tall = sceneArea(1280, 760);
 assert.ok(tall.w > compact.w && tall.h > compact.h);
 
@@ -443,7 +443,6 @@ assert.match(componentSource, /progress: snapshot\.state\.reveal/);
 assert.doesNotMatch(componentSource, /progress:\s*time/);
 assert.match(componentSource, /useReducedMotion\(\)/);
 assert.match(componentSource, /data-waiting-reveal/);
-assert.match(componentSource, /路线与色块随小车展开；图形为示意，不是真实地图。/);
 assert.match(componentSource, /等待动画 · 非实时地图/);
 assert.doesNotMatch(componentSource, /onClick|onPointer|换个方向|换个房间|暂停示意|继续示意/);
 assert.match(componentSource, /ref=\{wrapRef\}/);

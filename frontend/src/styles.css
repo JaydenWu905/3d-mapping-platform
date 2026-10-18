@@ -315,7 +315,7 @@ body.display-mode .detail-duration-chart {
   position: absolute;
   inset: auto 0 0 0;
   z-index: 2;
-  padding: 44px 14px 12px;
+  padding: 20px 14px 12px;
   pointer-events: none;
   background: linear-gradient(0deg, rgba(249, 250, 251, 0.98) 62%, rgba(249, 250, 251, 0));
 }
@@ -325,14 +325,6 @@ body.display-mode .detail-duration-chart {
   font-size: 18px;
   font-weight: 700;
   line-height: 1.4;
-}
-
-.waiting-preview .waiting-preview__detail {
-  max-width: 760px;
-  margin-top: 2px;
-  color: #637381;
-  font-size: 14px;
-  line-height: 1.55;
 }
 
 .waiting-preview .waiting-preview__footnote {
@@ -916,20 +908,11 @@ body.display-mode .detail-duration-chart {
   }
 
   .waiting-preview__bottom {
-    padding: 34px 10px 8px;
+    padding: 18px 10px 8px;
   }
 
   .waiting-preview .waiting-preview__title {
-    font-size: 14px;
-  }
-
-  .waiting-preview .waiting-preview__detail {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    overflow: hidden;
-    font-size: 12px;
-    line-height: 1.5;
+    font-size: 16px;
   }
 
   .waiting-preview .waiting-preview__footnote {

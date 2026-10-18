@@ -212,8 +212,8 @@ export function sceneArea(width: number, height: number): SceneArea {
   const top = compact ? 56 : Math.max(48, Math.min(68, height * 0.12));
   // 自动播放没有操作区，把腾出的空间留给地图。
   const bottom = compact
-    ? 118
-    : Math.max(112, Math.min(144, height * 0.19));
+    ? 76
+    : Math.max(76, Math.min(96, height * 0.12));
   const availableW = Math.max(40, width - padX * 2);
   const availableH = Math.max(40, height - top - bottom);
 

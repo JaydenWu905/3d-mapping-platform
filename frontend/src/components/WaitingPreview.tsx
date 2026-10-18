@@ -5,6 +5,7 @@ import {
   Typography,
 } from '@mui/material';
 import type { StageDetail } from '../types';
+import { stagePhaseLabel } from './progressLabel';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { drawWaitingScene, stageColor } from './waitingPreview/draw';
 import { advanceRobotProgress, buildScannerMap } from './waitingPreview/route';
@@ -21,6 +22,7 @@ export type WaitingPreviewProps = {
 };
 const FRAME_INTERVAL_MS = 1000 / 30;
 const DPR_CAP = 2;
+const STAGE_ORDINALS = { pose: '第一阶段', surface: '第二阶段', distance: '第三阶段' };
 
 function noticeSeverity(
   mode: WaitingPreviewMode,
@@ -180,6 +182,12 @@ export function WaitingPreview({ stage, connected, runKey }: WaitingPreviewProps
 
   const accent = stageColor(state.stage);
   const motionNote = reducedMotion ? '静态显示' : '';
+  const phase = connectionLost ? '连接中断，正在重连'
+    : state.standby ? stage.phase === 'associating' ? '轨迹关联' : '等待轨迹导出'
+    : stagePhaseLabel(stage);
+  const caption = state.mode === 'not-started'
+    ? `${STAGE_ORDINALS[state.stage]}尚未开始`
+    : `${state.stageLabel}：${phase}`;
 
   return (
     <Box
@@ -215,16 +223,8 @@ export function WaitingPreview({ stage, connected, runKey }: WaitingPreviewProps
             aria-hidden="true"
           />
           <Box className="waiting-preview__bottom">
-            <Box className="waiting-preview__copy">
-              <Typography className="waiting-preview__title">
-                {state.title}
-              </Typography>
-              <Typography className="waiting-preview__detail">
-                {state.detail}
-              </Typography>
-            </Box>
-            <Typography className="waiting-preview__footnote">
-              {state.legend} · 路线与色块随小车展开；图形为示意，不是真实地图。
+            <Typography className="waiting-preview__title" role="status" aria-live="polite">
+              {caption}
             </Typography>
           </Box>
         </>
