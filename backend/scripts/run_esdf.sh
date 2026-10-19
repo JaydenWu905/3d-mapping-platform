@@ -70,7 +70,10 @@ EOF
 write_progress "running" "esdf_generation" 10 "Running Voxblox ESDF"
 
 # ---------- 3. 调用 C++ 程序 ----------
-VOXBLOX_EXE="/home/voxblox/catkin_ws/devel/lib/voxblox_ground_truth/voxel_points_to_esdf"
+# 默认路径：相对于此脚本所在目录的 build 文件夹
+DEFAULT_EXE="$SCRIPT_DIR/esdf_cpp/build/voxel_points_to_esdf"
+# 如果环境变量指定了路径，则优先使用环境变量
+VOXBLOX_EXE="${ESDF_EXECUTABLE:-$DEFAULT_EXE}"
 if [[ ! -x "$VOXBLOX_EXE" ]]; then
   echo "[esdf] ERROR: 找不到 $VOXBLOX_EXE" >&2
   write_progress "failed" "missing_exe" 0 "C++ executable missing"
