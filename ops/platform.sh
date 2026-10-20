@@ -7,6 +7,9 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 if [[ -f "$ROOT/ops/glim-runtime.env" ]]; then
   source "$ROOT/ops/glim-runtime.env"
 fi
+if [[ -f "$ROOT/ops/platform.local.env" ]]; then
+  source "$ROOT/ops/platform.local.env"
+fi
 RUN_DIR="$ROOT/.run"
 LOG_DIR="$ROOT/logs"
 BACKEND_PORT=8000

@@ -24,7 +24,9 @@ def load_ply_data(path: Path) -> np.ndarray:
             if line.strip() == "end_header":
                 break
         # 读取所有数据行（忽略末尾空行）
-        data = np.loadtxt(fh, dtype=np.float64)
+        data = np.loadtxt(fh, dtype=np.float64, ndmin=2)
+    if data.shape[0] == 0 or data.shape[1] != 7 or not np.isfinite(data).all():
+        raise ValueError("Empty, invalid or nonfinite ESDF preview")
     return data
 
 

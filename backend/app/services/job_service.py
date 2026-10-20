@@ -87,7 +87,12 @@ class JobService:
         dataset_def = self.datasets.get(dataset)
         requested_stages = requested_stages or (["pose", "surface"] if dataset_def.execution == "real" else list(STAGES))
         if requested_stages not in (list(STAGES), ["pose", "surface"]):
-            raise ValueError("requested_stages must be Pose/Surface or all three demo stages")
+            raise ValueError("requested_stages must be Pose/Surface or Pose/Surface/Distance")
+        if dataset_def.execution == "real" and "distance" in requested_stages:
+            from app.services.distance_readiness import distance_unavailable_reason
+            reason = distance_unavailable_reason()
+            if reason:
+                raise ValueError(reason)
         missing = [s for s in requested_stages if s not in backends]
         if missing:
             raise ValueError(f"Missing backend selection for stage(s): {', '.join(missing)}")
@@ -368,6 +373,10 @@ class JobService:
                 if not ok:
                     return False, reason
             elif stage == "distance":
+                from app.services.distance_readiness import distance_unavailable_reason
+                reason = distance_unavailable_reason()
+                if reason:
+                    return False, reason
                 if not has_real_runner(stage, backend_id):
                     return False, missing_runner_reason(stage, backend_id)
         dep = stage_dependency_satisfied(job, stage)

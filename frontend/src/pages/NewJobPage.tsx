@@ -62,9 +62,7 @@ export function backendCompatibility(
 ): string | null {
   if (backend.status === 'disabled') return '该后端当前已禁用';
   if (!ds || ds.input_manifest?.execution !== 'real') return null;
-  // Distance has no real runner yet; the backend reports that with its own
-  // message when the chain reaches it, so selection stays permissive here.
-  if (stage === 'distance') return null;
+  if (stage === 'distance') return backend.unavailable_reason || (backend.capabilities?.real_execution === true ? null : '该距离场后端仅支持模拟演示');
 
   const declaredPoseBackend = asString(ds.input_manifest.pose_backend);
   if (stage === 'pose') {
@@ -230,6 +228,7 @@ export function NewJobPage() {
     distance: null,
   });
   const [dataset, setDataset] = useState<string>('');
+  const [includeDistance, setIncludeDistance] = useState(false);
   const [runMode, setRunMode] = useState<'full' | 'short'>('full');
   const [failStage, setFailStage] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
@@ -359,7 +358,7 @@ export function NewJobPage() {
       const activeDataset = datasets?.find((item) => item.id === dataset);
       const poseBackend = backends?.groups.pose?.find((item) => item.id === selected.pose);
       const real = activeDataset?.input_manifest?.execution === 'real';
-      const stages: StageKey[] = real ? STAGE_ORDER.slice(0, 2) : [...STAGE_ORDER];
+      const stages: StageKey[] = real && !includeDistance ? STAGE_ORDER.slice(0, 2) : [...STAGE_ORDER];
       const missing = stages.filter((s) => !backends?.groups[s]?.some(
         (definition) =>
           definition.id === selected[s]
@@ -394,7 +393,7 @@ export function NewJobPage() {
 
   const activeDataset = datasets?.find((item) => item.id === dataset);
   const real = activeDataset?.input_manifest?.execution === 'real';
-  const requiredStages: StageKey[] = real ? STAGE_ORDER.slice(0, 2) : [...STAGE_ORDER];
+  const requiredStages: StageKey[] = real && !includeDistance ? STAGE_ORDER.slice(0, 2) : [...STAGE_ORDER];
   const hasRunModes = Array.isArray(activeDataset?.input_manifest?.run_modes);
 
   return (
@@ -691,11 +690,20 @@ export function NewJobPage() {
               title="阶段算法"
               description={
                 real
-                  ? '真实数据任务包含位姿估计与表面重建两个阶段；距离场不在本页面的任务范围内。'
+                  ? '默认运行 Pose→Surface；可显式选择三阶段。第三模块须先通过依赖与契约检查。'
                   : '演示数据包含位姿估计、表面重建与距离场三个模拟阶段。'
               }
             />
 
+            {real ? <Stack spacing={1} sx={{ mb: 2 }}>
+              <Typography>运行阶段</Typography>
+              <Select size="small" value={includeDistance ? 'three' : 'two'}
+                onChange={(event) => setIncludeDistance(event.target.value === 'three')}>
+                <MenuItem value="two">Pose → Surface（默认）</MenuItem>
+                <MenuItem value="three">Pose → Surface → Distance</MenuItem>
+              </Select>
+              <Alert severity="info">{backends.groups.distance.find((item) => item.id === 'voxel_esdf')?.unavailable_reason || '第三模块代码已接入；真实运行与完整验收以部署记录为准。'}</Alert>
+            </Stack> : null}
             <Stack spacing={2}>
               {requiredStages.map((stage) => {
                 const definitions = backends.groups[stage] ?? [];

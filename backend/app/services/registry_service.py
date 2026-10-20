@@ -42,6 +42,13 @@ class BackendRegistry:
                 continue
             raw = json.loads(path.read_text(encoding="utf-8"))
             defs = [BackendDef(**d) for d in raw.get("backends", [])]
+            if stage == "distance":
+                from app.services.distance_readiness import distance_unavailable_reason
+                for definition in defs:
+                    if definition.id == "voxel_esdf":
+                        definition.unavailable_reason = distance_unavailable_reason()
+                        definition.capabilities.update(code_integrated=True, real_execution=False,
+                                                       cpu_checked=False, full_chain_accepted=False)
             self._stages[stage] = {d.id: d for d in defs}
             for d in defs:
                 self._by_id[(stage, d.id)] = d

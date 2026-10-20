@@ -1,6 +1,20 @@
 # 三模块三维建图平台
 
-网页创建任务、查看进度与产物；后端按 **Pose → Surface → Distance/ESDF** 调度。当前真实 INS/Livox 链路已接通 Pose（GLIM）和 Surface（MrHash-LiDAR），同一个 Job 会先运行 GLIM、保存新轨迹、按时间关联准备 Surface 输入，再运行 MrHash。main 已接入真实 Distance/ESDF 后端；当前网页创建的真实 Job 仍只请求 Pose、Surface 两阶段，Surface 完成后结束。`demo_room` 的三阶段均为演示 Runner；Oxford 路径导入已注册 Pose 后运行 MrHash，不会为 Oxford 启动 GLIM。MrHash RGB-D 接口已登记但运行入口禁用。
+网页创建任务、查看进度与产物；后端按 **Pose → Surface → Distance/ESDF** 调度。当前真实 INS/Livox 链路已接通 Pose（GLIM）和 Surface（MrHash-LiDAR），同一个 Job 会先运行 GLIM、保存新轨迹、按时间关联准备 Surface 输入，再运行 MrHash。main 已接入 Distance 调度和转换器源码；本机尚缺库/转换器编译，且实际 ESDF 与自适应网格契约待修复验收。页面默认真实 Job 请求 Pose、Surface，可显式选三阶段；Distance 未就绪时显示原因并拒绝真实运行。`demo_room` 的三阶段均为演示 Runner；Oxford 路径导入已注册 Pose 后运行 MrHash，不会为 Oxford 启动 GLIM。MrHash RGB-D 接口已登记但运行入口禁用。
+
+## 2026-10-20 本机整合状态
+
+| 层级 | 状态 |
+|---|---|
+| 最新 main / PR #8 / 新前端代码 | 已接入独立 worktree，未推送 |
+| 平台 Python / 前端依赖 | 已就绪；保留原 GLIM/MrHash 环境 |
+| Distance 环境 | 固定源码、隔离 catkin 工具已准备；glog/gflags 与 C++ 编译待完成 |
+| CPU 检查 | 最终后端186项、前端5个测试文件、51文件语法检查通过；合成预览与Mock取消另有独立记录 |
+| 完整前端 typecheck/build | 320 MiB 堆限制下 typecheck 退出；恢复正常内存后执行，未做生产构建 |
+| 真实算法 | 本轮未运行 GLIM/MrHash/Distance |
+| 新 Job 三阶段真实验收 | 未通过，不能把代码接入或 Mock 测试当作验收 |
+
+当前资源限制是临时无 GPU / 2 GiB，**不是正式部署容量**，未降低算法质量参数。[本次部署与回滚](ops/INTEGRATION_20261020.md)、[Distance 实际契约与后续操作](docs/deploy-distance.md)。GPU 模式恢复后从整合目录执行 `bash ops/continue-gpu.sh preflight`。
 
 ## 当前支持范围
 

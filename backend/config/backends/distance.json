@@ -5,9 +5,14 @@
     {
       "id": "voxel_esdf",
       "display_name": "Voxel-ESDF",
-      "status": "ready",
-      "input_modalities": ["surface_mesh", "camera_pose"],
-      "preview_types": ["slices", "gradient"],
+      "status": "experimental",
+      "input_modalities": [
+        "voxel_points"
+      ],
+      "preview_types": [
+        "slices",
+        "gradient"
+      ],
       "description": "Voxblox-based offline ESDF generation from MrHash voxel points, with Dijkstra wavefront propagation up to 2.5m.",
       "home_url": ""
     },
@@ -15,8 +20,14 @@
       "id": "kernel_sdf",
       "display_name": "Kernel-SDF",
       "status": "experimental",
-      "input_modalities": ["surface_mesh", "camera_pose"],
-      "preview_types": ["slices", "gradient"],
+      "input_modalities": [
+        "surface_mesh",
+        "camera_pose"
+      ],
+      "preview_types": [
+        "slices",
+        "gradient"
+      ],
       "description": "Mock demo backend only; no real Distance runner is integrated yet.",
       "home_url": ""
     },
@@ -24,8 +35,13 @@
       "id": "oren",
       "display_name": "Oren",
       "status": "disabled",
-      "input_modalities": ["surface_mesh", "camera_pose"],
-      "preview_types": ["slices"],
+      "input_modalities": [
+        "surface_mesh",
+        "camera_pose"
+      ],
+      "preview_types": [
+        "slices"
+      ],
       "description": "Placeholder algorithm reserved for a future backend.",
       "home_url": ""
     }

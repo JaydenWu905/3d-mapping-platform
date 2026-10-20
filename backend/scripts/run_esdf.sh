@@ -14,40 +14,26 @@ while [[ $# -gt 0 ]]; do
     *) usage ;;
   esac
 done
-[[ -n "$JOB_DIR" && -n "$BACKEND" && -n "$MODE" ]] || usage
+[[ -n "$JOB_DIR" && "$BACKEND" == "voxel_esdf" && ( "$MODE" == "demo" || "$MODE" == "full" ) ]] || usage
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 STAGE_DIR="$JOB_DIR/stage3_esdf"
 PREVIEW_DIR="$STAGE_DIR/preview"
 mkdir -p "$PREVIEW_DIR"
 
-# ---------- 1. 从 surface manifest 里找 voxel_points ----------
-SURFACE_MANIFEST="$JOB_DIR/stage2_surface/result_manifest.json"
-if [[ ! -f "$SURFACE_MANIFEST" ]]; then
-  echo "[esdf] ERROR: 找不到 $SURFACE_MANIFEST" >&2
-  exit 1
-fi
-
-# 用内嵌的 Python 从 JSON 里提取 artifact path
-INPUT_PLY=$(python3 - "$SURFACE_MANIFEST" "$JOB_DIR/stage2_surface" <<'PY'
-import json, sys
-from pathlib import Path
-manifest = json.loads(Path(sys.argv[1]).read_text())
-stage_dir = Path(sys.argv[2])
-# 优先找 voxel_points，其次 navigation_input，再退到 surface_mesh
-for wanted in ("voxel_points", "navigation_input", "surface_mesh"):
-    for art in manifest.get("artifacts", []):
-        if art.get("artifact_id") == wanted:
-            print(stage_dir / art["path"])
-            sys.exit(0)
-PY
-)
-
-if [[ -z "$INPUT_PLY" || ! -f "$INPUT_PLY" ]]; then
-  echo "[esdf] ERROR: surface 阶段没有可用的输入 PLY" >&2
-  exit 1
-fi
-echo "[esdf] 输入 PLY: $INPUT_PLY"
+# Fail before invoking any algorithm; missing dependencies never use historical/mock output.
+PLATFORM_PYTHON="$SCRIPT_DIR/../.venv/bin/python"
+[[ -x "$PLATFORM_PYTHON" ]] || PLATFORM_PYTHON=python3
+export PYTHONPATH="$SCRIPT_DIR/.."
+"$PLATFORM_PYTHON" - <<'CHECK'
+from app.services.distance_readiness import distance_unavailable_reason
+reason = distance_unavailable_reason()
+if reason:
+    raise SystemExit(reason)
+CHECK
+INPUT_JSON=$("$PLATFORM_PYTHON" "$SCRIPT_DIR/distance_input.py" --job-dir "$JOB_DIR" --scan --require-grid)
+INPUT_PLY=$("$PLATFORM_PYTHON" -c 'import json,sys; print(json.load(sys.stdin)["input_ply"])' <<< "$INPUT_JSON")
+VOXEL_SIZE=$("$PLATFORM_PYTHON" -c 'import json,sys; print(json.load(sys.stdin)["voxel_size_m"])' <<< "$INPUT_JSON")
 
 # ---------- 2. 写 progress.json 的辅助函数 ----------
 write_progress() {
@@ -84,7 +70,7 @@ set +e
 "$VOXBLOX_EXE" \
   --input "$INPUT_PLY" \
   --output_dir "$STAGE_DIR" \
-  --voxel_size 0.1 \
+  --voxel_size "$VOXEL_SIZE" \
   --max_esdf_distance 2.5
 EXIT_CODE=$?
 set -e
@@ -105,6 +91,11 @@ PLATFORM_PYTHON="$SCRIPT_DIR/../.venv/bin/python"
   --output_dir "$PREVIEW_DIR" \
   --resolution 480
 
+# Never register missing or empty native/preview output as a successful conversion.
+[[ -s "$STAGE_DIR/map.esdf" && -s "$STAGE_DIR/preview/esdf_vis.ply" ]] || {
+  write_progress "failed" "invalid_outputs" 0 "Missing or empty native/preview output"
+  exit 1
+}
 # ---------- 5. 写 result_manifest.json ----------
 ESDF_SIZE=$(stat -c%s "$STAGE_DIR/map.esdf" 2>/dev/null || echo 0)
 PLY_SIZE=$(stat -c%s "$STAGE_DIR/preview/esdf_vis.ply" 2>/dev/null || echo 0)
@@ -129,7 +120,7 @@ cat > "$STAGE_DIR/result_manifest.json" <<EOF
   "unit": "meter",
   "runtime_sec": 0.0,
   "metrics": {
-    "resolution_m": 0.1,
+    "resolution_m": $VOXEL_SIZE,
     "esdf_size_bytes": $ESDF_SIZE,
     "vis_ply_size_bytes": $PLY_SIZE
   },
@@ -153,7 +144,7 @@ cat > "$STAGE_DIR/result_manifest.json" <<EOF
   "backend_details": {
     "mock_backend": false,
     "algorithm": "Voxblox ESDF (Dijkstra wavefront)",
-    "voxel_size_m": 0.1,
+    "voxel_size_m": $VOXEL_SIZE,
     "max_esdf_distance_m": 2.5
   }
 }

@@ -6,6 +6,7 @@ its jobs, demo assets and backend registry files.
 from __future__ import annotations
 
 from pathlib import Path
+import os
 
 # 3d-mapping-platform/
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -21,7 +22,7 @@ DEMO_JOBS_DIR = PROJECT_ROOT / "demo_jobs"
 
 # backend/config/backends/*.json  (pose / surface / distance)
 BACKENDS_CONFIG_DIR = BACKEND_ROOT / "config" / "backends"
-DATASETS_CONFIG_DIR = BACKEND_ROOT / "config" / "datasets"
+DATASETS_CONFIG_DIR = Path(os.environ.get("PLATFORM_DATASETS_CONFIG_DIR", BACKEND_ROOT / "config" / "datasets"))
 
 # Whether the first backend start seeds one completed demo job so the UI
 # has immediate content and page-refresh state restoration can be shown.
