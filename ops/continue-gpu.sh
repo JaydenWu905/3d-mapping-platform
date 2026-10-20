@@ -11,7 +11,9 @@ print('cgroup memory.max:',limit)
 if limit!='max' and int(limit)<8*1024**3:
     raise SystemExit('Still in restricted-memory mode; do not compile or run real mapping. Restore GPU mode first.')
 PY
-nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv
+GPU_INFO="$(nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader)"
+[[ -n "$GPU_INFO" ]] || { echo 'No GPU is visible; do not run real mapping.' >&2; exit 1; }
+printf '%s\n' "$GPU_INFO"
 bash ops/distance-env.sh bash backend/scripts/build_esdf.sh --preflight
 backend/.venv/bin/python - <<'PY'
 from pathlib import Path

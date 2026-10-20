@@ -70,6 +70,8 @@ bash ops/distance-env.sh bash backend/scripts/build_esdf.sh --build
 
 如果先用历史 Surface，来源示例是 `job_1792219486_ec99dd/stage2_surface/runs/20261017_144929_768cd948/`。先运行 `backend/.venv/bin/python backend/scripts/distance_input.py --job-dir jobs/job_1792219486_ec99dd`（只读头，不扫大文件）；复制/抽取经注明的**小样本**到独立诊断目录，不改历史 Job/manifest，不把它说成新 Job 三阶段。真实 map 读回通过后再考虑全量。
 
+正式GPU运行前审查 `ops/platform.local.env`：本轮为了受限平台进程设置的 `OPENBLAS_NUM_THREADS=1` / `OMP_NUM_THREADS=1` 会被子进程继承；恢复正常资源后移除这两条临时工具限制并重启平台，避免限制算法的CPU线程性能（本轮没有运行算法，没有改变质量参数）。
+
 最后恢复正常内存的前端 `npm run typecheck && npm run build`、浏览器检查，并更新依赖状态。创建一个**新 Job**，页面显式选择 Pose→Surface→Distance 与 full，核对 Job 设备/算法参数快照和该数据集已注册的范围；不要编辑历史 requested_stages 或借用历史 Pose/Surface。检查同 Job 新产生的 GLIM轨迹→MrHash输入→voxel_points→Distance manifest，时间先后、运行命令、frame accounting、原生结果/预览/下载、取消/失败/重启恢复。页面支持 full/short 的 Livox 数据集默认 full：Pose处理整包，Surface不设帧上限；short仅将Surface限制在原始第1–100帧。直接API未传run_mode时沿用数据集注册范围，须看Job的run_scope；不得为2 GiB修改质量参数。
 
 日志：`logs/backend.log`、`logs/frontend.log`、Job 每阶段 `run.log/progress.json/result_manifest.json` 及 `stage2_surface/runs/<run_id>`。记录 `nvidia-smi` 采样、cgroup memory.current/events、`/usr/bin/time -v`、阶段开始/结束、退出码与全部固定提交。具体部署、回滚、证据路径见 `ops/INTEGRATION_20261020.md`。
