@@ -4,8 +4,8 @@ import os
 from app.config import BACKEND_ROOT
 
 CONTRACT_BLOCKER = (
-    "转换器契约未通过：投影 sdf 被直接用作 ESDF 种子；未知体素被标为 observed 并传播正距离，"
-    "且首次入队即锁定，尚未保证最短距离。须修复并通过符号/未知区/距离测试。"
+    "原生MrHash采样到Voxblox中心的重采样/聚合、TSDF→ESDF与未知区政策尚未确定；"
+    "输入/队列/输出已有源码修复，但完整转换器尚未通过构建和真实距离场验收。"
 )
 
 

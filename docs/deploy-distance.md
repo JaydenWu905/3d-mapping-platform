@@ -1,77 +1,112 @@
-# Distance 云端部署、实际契约与验收（2026-10-20）
+# Distance 部署与验收指南（2026-10-20 第二轮修订）
 
-> 当前状态：代码已接入；隔离 catkin 工具与固定源码已准备；平台 CPU 检查通过；Voxblox/转换器尚未编译；真实 Distance 与新 Job 完整三模块验收均未通过。不要执行旧版无参数“一键安装”流程，也不要把演示结果作为真实成功。
+> 代码已接入；本轮最小源码修复、Python参考与共享C++输入核心检查通过。**完整Voxblox转换器未编译运行，真实ESDF和新Job三阶段未验收。** 当前没有可用的正式生产转换模式。不能只安装依赖或删除gate就标为就绪。
 
-## 实际代码与环境
+逐项源码位置、触发条件、已证明错误/待定契约/其他配置兼容问题，以及上一轮两处结论更正，见[源码与契约复核](distance-contract-audit-20261020.md)。
 
-平台基线 main `01fd3fc` 已包含 PR #4、#7、#8 和新前端。PR #8 的转换器原始源码是同一平台仓库的 `backend/scripts/esdf_cpp/voxel_points_to_esdf.cpp`，提交 `c2120cb4cf7be7008cb6d856021e32b3570dd1c8`；不是子模块，也没有另一个必须从原作者机器复制的转换器仓库。
+## 代码、依赖与隔离
 
-`CMakeLists.txt`、`build_esdf.sh`、`run_esdf.sh`、`esdf_postprocess.py` 构成可重建材料，没有随附已验收镜像或服务器二进制。原 PR 下载浮动 Voxblox，优先 colcon，使用全核编译，并依赖本机路径；本轮已改成显式 fetch/preflight/build，核心源码锁在 `ops/distance-sources.lock.json`。Voxblox 固定 `c8066b04075d2fee509de295346b1c0b788c4f38`，catkin 及七个库包装依赖也各有精确提交。锁文件是本轮选择的待验证构建基线，不表示原作者验收过这些版本。
+平台main `01fd3fc19fa9e936b792f935c00a7713c5c69d15` 已含PR #8。原转换器是同仓库 `backend/scripts/esdf_cpp/voxel_points_to_esdf.cpp`，原始提交 `c2120cb4cf7be7008cb6d856021e32b3570dd1c8`；不是子模块，也没有另一份必须从作者机器复制的定制源码。
 
-本机 Ubuntu 22.04。Voxblox 核心库使用 ROS1 **catkin 构建系统**，本流程只编译 `voxblox` 及依赖，不编译 `voxblox_ros`，不需要 roscore/ROS 消息节点。catkin 源码来自 noetic-devel 固定提交，不代表已装 ROS Noetic。`/opt/ros/humble` 仍只供 GLIM ROS2 子进程使用，绝不 source 到 Distance 或后端。
+Voxblox固定 `c8066b04075d2fee509de295346b1c0b788c4f38`，catkin及其他依赖的精确提交在 `ops/distance-sources.lock.json`。本机源码 `/root/autodl-tmp/envs/distance/ws/src/`，隔离Python 3.10工具环境 `/root/autodl-tmp/envs/distance-tools/`。catkin-tools 0.9.5等已装；已有Eigen/Protobuf/CMake/g++，缺glog/gflags开发包。没有已验收镜像或转换器二进制。
 
-路径：
+只构建catkin体系的`voxblox`核心库，不构建voxblox_ros，不需要roscore；锁定catkin来自noetic-devel不代表已安装ROS Noetic。用 `ops/distance-env.sh` 清理子进程环境，不source全局ROS1/ROS2，不污染GLIM Humble、平台或MrHash Pixi。build脚本串行，显式fetch/preflight/build；8 GiB阈值仅作编译保护，不是部署容量。
 
-- 源码：`/root/autodl-tmp/envs/distance/ws/src/`。
-- Python 3.10 构建工具：`/root/autodl-tmp/envs/distance-tools/`；直接依赖固定于 `ops/distance-tools.requirements.txt`，实际完整 freeze 在本轮证据目录。
-- 未来库安装：`envs/distance/ws/install/`。
-- 未来候选程序：`envs/distance/converter-build/voxel_points_to_esdf`，构建后才设置 `ESDF_EXECUTABLE`，设置此变量本身不会解除契约阻断。
-- 运行入口：平台 `SubprocessRunnerAdapter → run_esdf.sh`，继承平台取消、进程组清理、超时和日志机制；默认 Distance 超时 1200 秒。
+## 实际输入与本轮修复
 
-已存在 Eigen 3.4、Protobuf 3.12.4、PCL 1.12.1、CMake/g++/protoc；缺系统 glog/gflags 开发包。PCL 并未被当前转换器包含或链接，不再为它额外安装大型依赖。catkin-tools 0.9.5、catkin-pkg 1.1.0、empy 3.3.4、PyYAML 6.0.3、rospkg 1.6.0 已安装到独立 venv。没有改动 GLIM/MrHash、系统 swap、CUDA、驱动、全局 ROS 或 shell 初始化。
+输入是同Job Surface manifest声明的非Mock `voxel_points`，world/meter，float32 x/y/z/sdf/weight + uint8 RGBA，binary_little_endian，24字节。Mesh/GLB不能回退成TSDF。
 
-## 源码确定的 Surface→Distance 契约
+当前MrHash LiDAR reader强制projective_sdf=True：sdf是米制、未归一化的投影距离，传感器侧正；weight>0导出，转换器weight>=2过滤保留原策略。weight=1不是坏原生数据，过滤后不意味着空闲。缺席可能来自未观测、窄带外或清理，不可填零或默认自由空间。
 
-输入必须是**同一个 Job** `stage2_surface/result_manifest.json` 声明的 `voxel_points`，不是 Mesh、GLB 或 `navigation_input`。原脚本 Mesh 回退已移除。输入要求 completed、非 mock、world/meter，且路径在该 Surface 目录内。
+当前INS的sdf_var_threshold=0，固定源码不会启用自适应重分配，h=本Job配置0.05 m。**不再把混合层作为该配置的无条件阻断。** 其他threshold>0/不同分辨率配置需要可靠层级/extent契约，当前明确拒绝。
 
-转换器按 24 字节结构盲读，所以包装器严格要求 binary_little_endian PLY：float32 `x y z sdf weight`，uint8 `red green blue alpha`，字段顺序完全一致，仅 vertex element，数量和文件长度匹配。正式启动前流式检查有限值、weight>0，至少一条满足转换器的 weight>=2；不把输入一次装进内存。
+MrHash原生采样/finest中心为i*h，Voxblox中心为(i+.5)*h。没有`+0.5`不是MrHash导出错误；需要世界坐标不变的插值/重采样，而非固定平移。`distance_input.py`可从当前配置报告finest证据，但一个uniform JSON声明不能把原artifact变成已重采样数据。
 
-MrHash 本机源码 `23c98bb09eaf1fe06f54153b046b506303ce599d`：
+已实施的源码修复：
 
-- `voxel_data_structures.cu` 的 LiDAR 分支使用 `range - voxel_range`（或法向投影），正值在传感器侧，米制未归一化；按 `sdf_truncation + range*sdf_truncation_scale` 截断（准确公式见同目录 getTruncation），没有除以截断距离。本机 INS 配置为 0.40 m、scale=0，不能套用于所有任务。
-- `streamer.cpp::serializeData` 只导出 weight>0；未知/缺席体素不导出。weight 是积分权重，不是概率；转换器另行过滤 weight<2，与 Mesh 的 min_weight_threshold=10 不是同一规则。
-- **本次实际导出公式**为 `block_pw + dl*virtual_voxel_size`，没有显式加半体素；不能直接沿用历史“导出中心”的说法。必须在统一网格转换前处理坐标采样约定。
-- `descs[k].resolution` 决定间距 `virtual_voxel_size * 2^resolution`；一个文件混合自适应层。颜色能标识部分层，但并非可靠完整的体素 extent 元数据。0.05 m 仅是 INS 的 finest virtual size。不能直接用转换器默认 0.1 m，也不能仅把它换成0.05 m就视为解决。
-- `distance_input.py` 从本 Job `run_config` 读取 virtual size；在缺少经验证的 `backend_details.distance_grid={uniform:true, voxel_size_m:...}` 时拒绝正式转换。该字段必须由真实均匀层导出/重采样流程生成并记录来源，不能手工伪造它来绕过校验。
+- C++共享输入核心 `voxel_input.h`：格式/字段、空输入、数值/权重、中心一致性校验；驱动检查记录个数、截断/尾随数据、重复目标索引，错误退出，避免last-write-wins。
+- 仅接受显式声明、实际几何一致的同分辨率Voxblox中心规范输入；原生整数中心、不同分辨率、粗层、重复体素需要另行定义重采样/聚合，不能硬凑。
+- 旧诊断传播改为best距离松弛、出队finalize，修复首次入队锁定；**图最短路仍不是精确欧氏距离，尚未跑完整转换器验证。**
+- Voxblox预览改用真正中心，增加浮点输出精度，检查原生层保存bool、PLY写入及目录错误。这不是修改原始MrHash坐标。
+- 转换器只允许 `--validate-only` 与 `--legacy-diagnostic`。诊断只能写 `diagnostic-unaccepted.esdf` / `preview/diagnostic-unaccepted.ply`，不生成正式map.esdf或成功manifest。没有隐式生产入口。
 
-当前 C++ 转换器的问题完全可由源码确定，无须向负责人重复确认：它直接把投影 sdf 写为 EsdfVoxel.distance；以 abs(sdf) 为起点，26 邻域步长扩张到2.5 m；未知邻居被写为 observed=true 且总为正距离；首次发现即 processed，没有最短路松弛；不能据此保证欧氏符号距离或保留未知区。这是算法契约阻断，恢复 GPU 或仅成功编译均不会自动解决。当前平台与脚本明确拒绝真实 Distance，演示仍明确为 mock。
+仍阻断：世界坐标下的重采样及重复聚合政策、投影TSDF→ESDF定义（fixed band/精确或quasi模式/支持域等）、未知区查询与推断标记政策、完整依赖构建和真实距离场测试。固定Voxblox的EsdfIntegrator示例是候选实现依据，不能直接用默认参数替代这些选择。详细可选方案见复核文档；本轮没有擅自改变距离场定义。
 
-需后续完成：采用经验证的 TSDF→ESDF 流程（固定 Voxblox 源码已有 `test/tsdf_to_esdf.cc` / EsdfIntegrator 供参考），明确投影 TSDF 的使用方式、已观测区域、负区域、截断和未知区政策；建立自适应→均匀网格及坐标约定，并用解析平面/球验证误差、符号与未知区域。完成后更新 `distance_readiness.py` 的静态阻断，并以真实构建和测试结果生成依赖/就绪状态；不能直接删除原因字符串冒充验收。
+## 本轮验证与未验证边界
 
-## 原生产物、预览与验证要求
+- Python参考/输入检查14项通过：斜射平面正负方向、投影与欧氏距离差别、正负索引、中心约定、重复、层级/尺度拒绝、未知、权重和非法数值。
+- 小型C++共享输入头测试通过，峰值约119 MiB；**没有链接Voxblox，也没有执行传播/序列化。**
+- 完整后端CPU回归195项通过；既有服务不重启，历史数据不改。
+- 完整转换器、`verify_esdf_layer`、native测试驱动和真实三阶段均未运行。当前没有用Mock替代native检查；未来native驱动缺少真实ELF二进制会直接失败。
+- 有界读取历史PLY的512条记录仅用于契约核对，不是对历史产物执行Distance，也不是新Job联调。
 
-`map.esdf` 是 Voxblox Layer<EsdfVoxel> 的 Protobuf 序列化，不是 NumPy/通用点云。必须由同版本 `io::LoadLayer<EsdfVoxel>` 重新读取，核对 voxel size、voxels_per_side=16、非零块/observed 数、有限距离、符号、已知/未知样本；文件非空只能做最基本的存在性检查。原程序未检查 saveToFile 的 bool，后续修复时必须处理它。
+## GPU模式恢复后按顺序执行
 
-`preview/esdf_vis.ply` 是 ASCII `x y z distance red green blue`，仅导出 |distance|<=1.5 m 的 observed 体素；原源码使用 grid origin 坐标，不是完整 map 的覆盖范围。不得用该裁剪预览推断地图完整性。后处理生成 median 附近厚度0.1 m的 XY/XZ/YZ 图，每面少于50点可缺席；480像素只是预览参数。无 observed/gradient mask 的 PNG 不能证明未知区处理正确。核验 PNG 解码、尺寸、切片元数据、PLY 数量/有限性和 manifest 实际登记项。
+当前运行目录 `/root/autodl-tmp/3d-mapping-platform-integrated`。本轮可重跑的轻量入口：
 
-## 恢复 GPU 后按顺序继续
+```bash
+bash ops/continue-gpu.sh reference-tests
+```
 
-从整合目录执行第一条：
+1. **恢复资源、预检。** 不自动启动算法：
 
 ```bash
 bash ops/continue-gpu.sh preflight
 ```
 
-它只做环境检查，不创建任务、不启动算法。当前 2 GiB 模式会明确退出。8 GiB 只是编译保护阈值，不是正式部署容量或算法预算。恢复正常内存后先核实实际 4090 与 cgroup 限制，再准备缺失包（先审查 apt 事务，避免升级既有算法依赖）：
+确认cgroup恢复正常内存、GPU可见且为预期4090。正式运行前移除`ops/platform.local.env`中本轮临时OPENBLAS_NUM_THREADS/OMP_NUM_THREADS限制，并计划重启平台加载新源码/文案；不是在本轮2 GiB环境里做此重启。当前运行服务仍缓存上一版未就绪文案，两版都阻止未验收的真实Distance。
+
+2. **安装缺失依赖并隔离编译。** 先审查事务，不升级已验收算法环境：
 
 ```bash
 apt-get -s install --no-install-recommends libgoogle-glog-dev libgflags-dev
-# 审查后执行同一 install 命令，去掉 -s。
-# 独立工具环境若丢失：
+# 审查后去掉 -s 执行上述安装。
+# 工具环境丢失时才重建：
 /usr/bin/python3 -m venv /root/autodl-tmp/envs/distance-tools
 /root/autodl-tmp/envs/distance-tools/bin/pip install -r ops/distance-tools.requirements.txt
 bash ops/distance-env.sh bash backend/scripts/build_esdf.sh --fetch
-bash ops/distance-env.sh bash backend/scripts/build_esdf.sh --build
+bash ops/continue-gpu.sh build
 ```
 
-编译串行，强制使用系统 Eigen/glog/gflags/Protobuf，避免包装库内部 make -j8 回退。源码有改动或与 lock 不同会停止并保留现场。CMake 本轮做了链接/头路径修复，但没有真实 configure/build，失败时保留 `envs/distance/ws/logs/` 与 `converter-build/CMakeFiles/`；不宣称可直接成功编译。
+构建候选为 `envs/distance/converter-build/voxel_points_to_esdf` 和 `verify_esdf_layer`。CMake/新读回工具本轮未完整configure/build；失败保留workspace logs和converter-build/CMakeFiles，不用大规模清理重新开始。锁文件不符会停止，不覆盖现场。
 
-**在算法契约修复前，只能做独立诊断，不能对外登记真实成功。** 修复后创建小型解析输入，运行候选程序并用同版本 Voxblox 读回检查，`/usr/bin/time -v` 记录耗时/峰值内存；三维负区、未知区、网格半格偏移、权重1/2、空输入、截断、失败返回、最短路径均应覆盖。不要在当前2 GiB模式运行2.5 m波前扩张。
+3. **独立第三模块小样本输入与诊断检查。** 自动生成小型合成输入，不读真实大PLY，不写历史Job；报告目录必须是新的：
 
-如果先用历史 Surface，来源示例是 `job_1792219486_ec99dd/stage2_surface/runs/20261017_144929_768cd948/`。先运行 `backend/.venv/bin/python backend/scripts/distance_input.py --job-dir jobs/job_1792219486_ec99dd`（只读头，不扫大文件）；复制/抽取经注明的**小样本**到独立诊断目录，不改历史 Job/manifest，不把它说成新 Job 三阶段。真实 map 读回通过后再考虑全量。
+```bash
+bash ops/continue-gpu.sh native-input-tests /root/autodl-tmp/deployment-preservation/gpu-distance-input-01
+bash ops/continue-gpu.sh native-diagnostic /root/autodl-tmp/deployment-preservation/gpu-distance-diagnostic-01
+```
 
-正式GPU运行前审查 `ops/platform.local.env`：本轮为了受限平台进程设置的 `OPENBLAS_NUM_THREADS=1` / `OMP_NUM_THREADS=1` 会被子进程继承；恢复正常资源后移除这两条临时工具限制并重启平台，避免限制算法的CPU线程性能（本轮没有运行算法，没有改变质量参数）。
+前者调用实际ELF验证plane input、中心、重复、不同层/分辨率、空/非法/截断等。后者额外用小合成输入执行**未验收旧算法诊断**并用同版本Voxblox读回；`.2 m`传播范围只针对这份诊断fixture，不改变正式建图质量参数。结构读回/输入检查通过仍不能说欧氏符号距离通过。未知扩张和投影种子问题有意保留在显式诊断中，不得把诊断map重命名为正式产物。
 
-最后恢复正常内存的前端 `npm run typecheck && npm run build`、浏览器检查，并更新依赖状态。创建一个**新 Job**，页面显式选择 Pose→Surface→Distance 与 full，核对 Job 设备/算法参数快照和该数据集已注册的范围；不要编辑历史 requested_stages 或借用历史 Pose/Surface。检查同 Job 新产生的 GLIM轨迹→MrHash输入→voxel_points→Distance manifest，时间先后、运行命令、frame accounting、原生结果/预览/下载、取消/失败/重启恢复。页面支持 full/short 的 Livox 数据集默认 full：Pose处理整包，Surface不设帧上限；short仅将Surface限制在原始第1–100帧。直接API未传run_mode时沿用数据集注册范围，须看Job的run_scope；不得为2 GiB修改质量参数。
+4. **完成剩余算法契约后验证真正距离场。** 实施经明确选择的重采样与TSDF→ESDF流程，更新正式CLI及`run_esdf.sh`，再建立同版本native解析平面/斜平面/球测试：比较世界坐标查询的期望距离/符号/误差，已知/未知mask、正负边界、权重与截断、中心及混合配置。必须有真实转换器的距离查询测试；本轮Python参考、输入validator、结构reader均不能替代。只有这些通过后才能据实更新生产就绪gate，不能直接删除理由。
 
-日志：`logs/backend.log`、`logs/frontend.log`、Job 每阶段 `run.log/progress.json/result_manifest.json` 及 `stage2_surface/runs/<run_id>`。记录 `nvidia-smi` 采样、cgroup memory.current/events、`/usr/bin/time -v`、阶段开始/结束、退出码与全部固定提交。具体部署、回滚、证据路径见 `ops/INTEGRATION_20261020.md`。
+如先使用既有真实Surface，仅选 `job_1792219486_ec99dd` 的 `runs/20261017_144929_768cd948` 作为明确记录来源的独立Distance实验；在独立目录准备经说明的小样本，原Job/原PLY/manifest不改。先只读：
+
+```bash
+backend/.venv/bin/python backend/scripts/distance_input.py --job-dir jobs/job_1792219486_ec99dd
+```
+
+该实验不证明新Job完整三阶段。
+
+5. **新Job真实Pose→Surface→Distance。** 完成上一步及正常内存前端检查/平台计划重启后，以下命令针对GLIM/Livox已注册数据创建一个新full Job并启动三阶段；当前gate未解除时会停止且不创建Job：
+
+```bash
+bash ops/continue-gpu.sh acceptance ins_longcorridor01
+```
+
+记录输出NEW_JOB。该命令只是启动入口，不替代最终验收；不要借用历史Pose/Surface，不改历史requested_stages。页面支持full/short的Livox任务full为Pose整包、Surface无帧上限，short仅Surface第1–100帧；直接API不传run_mode则沿用registry范围，核对实际run_scope和参数快照。
+
+6. **原生、预览、下载和资源验收。** 新Job原生map必须由实际同版本reader读取：
+
+```bash
+# 将下面路径中的 NEW_JOB 替换为上一步真实输出，H替换为实际目标网格尺寸。
+/root/autodl-tmp/envs/distance/converter-build/verify_esdf_layer jobs/NEW_JOB/stage3_esdf/map.esdf H
+curl --noproxy '*' -f http://127.0.0.1:8000/api/jobs/NEW_JOB
+```
+
+同时做真正的距离/符号/未知样本查询，检查map分辨率、16 voxels/side、非空/有限observed体素；未分配块也是未知，reader的unknown计数只覆盖已分配块。预览PLY应为ASCII x/y/z/distance/RGB且坐标为Voxblox中心，|distance|<=1.5 m只是裁剪预览，不代表全图。PNG须能解码，manifest登记项与实际文件一致，切片不足50点可缺席；图片不证明未知区正确。按真实manifest的artifact_id验证下载、Content-Disposition与页面呈现。
+
+核对同一新Job中真实GLIM轨迹、时间关联、MrHash frame accounting、voxel_points来源及阶段时间先后；取消/失败/超时/重启恢复也要检查。日志在平台logs、各stage/run.log/progress.json/result_manifest.json和Surface runs；保留native测试report.json、workspace构建logs、固定提交/二进制SHA、阶段耗时、cgroup memory.current/events与nvidia-smi显存采样。可安装`time`包后用/usr/bin/time -v采集峰值RSS；本机当前无该工具，不把未采集值写成结果。
+
+部署路径和回滚仍见 `ops/INTEGRATION_20261020.md`。未验证状态始终标为未验证。

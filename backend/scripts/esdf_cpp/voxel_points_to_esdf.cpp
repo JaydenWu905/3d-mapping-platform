@@ -3,6 +3,10 @@
 #include <string>
 #include <queue>
 #include <unordered_set>
+#include <unordered_map>
+#include <iomanip>
+#include <filesystem>
+#include "voxel_input.h"
 #include <cmath>
 #include <functional>
 #include <cstdlib>
@@ -33,28 +37,29 @@ struct QueueNode {
 
 // 递归创建目录（mkdir -p 的 C++ 实现）
 static bool ensure_directory(const std::string& path) {
-    if (path.empty()) return false;
-    std::string current;
-    for (size_t i = 0; i < path.size(); ++i) {
-        current += path[i];
-        if (path[i] == '/' || i == path.size() - 1) {
-            if (current == "/") continue;
-            mkdir(current.c_str(), 0755);
-        }
-    }
-    return true;
+    std::filesystem::create_directories(path);
+    return std::filesystem::is_directory(path);
 }
 
-int main(int argc, char* argv[]) {
+int run(int argc, char* argv[]) {
     // ================= 命令行参数解析 =================
     std::string input_file;
     std::string output_dir;
     double voxel_size = 0.1;
+    double source_voxel_size = 0;
+    bool validate_only = false, legacy_diagnostic = false;
+    std::string input_grid;
+    int input_resolution = 0;
     double max_esdf_distance = 2.5;
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
-        if (arg == "--input" && i + 1 < argc) {
+        if (arg == "--validate-only") { validate_only = true; }
+        else if (arg == "--legacy-diagnostic") { legacy_diagnostic = true; }
+        else if (arg == "--input-grid" && i + 1 < argc) { input_grid = argv[++i]; }
+        else if (arg == "--source-voxel-size" && i + 1 < argc) { source_voxel_size = std::stod(argv[++i]); }
+        else if (arg == "--input-resolution" && i + 1 < argc) { input_resolution = std::stoi(argv[++i]); }
+        else if (arg == "--input" && i + 1 < argc) {
             input_file = argv[++i];
         }
         else if (arg == "--output_dir" && i + 1 < argc) {
@@ -65,24 +70,34 @@ int main(int argc, char* argv[]) {
         }
         else if (arg == "--max_esdf_distance" && i + 1 < argc) {
             max_esdf_distance = std::stod(argv[++i]);
-        }
+        } else { throw std::runtime_error("Unknown or incomplete argument: " + arg); }
     }
+    distance_input::positive(voxel_size, "voxel_size");
+    distance_input::positive(max_esdf_distance, "max_esdf_distance");
+    distance_input::positive(source_voxel_size, "source_voxel_size");
+    if (input_grid != "voxblox_centers" || input_resolution != 0 ||
+        std::abs(source_voxel_size - voxel_size) > voxel_size * 1e-6)
+        throw std::runtime_error("Only explicitly uniform, same-resolution Voxblox-center input is supported; native/mixed MrHash requires a resampling policy");
+    if (validate_only == legacy_diagnostic)
+        throw std::runtime_error("Production ESDF disabled: select --validate-only or --legacy-diagnostic; TSDF-to-ESDF and unknown-space policy remain unresolved");
 
-    if (input_file.empty() || output_dir.empty()) {
+    if (input_file.empty() || (!validate_only && output_dir.empty())) {
         std::cerr << "Usage: " << argv[0]
             << " --input <voxel_points.ply> --output_dir <output_dir>"
             << " [--voxel_size 0.1] [--max_esdf_distance 2.5]" << std::endl;
         return -1;
     }
 
-    std::string output_esdf = output_dir + "/map.esdf";
-    std::string output_ply = output_dir + "/preview/esdf_vis.ply";
+    std::string output_esdf = output_dir + "/diagnostic-unaccepted.esdf";
+    std::string output_ply = output_dir + "/preview/diagnostic-unaccepted.ply";
 
-    ensure_directory(output_dir + "/preview");
+    if (!validate_only && !ensure_directory(output_dir + "/preview")) throw std::runtime_error("Cannot create output directory");
 
     std::cout << "[INFO] Input PLY: " << input_file << std::endl;
-    std::cout << "[INFO] Output ESDF: " << output_esdf << std::endl;
-    std::cout << "[INFO] Output PLY: " << output_ply << std::endl;
+    if (!validate_only) {
+        std::cout << "[INFO] Unaccepted diagnostic layer: " << output_esdf << std::endl;
+        std::cout << "[INFO] Diagnostic PLY: " << output_ply << std::endl;
+    }
     std::cout << "[INFO] Voxel size: " << voxel_size
         << ", Max ESDF distance: " << max_esdf_distance << std::endl;
     // =====================================================
@@ -100,29 +115,23 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    std::string line;
-    while (std::getline(infile, line)) {
-        if (line.find("end_header") != std::string::npos) break;
-    }
-
-#pragma pack(push, 1)
-    struct VoxelData {
-        float x, y, z, sdf, weight;
-        uint8_t r, g, b, a;
-    };
-#pragma pack(pop)
-
-    VoxelData vd;
+    const size_t declared_count = distance_input::read_header(infile);
+    distance_input::Record vd;
+    distance_input::UniqueCenters input_indices;
     size_t count = 0;
     size_t filtered = 0;
 
     std::cout << "[INFO] Start traversing point cloud and filling ESDF map..." << std::endl;
-    while (infile.read(reinterpret_cast<char*>(&vd), sizeof(VoxelData))) {
-        if (vd.weight < 2.0) {
+    for (size_t record = 0; record < declared_count; ++record) {
+        if (!infile.read(reinterpret_cast<char*>(&vd), sizeof(vd))) throw std::runtime_error("Truncated PLY payload");
+        if (!distance_input::accepted(vd)) {
             filtered++;
             continue;
         }
 
+        input_indices.insert(vd, voxel_size);
+        ++count;
+        if (validate_only) continue;
         voxblox::Point position(vd.x, vd.y, vd.z);
         voxblox::Block<voxblox::EsdfVoxel>::Ptr block =
             esdf_map.getEsdfLayerPtr()->allocateBlockPtrByCoordinates(position);
@@ -133,12 +142,19 @@ int main(int argc, char* argv[]) {
             voxel.observed = true;
         }
 
-        count++;
         if (count % 5000000 == 0) {
             std::cout << "[INFO] Processed " << (count / 1000000) << " million points..." << std::endl;
         }
     }
+    if (infile.peek() != std::char_traits<char>::eof()) throw std::runtime_error("Trailing PLY payload");
+    if (!count) throw std::runtime_error("No samples survive weight >= 2");
     infile.close();
+    if (validate_only) {
+        std::cout << "INPUT_VALIDATION_ONLY accepted=" << count << " filtered=" << filtered
+                  << "; no ESDF computed or saved" << std::endl;
+        return 0;
+    }
+    std::cerr << "UNACCEPTED LEGACY DIAGNOSTIC: projected TSDF seeds and positive expansion into unknown are not a validated signed Euclidean field" << std::endl;
     std::cout << "[INFO] Reading complete. Total points processed: " << count
         << ", filtered low-weight points: " << filtered << std::endl;
 
@@ -147,7 +163,8 @@ int main(int argc, char* argv[]) {
         << max_esdf_distance << " m..." << std::endl;
 
     std::priority_queue<QueueNode, std::vector<QueueNode>, std::greater<QueueNode>> pq;
-    std::unordered_set<voxblox::GlobalIndex, GlobalIndexHash> processed;
+    std::unordered_set<voxblox::GlobalIndex, GlobalIndexHash> processed, seeds;
+    std::unordered_map<voxblox::GlobalIndex, double, GlobalIndexHash> best;
 
     voxblox::BlockIndexList seed_block_list;
     esdf_map.getEsdfLayer().getAllAllocatedBlocks(&seed_block_list);
@@ -164,7 +181,8 @@ int main(int argc, char* argv[]) {
 
                 double abs_dist = std::abs(voxel.distance);
                 pq.push({ abs_dist, global_idx });
-                processed.insert(global_idx);
+                seeds.insert(global_idx);
+                best[global_idx] = abs_dist;
                 seed_count++;
             }
         }
@@ -178,7 +196,9 @@ int main(int argc, char* argv[]) {
         QueueNode current = pq.top();
         pq.pop();
 
-        if (current.distance > max_esdf_distance) continue;
+        if (current.distance > max_esdf_distance || processed.count(current.index) ||
+            current.distance > best.at(current.index)) continue;
+        processed.insert(current.index);
 
         for (int dx = -1; dx <= 1; ++dx) {
             for (int dy = -1; dy <= 1; ++dy) {
@@ -190,26 +210,26 @@ int main(int argc, char* argv[]) {
                         current.index.y() + dy,
                         current.index.z() + dz);
 
-                    if (processed.find(neighbor_idx) != processed.end()) continue;
+                    if (processed.count(neighbor_idx) || seeds.count(neighbor_idx)) continue;
 
                     double step_dist = std::sqrt(static_cast<double>(dx * dx + dy * dy + dz * dz)) * voxel_size;
                     double new_dist = current.distance + step_dist;
 
                     if (new_dist > max_esdf_distance) continue;
+                    auto previous = best.find(neighbor_idx);
+                    if (previous != best.end() && new_dist >= previous->second) continue;
+                    best[neighbor_idx] = new_dist;
 
-                    voxblox::Point neighbor_pos = voxblox::getOriginPointFromGridIndex(neighbor_idx, voxel_size);
+                    voxblox::Point neighbor_pos = voxblox::getCenterPointFromGridIndex(neighbor_idx, voxel_size);
                     voxblox::Block<voxblox::EsdfVoxel>::Ptr block =
                         esdf_map.getEsdfLayerPtr()->allocateBlockPtrByCoordinates(neighbor_pos);
 
                     if (block != nullptr) {
                         voxblox::EsdfVoxel& voxel = block->getVoxelByCoordinates(neighbor_pos);
-                        if (!voxel.observed) {
-                            voxel.distance = new_dist;
-                            voxel.observed = true;
-                            propagated_count++;
-                        }
+                        if (!voxel.observed) ++propagated_count;
+                        voxel.distance = new_dist;
+                        voxel.observed = true; // Legacy diagnostic policy, NOT production unknown handling.
                     }
-                    processed.insert(neighbor_idx);
                     pq.push({ new_dist, neighbor_idx });
                     neighbor_checks++;
 
@@ -228,7 +248,8 @@ int main(int argc, char* argv[]) {
 
     // ================= 保存 ESDF 文件 =================
     std::cout << "[INFO] Saving ESDF file to: " << output_esdf << std::endl;
-    esdf_map.getEsdfLayer().saveToFile(output_esdf, true);
+    if (!esdf_map.getEsdfLayer().saveToFile(output_esdf, true))
+        throw std::runtime_error("Failed to save diagnostic ESDF layer");
     std::cout << "[INFO] ESDF saved successfully!" << std::endl;
 
     // ================= 动态计算并验证梯度信息 =================
@@ -305,6 +326,7 @@ int main(int argc, char* argv[]) {
 
     std::ofstream ply_file(output_ply);
     if (ply_file.is_open()) {
+        ply_file << std::setprecision(std::numeric_limits<float>::max_digits10);
         ply_file << "ply\nformat ascii 1.0\n";
         ply_file << "element vertex " << num_observed_voxels << "\n";
         ply_file << "property float x\nproperty float y\nproperty float z\n";
@@ -322,7 +344,7 @@ int main(int argc, char* argv[]) {
 
                     voxblox::VoxelIndex local_idx = block.computeVoxelIndexFromLinearIndex(i);
                     voxblox::GlobalIndex global_idx = voxblox::getGlobalVoxelIndexFromBlockAndVoxelIndex(block_idx, local_idx, block.voxels_per_side());
-                    voxblox::Point pos = voxblox::getOriginPointFromGridIndex(global_idx, block.voxel_size());
+                    voxblox::Point pos = voxblox::getCenterPointFromGridIndex(global_idx, block.voxel_size());
 
                     float dist = std::max(-color_max_dist, std::min(color_max_dist, voxel.distance));
                     int red = static_cast<int>(255 * (1.0f - (dist + color_max_dist) / (2.0f * color_max_dist)));
@@ -336,6 +358,7 @@ int main(int argc, char* argv[]) {
             }
         }
         ply_file.close();
+        if (!ply_file) throw std::runtime_error("Failed to write diagnostic PLY");
         std::cout << "[INFO] Visualization PLY saved to: " << output_ply << std::endl;
     }
     else {
@@ -345,4 +368,12 @@ int main(int argc, char* argv[]) {
 
     std::cout << "[INFO] All tasks completed successfully!" << std::endl;
     return 0;
+}
+
+int main(int argc, char* argv[]) {
+    try { return run(argc, argv); }
+    catch (const std::exception& error) {
+        std::cerr << "[ERROR] " << error.what() << std::endl;
+        return 2;
+    }
 }

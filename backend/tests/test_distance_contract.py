@@ -38,6 +38,20 @@ class DistanceContractTests(unittest.TestCase):
         self.assertEqual(d['surviving_weight_ge_2'],1)
         self.assertFalse(d['grid_ready'])
 
+    def test_current_ins_config_proves_finest_without_claiming_resampling(self):
+        (self.stage / 'run.cfg').write_text('map:\n virtual_voxel_size: 0.05\nmesh:\n sdf_var_threshold: 0\nstreamer:\n voxel_extents_scale: 1\n')
+        d=m.inspect(self.job,scan=True)
+        self.assertTrue(d['source_uniform_finest'])
+        self.assertEqual(d['source_sample_convention'],'mrhash_integer_lattice')
+        self.assertFalse(d['grid_ready'])
+        self.manifest['backend_details']['distance_grid']={'uniform':True,'voxel_size_m':.05}
+        self.write_manifest()
+        self.assertFalse(m.inspect(self.job)['grid_ready'])
+
+    def test_other_config_cannot_be_claimed_uniform(self):
+        (self.stage / 'run.cfg').write_text('virtual_voxel_size: 0.05\nsdf_var_threshold: 0.01\nvoxel_extents_scale: 1\n')
+        self.assertFalse(m.inspect(self.job)['source_uniform_finest'])
+
     def test_no_mesh_fallback(self):
         self.manifest['artifacts'][0]['artifact_id']='surface_mesh';self.write_manifest()
         with self.assertRaisesRegex(ValueError,'Mesh'):m.inspect(self.job)

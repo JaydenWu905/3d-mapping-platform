@@ -30,12 +30,16 @@ endif()
 find_library(VOXBLOX_LIBRARY NAMES voxblox PATHS "${VOXBLOX_WS}/install/lib" "${VOXBLOX_WS}/devel/lib" NO_DEFAULT_PATH REQUIRED)
 find_library(VOXBLOX_PROTO_LIBRARY NAMES voxblox_proto PATHS "${VOXBLOX_WS}/install/lib" "${VOXBLOX_WS}/devel/lib" NO_DEFAULT_PATH REQUIRED)
 add_executable(voxel_points_to_esdf voxel_points_to_esdf.cpp)
-target_include_directories(voxel_points_to_esdf PRIVATE
+add_executable(verify_esdf_layer verify_esdf_layer.cpp)
+foreach(target voxel_points_to_esdf verify_esdf_layer)
+target_include_directories(${target} PRIVATE
   "${VOXBLOX_WS}/install/include" "${VOXBLOX_WS}/devel/include"
   "${VOXBLOX_WS}/src/voxblox/voxblox/include"
   "${VOXBLOX_WS}/src/minkindr/minkindr/include"
   "${VOXBLOX_WS}/build/voxblox/compiled_proto"
   ${PROTOBUF_INCLUDE_DIRS})
-target_link_libraries(voxel_points_to_esdf PRIVATE Eigen3::Eigen
+target_link_libraries(${target} PRIVATE Eigen3::Eigen
   ${VOXBLOX_LIBRARY} ${VOXBLOX_PROTO_LIBRARY} ${PROTOBUF_LIBRARIES}
   ${GLOG_LINK} ${GFLAGS_LINK} pthread)
+
+endforeach()

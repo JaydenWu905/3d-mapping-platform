@@ -64,17 +64,29 @@ def inspect(job_dir: Path, scan: bool = False) -> dict:
                 valid += weight >= 2
             if not valid:
                 raise ValueError('No voxels survive converter weight >= 2 rule')
-    # Export merges resolution 0, 1, 2 and does not retain per-voxel extents.
-    # The finest virtual size alone is insufficient evidence of a uniform layer.
+    def config_number(name):
+        found = re.findall(r'^\s*' + name + r'\s*:\s*([0-9.eE+-]+)\s*(?:#.*)?$', text, re.M)
+        if len(found) != 1 or not math.isfinite(float(found[0])):
+            return None
+        return float(found[0])
+    threshold = config_number('sdf_var_threshold')
+    extents = config_number('voxel_extents_scale')
+    # Fixed MrHash integrate(): reallocBlocks only under sdf_var_threshold > 0.
+    source_uniform = threshold is not None and threshold <= 0 and extents == 1
     grid = manifest.get('backend_details', {}).get('distance_grid')
     result = dict(input_ply=str(ply), vertices=count, virtual_voxel_size_m=float(values[0]),
-                  run_config=str(config), surviving_weight_ge_2=valid,
-                  grid=grid, grid_ready=False)
+                  run_config=str(config), surviving_weight_ge_2=valid, grid=grid, grid_ready=False,
+                  source_uniform_finest=source_uniform,
+                  source_grid_evidence='config gates adaptive reallocation off; fixed source audit, not full payload proof' if source_uniform else 'adaptive/unknown configuration needs per-sample levels',
+                  source_sample_convention='mrhash_integer_lattice',
+                  mapping_blocker='Define native-sample to Voxblox-center interpolation/aggregation and TSDF-to-ESDF policy; never shift or copy projected sdf as Euclidean distance')
     if grid:
         size = grid.get('voxel_size_m')
-        if grid.get('uniform') is not True or not isinstance(size, (int, float)) or not math.isfinite(size) or size <= 0:
+        if grid.get('uniform') is not True or isinstance(size, bool) or not isinstance(size, (int, float)) or not math.isfinite(size) or size <= 0:
             raise ValueError('Invalid explicit uniform Distance grid metadata')
-        result.update(voxel_size_m=size, grid_ready=True)
+        # An assertion in a JSON object cannot certify interpolation or redefine
+        # coordinates of the existing native artifact. No automatic ready=True.
+        result['declared_target_voxel_size_m'] = size
     return result
 
 
@@ -86,5 +98,5 @@ if __name__ == '__main__':
     args = p.parse_args()
     result = inspect(args.job_dir, args.scan)
     if args.require_grid and not result['grid_ready']:
-        raise ValueError('MrHash adaptive export lacks per-voxel resolution; establish/resample a documented uniform grid before conversion')
+        raise ValueError(result['mapping_blocker'])
     print(json.dumps(result, ensure_ascii=False, indent=2))

@@ -9,12 +9,14 @@
 | 最新 main / PR #8 / 新前端代码 | 已接入独立 worktree，未推送 |
 | 平台 Python / 前端依赖 | 已就绪；保留原 GLIM/MrHash 环境 |
 | Distance 环境 | 固定源码、隔离 catkin 工具已准备；glog/gflags 与 C++ 编译待完成 |
-| CPU 检查 | 最终后端186项、前端5个测试文件、51文件语法检查通过；合成预览与Mock取消另有独立记录 |
+| CPU 检查 | 最终后端195项、前端5个测试文件、51文件语法检查通过；合成预览与Mock取消另有独立记录 |
 | 完整前端 typecheck/build | 320 MiB 堆限制下 typecheck 退出；恢复正常内存后执行，未做生产构建 |
 | 真实算法 | 本轮未运行 GLIM/MrHash/Distance |
 | 新 Job 三阶段真实验收 | 未通过，不能把代码接入或 Mock 测试当作验收 |
 
 当前资源限制是临时无 GPU / 2 GiB，**不是正式部署容量**，未降低算法质量参数。[本次部署与回滚](ops/INTEGRATION_20261020.md)、[Distance 实际契约与后续操作](docs/deploy-distance.md)。GPU 模式恢复后从整合目录执行 `bash ops/continue-gpu.sh preflight`。
+
+第二轮Distance复核已修正“当前混合层/中心缺偏移”的过度判断，并完成输入/队列/输出的最小源码修复。195项后端CPU回归及小型共享输入核心检查通过；完整转换器未编译运行，重采样与距离场/未知区定义仍待确定。见[逐项源码与测试边界](docs/distance-contract-audit-20261020.md)，GPU后使用修订后的 `ops/continue-gpu.sh` 分步继续。
 
 ## 当前支持范围
 

@@ -1,5 +1,7 @@
 # 本机三模块整合与部署记录（2026-10-20）
 
+> 第二轮源码复核已更正上一轮关于“混合层”和“没有半格偏移”的判断，见[逐项审计](../docs/distance-contract-audit-20261020.md)。当前INS配置禁用自适应降层，MrHash整数中心约定本身没有错；仍缺与Voxblox中心间的重采样及ESDF/未知区政策。以下原验收记录保留历史语境，以本文件末尾第二轮状态为准。
+
 ## 版本与取舍
 
 - main：`01fd3fc19fa9e936b792f935c00a7713c5c69d15`（2026-10-19 合并 PR #8）。
@@ -78,3 +80,14 @@ bash ops/continue-gpu.sh preflight
 另以独立1000点**合成ASCII预览输入**只运行Python后处理，生成并解码3张64×64 PNG。该测试没有执行C++、没有生成或验证map.esdf，不是ESDF验收。历史Pose的 `trajectory_model` 预览、`registered_trajectory` 与 `glim_native_trajectory` 下载也均200。首次探测错误的 `trajectory` ID返回404，随后按真实manifest的ID核验通过，没有修改manifest来迎合探测。
 
 最终代码已重新加载到平台服务；数据集校验缓存会随进程重启重建，首轮完整SHA校验需要数分钟。后台预热期间health仍可响应。最终数据集可用性、计时和运行代码标记见 `datasets-final.json`，稳定后再查列表无需重新读取大bag。完整浏览器交互/视觉验收仍未做，不能将HTTP检查和源码测试描述为浏览器验收。
+
+
+## 第二轮：源码与契约最小修复
+
+已修复严格输入校验、重复目标索引拒绝、图最短路松弛、Voxblox预览中心、保存失败检查；无默认生产转换入口，旧算法只以未验收diagnostic命名输出。当前固定INS源码路径threshold=0保持finest，不再无条件声称自适应混合。MrHash i*h是其原生中心/采样约定，不做固定平移。
+
+本轮Python参考/输入14项、全后端195项通过；仅共享C++输入头的小程序编译/执行通过（峰值121692 KiB），完整Voxblox转换器和新结构reader均未编译运行。所有证明位置、触发条件、剩余设计方案与native检查边界见`docs/distance-contract-audit-20261020.md`。证据存`/root/autodl-tmp/deployment-preservation/20261020-distance-contract/`。
+
+`continue-gpu.sh`新增reference-tests、build、native-input-tests、native-diagnostic、acceptance入口；后四类按资源和真实依赖/gate检查。详细顺序见修订后的`docs/deploy-distance.md`。真实三阶段仍阻断，不能直接删除gate后启动。
+
+既有后端9958/前端9992保持运行，未重启、未改变历史数据和算法环境。页面当前缓存上次版本的未就绪原因；本轮源码/新说明将在GPU模式的计划服务重启后加载。没有为了更新阻断文案牺牲已预热的Pose→Surface服务。
