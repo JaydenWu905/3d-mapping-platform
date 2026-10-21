@@ -375,7 +375,7 @@ export function NewJobPage() {
         requested_stages: stages,
       };
       const job = await api.createJob(body);
-      if (real) await api.runPlanned(job.job_id);
+      if (real && stages.length === 2) await api.runPlanned(job.job_id);
       else await api.runAll(job.job_id);
       navigate(`/jobs/${job.job_id}`);
     } catch (e: unknown) {

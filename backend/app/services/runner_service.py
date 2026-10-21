@@ -70,7 +70,7 @@ class RunnerService:
     def start_run_all(self, job_id: str) -> None:
         job = self._jobs.load_job(job_id)
         if job.get("requested_stages", STAGES) != STAGES:
-            raise StartStageError("Real two-stage jobs use run-planned; Distance is not integrated")
+            raise StartStageError("Two-stage jobs use run-planned")
         self._start_chain(job_id, STAGES)
 
     def start_run_planned(self, job_id: str) -> None:

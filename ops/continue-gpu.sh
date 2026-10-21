@@ -65,7 +65,7 @@ def post(path,data):
 job=post('/api/jobs',dict(dataset=sys.argv[1],run_mode='full',requested_stages=['pose','surface','distance'],
     backends={'pose':'glim','surface':'mrhash_lidar','distance':'voxel_esdf'}))
 print('NEW_JOB',job['job_id'],flush=True)
-print(post('/api/jobs/'+job['job_id']+'/run-planned',{}))
+print(post('/api/jobs/'+job['job_id']+'/run-all',{}))
 print('Started only; completion, native output readback, signs/unknown mask, previews/downloads and resource audit must still be verified.')
 PY
     ;;

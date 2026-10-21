@@ -89,9 +89,12 @@ function previewHint(stage: StageDetail): string {
   return '等待动画 · 非实时地图';
 }
 
-function validationText(scope: string | undefined): string {
+function validationText(scope: string | undefined, stages?: string[]): string {
+  if (stages?.includes("distance")) {
+    return "本任务请求完整三阶段；运行状态、原生产物与工程验收分别记录。工程链路成功不代表建图精度或规划安全已验收。";
+  }
   if (scope === 'ins_full_pose_surface') {
-    return '本任务验收已验证 INS profile 的完整两阶段一键流程，不代表任意 bag 兼容或建图精度通过。';
+    return '本任务使用已验证的 INS profile 运行完整两阶段；完成情况以任务状态为准，不代表任意 bag 兼容或建图精度通过。';
   }
   if (scope === 'custom_device_pose_surface_unverified') {
     return '本任务使用自采设备配置；CPU 预检和参数匹配不代表 GLIM/MrHash 结果或精度已验收。';
@@ -830,7 +833,7 @@ export function JobDetailPage() {
               }
             />
             <Typography sx={{ fontSize: 14, lineHeight: 1.7, color: 'text.secondary' }}>
-              {validationText(job.validation_scope)}
+              {validationText(job.validation_scope, job.requested_stages)}
             </Typography>
             <Typography sx={{ fontSize: 14, lineHeight: 1.7, color: 'text.secondary' }}>
               标定与预检说明：设备外参及 IMU 单位依据仍需确认；CPU 预检只验证数据结构与配置条件，不代表算法成功或精度合格。
