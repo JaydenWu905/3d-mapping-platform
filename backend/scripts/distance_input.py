@@ -77,6 +77,8 @@ def inspect(job_dir: Path, scan: bool = False) -> dict:
     result = dict(input_ply=str(ply), vertices=count, virtual_voxel_size_m=float(values[0]),
                   run_config=str(config), surviving_weight_ge_2=valid, grid=grid, grid_ready=False,
                   source_uniform_finest=source_uniform,
+                  surface_esdf_supported=source_uniform,
+                  surface_esdf_mapping='native integer corners -> supported target centers, six-tetrahedron zero-surface distance; no coordinate shift',
                   source_grid_evidence='config gates adaptive reallocation off; fixed source audit, not full payload proof' if source_uniform else 'adaptive/unknown configuration needs per-sample levels',
                   source_sample_convention='mrhash_integer_lattice',
                   mapping_blocker='Define native-sample to Voxblox-center interpolation/aggregation and TSDF-to-ESDF policy; never shift or copy projected sdf as Euclidean distance')

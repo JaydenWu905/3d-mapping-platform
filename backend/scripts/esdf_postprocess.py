@@ -85,8 +85,7 @@ def main():
         raise ValueError(f"PLY 至少 7 列 (x y z distance r g b)，实际 {data.shape[1]}")
 
     xs, ys, zs, dist = data[:, 0], data[:, 1], data[:, 2], data[:, 3]
-    d_min = float(np.percentile(dist, 1))
-    d_max = float(np.percentile(dist, 99))
+    d_min, d_max = -1.5, 1.5  # Fixed signed meter legend; matches declared preview window.
     print(f"[postprocess] distance 范围: [{d_min:.3f}, {d_max:.3f}]")
 
     planes = {
@@ -105,11 +104,13 @@ def main():
             continue
         print(f"[postprocess] {name} 切片 {mask.sum()} 点")
         out_png = args.output_dir / f"slice_{name}.png"
+        order = np.argsort(-np.abs(w_all[mask] - w_center), kind="stable")
         info = render_slice(
-            u_all[mask], v_all[mask], dist[mask],
+            u_all[mask][order], v_all[mask][order], dist[mask][order],
             out_png, args.resolution, d_min, d_max
         )
         if info:
+            info.update(normal_axis={"xy":"z","xz":"y","yz":"x"}[name], center_m=w_center, half_thickness_m=thickness, sampled_points=int(mask.sum()), unit="meter", unknown_color="white", preview_abs_distance_max_m=1.5)
             meta[name] = info
 
     (args.output_dir / "slices_meta.json").write_text(

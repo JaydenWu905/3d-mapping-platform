@@ -702,7 +702,7 @@ export function NewJobPage() {
                 <MenuItem value="two">Pose → Surface（默认）</MenuItem>
                 <MenuItem value="three">Pose → Surface → Distance</MenuItem>
               </Select>
-              <Alert severity="info">{backends.groups.distance.find((item) => item.id === 'voxel_esdf')?.unavailable_reason || '第三模块代码已接入；真实运行与完整验收以部署记录为准。'}</Alert>
+              <Alert severity="info">{backends.groups.distance.find((item) => item.id === 'voxel_esdf')?.unavailable_reason || '真实距离场可运行；仅在有效观测支持域计算，未知区域保留。完整三阶段结果以本任务验收为准。'}</Alert>
             </Stack> : null}
             <Stack spacing={2}>
               {requiredStages.map((stage) => {
@@ -819,7 +819,7 @@ export function NewJobPage() {
               title="运行范围"
               description={
                 real
-                  ? '创建真实任务后自动运行位姿估计，再交给完整表面重建。'
+                  ? (includeDistance ? '自动运行完整位姿估计、表面重建和同任务距离场转换。' : '创建真实任务后自动运行位姿估计，再交给完整表面重建。')
                   : '演示任务可指定模拟失败的阶段，用于验证失败、取消与重跑流程。'
               }
             />

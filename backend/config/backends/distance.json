@@ -13,7 +13,7 @@
         "slices",
         "gradient"
       ],
-      "description": "Voxblox-based offline ESDF generation from MrHash voxel points, with Dijkstra wavefront propagation up to 2.5m.",
+      "description": "Signed Euclidean distance to the native TSDF zero surface reconstructed with six tetrahedra per supported cell; exact triangle distance via BVH, Voxblox native storage. Unknown space is preserved; 2.5 m calculation radius.",
       "home_url": ""
     },
     {

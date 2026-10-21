@@ -16,6 +16,8 @@
 #include <voxblox/core/esdf_map.h>
 #include <voxblox/integrator/esdf_integrator.h>
 
+#include "surface_esdf.h"
+
 // 自定义哈希函数：用于 std::unordered_set<voxblox::GlobalIndex>
 struct GlobalIndexHash {
     std::size_t operator()(const voxblox::GlobalIndex& idx) const {
@@ -47,14 +49,15 @@ int run(int argc, char* argv[]) {
     std::string output_dir;
     double voxel_size = 0.1;
     double source_voxel_size = 0;
-    bool validate_only = false, legacy_diagnostic = false;
+    bool validate_only = false, legacy_diagnostic = false, surface_mode = false;
     std::string input_grid;
     int input_resolution = 0;
     double max_esdf_distance = 2.5;
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
-        if (arg == "--validate-only") { validate_only = true; }
+        if (arg == "--surface-esdf") { surface_mode = true; }
+        else if (arg == "--validate-only") { validate_only = true; }
         else if (arg == "--legacy-diagnostic") { legacy_diagnostic = true; }
         else if (arg == "--input-grid" && i + 1 < argc) { input_grid = argv[++i]; }
         else if (arg == "--source-voxel-size" && i + 1 < argc) { source_voxel_size = std::stod(argv[++i]); }
@@ -75,6 +78,12 @@ int run(int argc, char* argv[]) {
     distance_input::positive(voxel_size, "voxel_size");
     distance_input::positive(max_esdf_distance, "max_esdf_distance");
     distance_input::positive(source_voxel_size, "source_voxel_size");
+    if (surface_mode) {
+        if (validate_only || legacy_diagnostic || input_grid != "mrhash_integer_centers" || input_resolution != 0 ||
+            std::abs(source_voxel_size-voxel_size)>voxel_size*1e-6 || input_file.empty() || output_dir.empty())
+            throw std::runtime_error("surface-esdf requires explicit uniform same-resolution native input and output");
+        return surface_esdf::run(input_file,output_dir,voxel_size,max_esdf_distance);
+    }
     if (input_grid != "voxblox_centers" || input_resolution != 0 ||
         std::abs(source_voxel_size - voxel_size) > voxel_size * 1e-6)
         throw std::runtime_error("Only explicitly uniform, same-resolution Voxblox-center input is supported; native/mixed MrHash requires a resampling policy");

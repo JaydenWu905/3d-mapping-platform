@@ -47,8 +47,8 @@ class BackendRegistry:
                 for definition in defs:
                     if definition.id == "voxel_esdf":
                         definition.unavailable_reason = distance_unavailable_reason()
-                        definition.capabilities.update(code_integrated=True, real_execution=False,
-                                                       cpu_checked=False, full_chain_accepted=False)
+                        definition.capabilities.update(code_integrated=True, real_execution=not definition.unavailable_reason,
+                                                       cpu_checked=not definition.unavailable_reason, full_chain_accepted=False)
             self._stages[stage] = {d.id: d for d in defs}
             for d in defs:
                 self._by_id[(stage, d.id)] = d

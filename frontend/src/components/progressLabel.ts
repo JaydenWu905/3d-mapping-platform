@@ -66,6 +66,8 @@ const MESSAGE_LABELS: Record<string, string> = {
   'Post-processing mesh': '正在进行网格后处理',
   'Exporting surface mesh': '正在导出表面网格',
   'Loading surface mesh': '正在加载表面网格',
+  'Computing signed distance to TSDF zero surface': '正在计算到 TSDF 零交叉表面的带符号欧氏距离',
+  'Rendering observed-support signed distance slices': '正在渲染观测支持域的距离切片',
   'Brute-force ESDF propagation': '正在进行 ESDF 传播计算',
   'Multi-resolution sweep': '正在进行多分辨率扫描',
   'Exporting distance slices': '正在导出距离场切片',

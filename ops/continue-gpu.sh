@@ -3,14 +3,15 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+[[ ! -f ops/platform.local.env ]] || source ops/platform.local.env
 ACTION="${1:-preflight}"
 shift || true
 case "$ACTION" in
   reference-tests)
     exec env OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 PYTHONPATH=backend backend/.venv/bin/python -m unittest backend.tests.test_distance_contract backend.tests.test_distance_geometry -v
     ;;
-  preflight|build|native-input-tests|native-diagnostic|acceptance) ;;
-  *) echo 'Usage: continue-gpu.sh reference-tests|preflight|build|native-input-tests REPORT_DIR|native-diagnostic REPORT_DIR|acceptance DATASET_ID' >&2; exit 2 ;;
+  preflight|build|native-input-tests|native-diagnostic|native-surface-tests|acceptance) ;;
+  *) echo 'Usage: continue-gpu.sh reference-tests|preflight|build|native-input-tests REPORT_DIR|native-diagnostic REPORT_DIR|native-surface-tests REPORT_DIR|acceptance DATASET_ID' >&2; exit 2 ;;
 esac
 python3 - <<'PY'
 from pathlib import Path
@@ -36,6 +37,11 @@ PY
 case "$ACTION" in
   preflight) ;;
   build) exec bash ops/distance-env.sh bash backend/scripts/build_esdf.sh --build ;;
+  native-surface-tests)
+    exec backend/.venv/bin/python backend/scripts/distance_surface_checks.py \
+      --executable "$ROOT/../envs/distance/converter-build/voxel_points_to_esdf" \
+      --reader "$ROOT/../envs/distance/converter-build/verify_esdf_layer" --report "${1:?Supply a NEW report directory}"
+    ;;
   native-input-tests|native-diagnostic)
     REPORT="${1:?Supply a NEW diagnostic report directory outside historical Jobs}"
     EXTRA=()
