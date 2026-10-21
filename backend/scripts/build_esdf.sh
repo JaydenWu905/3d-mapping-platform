@@ -41,7 +41,7 @@ PY
     bash "$0" --fetch
     cd "$VOXBLOX_WS"
     catkin init
-    catkin config --no-extend --install --cmake-args -DCMAKE_BUILD_TYPE=Release -DCATKIN_ENABLE_TESTING=OFF -DUSE_SYSTEM_EIGEN=ON -DUSE_SYSTEM_GLOG=ON -DUSE_SYSTEM_GFLAGS=ON -DUSE_SYSTEM_PROTOBUF=ON -DPYTHON_EXECUTABLE="$(command -v python3)"
+    catkin config --no-extend --install --cmake-args -DCMAKE_BUILD_TYPE=Release -DCATKIN_ENABLE_TESTING=ON -DUSE_SYSTEM_EIGEN=ON -DUSE_SYSTEM_GLOG=ON -DUSE_SYSTEM_GFLAGS=ON -DUSE_SYSTEM_PROTOBUF=ON -DPYTHON_EXECUTABLE="$(command -v python3)"
     catkin build voxblox -j1 -p1 --no-status
     cmake -S "$SCRIPT_DIR/esdf_cpp" -B "$DISTANCE_ROOT/converter-build" -DCMAKE_BUILD_TYPE=Release -DVOXBLOX_WS="$VOXBLOX_WS"
     cmake --build "$DISTANCE_ROOT/converter-build" --parallel 1
