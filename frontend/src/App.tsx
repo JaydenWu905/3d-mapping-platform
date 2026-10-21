@@ -53,17 +53,17 @@ function Shell() {
             >
               <MenuRoundedIcon />
             </IconButton>
-            <Typography sx={{ fontSize: 14, color: 'text.secondary', display: { xs: 'none', sm: 'block' } }}>
+            <Typography sx={{ fontSize: 'var(--font-secondary)', color: 'text.secondary', display: { xs: 'none', sm: 'block' } }}>
               三维建图平台
             </Typography>
-            <Typography sx={{ fontSize: 14, color: 'text.disabled', display: { xs: 'none', sm: 'block' } }}>
+            <Typography sx={{ fontSize: 'var(--font-secondary)', color: 'text.disabled', display: { xs: 'none', sm: 'block' } }}>
               /
             </Typography>
             <Typography sx={{ fontSize: 18, fontWeight: 700 }}>{pageTitle(pathname)}</Typography>
             <Box sx={{ flex: 1 }} />
             <Typography
               sx={{
-                fontSize: 12,
+                fontSize: 15,
                 color: 'text.secondary',
                 border: '1px solid',
                 borderColor: 'divider',

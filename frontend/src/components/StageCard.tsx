@@ -11,6 +11,7 @@ import {
   stageMessageLabel,
   stageProgressText,
 } from './progressLabel';
+import { measuredProgress } from './runInsight';
 import { dependencyLabel } from './waitingPreview/presentation';
 import { StageProgressBar } from './StageProgressBar';
 import { StatusBadge } from './StatusBadge';
@@ -126,15 +127,15 @@ export function StageCard({
               whiteSpace: 'normal',
             }}
           >
-            {progressLabel(detail)}
+            {detail.status === 'running' ? measuredProgress(detail).label : progressLabel(detail)}
           </Typography>
           <Typography sx={{ flex: 'none', fontSize: 'var(--font-secondary)', color: 'text.secondary' }}>
-            {stageProgressText(detail)}
+            {detail.status === 'running' && detail.stage !== 'pose' ? '' : stageProgressText(detail)}
           </Typography>
         </Stack>
       </Box>
 
-      <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 'auto', minWidth: 0 }}>
+      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mt: 'auto', minWidth: 0 }}>
         <Typography
           title={detail.message}
           sx={{
@@ -142,9 +143,8 @@ export function StageCard({
             minWidth: 0,
             fontSize: 'var(--font-secondary)',
             color: 'text.secondary',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
+            overflowWrap: 'anywhere',
+            whiteSpace: 'normal',
           }}
         >
           {stageMessageLabel(detail)}

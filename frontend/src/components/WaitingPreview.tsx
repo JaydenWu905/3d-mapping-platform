@@ -1,10 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { Box, Typography } from '@mui/material';
 import type { StageDetail } from '../types';
+import type { StageKey } from '../types';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { PreviewTips } from './PreviewTips';
+import { StageProgressBar } from './StageProgressBar';
+import { measuredProgress } from './runInsight';
+import { formatElapsed } from './progressLabel';
 import { stageNotice, waitingMessages, waitingTitle } from './waitingPreview/presentation';
 
-export type WaitingPreviewProps = { stage: StageDetail; connected: boolean; runKey?: string };
+export type WaitingPreviewProps = { stage: StageDetail; connected: boolean; runKey?: string;
+  resultStage?: StageKey | null; onOpenResult?: (key: StageKey) => void;
+  elapsed?: number; etaText?: string };
 
 /** Decorative SVG loops have no access to counters, percentages or elapsed time. */
 function ProcessingGlyph({ stage }: { stage: string }) {
@@ -25,7 +32,7 @@ function ProcessingGlyph({ stage }: { stage: string }) {
   </svg>;
 }
 
-export function WaitingPreview({ stage, connected, runKey }: WaitingPreviewProps) {
+export function WaitingPreview({ stage, connected, runKey, resultStage, onOpenResult, elapsed, etaText }: WaitingPreviewProps) {
   const reduced = useReducedMotion();
   const everConnected = useRef(false);
   if (connected) everConnected.current = true;
@@ -55,7 +62,14 @@ export function WaitingPreview({ stage, connected, runKey }: WaitingPreviewProps
     </Box>
     <Typography className="processing-preview__title">{waitingTitle(stage)}</Typography>
     <Typography className="processing-preview__copy">{messages[copyIndex % messages.length]}</Typography>
+    {running ? <div className="processing-preview__actual">
+      <strong>真实进度</strong>
+      <StageProgressBar stage={stage} large />
+      <span>{measuredProgress(stage).label}</span>
+      <span>已运行 {formatElapsed(elapsed ?? stage.elapsed_sec)} · 预计剩余：{etaText ?? '剩余时间暂无法估算'}</span>
+    </div> : null}
     {notice && stage.status !== 'failed' ? <Typography color="warning.main">{notice.text}</Typography> : null}
     {!connected && running ? <Typography color="text.secondary">{everConnected.current ? '连接中断，正在重连；保留最后收到的状态。' : '正在连接状态服务。'}</Typography> : null}
+    <PreviewTips stage={stage} resultStage={resultStage} onOpenResult={onOpenResult} />
   </Box>;
 }

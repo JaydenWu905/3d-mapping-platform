@@ -45,7 +45,7 @@ export function waitingMessages(stage: StageDetail): readonly string[] {
   if (stage.status === 'not_integrated') return ['本阶段不在此次运行范围内。'];
   if (stage.status === 'waiting') return [dependencyLabel(stage) ? '前一步的结果就绪后，才能处理这一阶段。' : '运行范围和阶段算法已保留，可按任务状态选择操作。'];
   if (stage.stage === 'pose') {
-    if (stage.phase === 'waiting_glim_export' || stage.phase === 'exporting') return ['输入已送达，正在等待轨迹导出。', '这一环节由算法完成，暂不估算剩余时间。'];
+    if (stage.phase === 'waiting_glim_export' || stage.phase === 'exporting') return ['输入已送达，正在等待轨迹导出。', 'GLIM 正在整理轨迹，已运行时间会继续更新。'];
     if (stage.phase === 'associating') return ['正在对齐时间与轨迹，让帧和位置对上号。', '给扫描记录核对座位，避免张冠李戴。'];
     return ['正在还原扫描路线，帮每一帧找到自己的位置。', '扫描记录正在对坐标，方向感也需要认真整理。'];
   }

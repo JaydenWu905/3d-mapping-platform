@@ -45,7 +45,7 @@ export function StatusBadge({
       size={size}
       sx={{
         borderRadius: 0,
-        height: medium ? 30 : 26,
+        height: medium ? 34 : 30,
         fontSize: medium ? 'var(--font-body)' : 'var(--font-secondary)',
         fontWeight: 600,
         color: tone === 'default' ? 'text.secondary' : `${tone}.dark`,

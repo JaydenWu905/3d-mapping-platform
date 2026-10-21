@@ -112,9 +112,9 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                 secondary={item.caption}
                 primaryTypographyProps={{ fontSize: 'var(--font-body)', fontWeight: 700, lineHeight: 1.35 }}
                 secondaryTypographyProps={{
-                  fontSize: 11.5,
+                  fontSize: 'var(--font-secondary)',
                   color: active ? 'primary.dark' : 'text.secondary',
-                  noWrap: true,
+                  noWrap: false,
                 }}
               />
             </ListItemButton>

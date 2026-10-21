@@ -26,6 +26,7 @@ import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
 
 import { api, messageOf } from '../api/api';
 import { ArtifactsPanel } from '../components/ArtifactsPanel';
+import { DurationComparison } from '../components/DurationComparison';
 import { Chart, useChart } from '../components/chart';
 import { LogViewer } from '../components/LogViewer';
 import {
@@ -38,6 +39,7 @@ import {
   stagePhaseLabel,
 } from '../components/progressLabel';
 import { StatusBadge } from '../components/StatusBadge';
+import { durationRows, historicalStageSeconds, inputEta, measuredProgress, stageEta, type CountSample } from '../components/runInsight';
 import { stageNotice } from '../components/waitingPreview/presentation';
 import { WaitingPreview } from '../components/WaitingPreview';
 import { hasUsablePreview } from '../components/waitingPreview/artifacts';
@@ -53,12 +55,6 @@ import { MeshViewer } from '../viewers/MeshViewer';
 import { TrajectoryViewer } from '../viewers/TrajectoryViewer';
 
 const ACTIVE_STATUSES = ['running', 'queued', 'cancelling'];
-
-const STAGE_COLORS: Record<StageKey, string> = {
-  pose: '#1877F2',
-  surface: '#8E33FF',
-  distance: '#00B8D9',
-};
 
 function formatDate(iso: string): string {
   const date = new Date(iso);
@@ -123,6 +119,27 @@ export function JobDetailPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const everConnected = useRef(false);
   const reducedMotion = useReducedMotion();
+  const [now, setNow] = useState(Date.now());
+  const [historical, setHistorical] = useState<{ jobId: string; jobs: JobDetail[] }>({ jobId: '', jobs: [] });
+  const anchors = useRef<Partial<Record<StageKey, { run: string; reported: number; at: number }>>>({});
+  const inputHistory = useRef<{ run: string; samples: CountSample[] }>({ run: '', samples: [] });
+
+  useEffect(() => {
+    if (!job || !visibleStageKeys(job).some(key => job.stages[key].status === 'running') || job.preview_job) return undefined;
+    let cancelled = false;
+    void api.listJobs().then(async list => {
+      const matches = list.filter(item => item.job_id !== job.job_id && item.dataset === job.dataset && item.status === 'completed' && !item.preview_job).slice(0, 12);
+      const settled = await Promise.allSettled(matches.map(item => api.getJob(item.job_id)));
+      if (!cancelled) setHistorical({ jobId: job.job_id, jobs: settled.flatMap(result => result.status === 'fulfilled' ? [result.value] : []) });
+    }).catch(() => { if (!cancelled) setHistorical({ jobId: job.job_id, jobs: [] }); });
+    return () => { cancelled = true; };
+  }, [job?.job_id, job?.dataset, job?.preview_job, job?.status]);
+
+  useEffect(() => {
+    if (!job || !visibleStageKeys(job).some(key => ['running', 'cancelling'].includes(job.stages[key].status))) return undefined;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [job?.job_id, job?.status]);
 
   useEffect(() => {
     const dataset = job?.dataset;
@@ -184,22 +201,32 @@ export function JobDetailPage() {
     sample.kind === 'stage' ? Math.round(sample.percent) : null,
   );
 
-  const durations = useMemo(() => {
-    if (!job) return [];
-    return visibleStageKeys(job).flatMap((key) => {
-      const detail = job.stages[key];
-      const runtime = detail.manifest?.runtime_sec;
-      if (typeof runtime !== 'number' || !Number.isFinite(runtime) || runtime <= 0) return [];
-      return [
-        {
-          stage: key,
-          label: STAGE_NAMES[key],
-          value: Math.round(runtime * 10) / 10,
-          color: STAGE_COLORS[key],
-        },
-      ];
-    });
-  }, [job]);
+  const liveElapsed: Partial<Record<StageKey, number>> = {};
+  if (job) for (const key of visibleStageKeys(job)) {
+    const current = job.stages[key];
+    if (!['running', 'cancelling'].includes(current.status)) continue;
+    const run = `${job.job_id}:${key}:${current.started_at ?? 'pending'}`;
+    const reported = Math.max(0, Number(current.elapsed_sec) || 0);
+    const anchor = anchors.current[key];
+    if (!anchor || anchor.run !== run || anchor.reported !== reported) anchors.current[key] = { run, reported, at: now };
+    liveElapsed[key] = reported + Math.max(0, (now - anchors.current[key]!.at) / 1000);
+  }
+  const pose = job?.stages.pose;
+  if (job && pose) {
+    const run = `${job.job_id}:pose:${pose.started_at ?? 'pending'}`;
+    if (inputHistory.current.run !== run) inputHistory.current = { run, samples: [] };
+    const count = Number(pose.lidar_published ?? 0);
+    const samples = inputHistory.current.samples;
+    if (pose.status === 'running' && pose.phase === 'input_publishing' && Number.isFinite(count) && count >= 0 &&
+        (!samples.length || samples[samples.length - 1].count !== count)) {
+      inputHistory.current.samples = [...samples, { at: now, count }].slice(-30);
+    }
+  }
+  const durationData = job ? durationRows(job, visibleStageKeys(job), liveElapsed) : [];
+  const currentElapsed = stage && isStageKey(stage.stage) ? liveElapsed[stage.stage] ?? stage.elapsed_sec : 0;
+  const historicalSeconds = job && stage && isStageKey(stage.stage) && historical.jobId === job.job_id
+    ? historicalStageSeconds(job, historical.jobs, stage.stage) : null;
+  const measuredInputEta = stage?.stage === 'pose' ? inputEta(stage, inputHistory.current.samples) : null;
 
   const observedChartOptions = useChart({
     chart: { type: 'line', animations: { enabled: !reducedMotion, speed: 360 } },
@@ -228,29 +255,6 @@ export function JobDetailPage() {
     tooltip: {
       y: { formatter: (value: number) => `${Math.round(value)}%` },
     },
-    noData: { text: '暂无数据', style: { fontSize: '16px' } },
-  });
-
-  const durationChartOptions = useChart({
-    chart: { type: 'bar', animations: { enabled: !reducedMotion, speed: 360 } },
-    colors: durations.map((item) => item.color),
-    plotOptions: {
-      bar: { horizontal: true, distributed: true, barHeight: '52%', borderRadius: 0 },
-    },
-    dataLabels: {
-      enabled: true,
-      formatter: (value: string) => `${Math.round(Number(value))} 秒`,
-      style: { fontSize: '14px', fontWeight: 600, colors: ['#ffffff'] },
-    },
-    stroke: { width: 0 },
-    xaxis: {
-      categories: durations.map((item) => item.label),
-      labels: { style: { fontSize: '16px' } },
-    },
-    yaxis: { labels: { style: { fontSize: '16px' } } },
-    grid: { xaxis: { lines: { show: true } }, yaxis: { lines: { show: false } } },
-    legend: { show: false },
-    tooltip: { y: { formatter: (value: number) => `${value} 秒` } },
     noData: { text: '暂无数据', style: { fontSize: '16px' } },
   });
 
@@ -570,6 +574,13 @@ export function JobDetailPage() {
                 manifest={previewStage.manifest}
                 connected={connected}
                 waitingOnly={preview.mode === 'animation'}
+                resultStage={preview.availableResults.find(key => key !== previewStage.stage) ?? null}
+                onOpenResult={key => {
+                  setPreviewChoice({ jobId, mode: 'results', resultStageKey: key, animationStageKey: null });
+                  setSelectedStage(key);
+                }}
+                elapsed={previewStage.status === 'running' && isStageKey(previewStage.stage) ? liveElapsed[previewStage.stage] : undefined}
+                etaText={previewStage === stage ? stageEta(previewStage, currentElapsed, historicalSeconds, measuredInputEta) : undefined}
               />
             ) : (
               <Box className="viewer-empty">该任务没有阶段信息。</Box>
@@ -609,7 +620,15 @@ export function JobDetailPage() {
                   }
                 />
                 <InfoRow label="当前环节" value={stagePhaseLabel(stage)} />
-                <InfoRow label="阶段耗时" value={formatElapsed(stage.elapsed_sec)} />
+                {stage.status === 'running' ? <>
+                  <Typography className="run-insight__progress" data-progress-kind={measuredProgress(stage).kind}>
+                    {measuredProgress(stage).label}
+                  </Typography>
+                  <Typography className="run-insight__elapsed">已运行 {formatElapsed(currentElapsed)}</Typography>
+                  <Typography className="run-insight__eta" data-eta-source={measuredInputEta !== null ? 'input-rate' : historicalSeconds !== null && currentElapsed < historicalSeconds * .8 ? 'history' : 'unavailable'}>
+                    预计剩余：{stageEta(stage, currentElapsed, historicalSeconds, measuredInputEta)}
+                  </Typography>
+                </> : null}
               </Stack>
 
               {notice ? <Alert severity={notice.severity} sx={{ mt: 1.5 }}>{notice.text}</Alert> : null}
@@ -621,6 +640,9 @@ export function JobDetailPage() {
               </Typography>
             </Card>
           )}
+          <Card sx={{ p: 2, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
+            <DurationComparison rows={durationData} />
+          </Card>
         </Stack>
       </Box>
 
@@ -661,19 +683,6 @@ export function JobDetailPage() {
                 只记录本页面打开后的真实读数；刷新页面后重新观测，不补造历史。
               </Typography>
 
-              <Divider sx={{ my: 2 }} />
-
-              <Typography sx={{ fontSize: 'var(--font-body)', fontWeight: 700 }}>各阶段耗时</Typography>
-              {durations.length > 0 ? <Chart
-                type="bar"
-                className="detail-duration-chart"
-                series={[{ name: '耗时（秒）', data: durations.map((item) => item.value) }]}
-                options={durationChartOptions}
-                sx={{ height: 190, mt: 1 }}
-              /> : null}
-              <Typography sx={{ mt: 0.5, fontSize: 'var(--font-secondary)', color: 'text.disabled' }}>
-                仅展示已完成阶段产物清单中的真实运行耗时。
-              </Typography>
         </CollapsibleSection>
 
         <CollapsibleSection
@@ -989,12 +998,20 @@ function StageViewer({
   manifest,
   connected,
   waitingOnly,
+  resultStage,
+  onOpenResult,
+  elapsed,
+  etaText,
 }: {
   jobId: string;
   stage: StageDetail;
   manifest: Manifest | null;
   connected: boolean;
   waitingOnly: boolean;
+  resultStage: StageKey | null;
+  onOpenResult: (key: StageKey) => void;
+  elapsed?: number;
+  etaText?: string;
 }) {
   const slices = useMemo(() => {
     const value = manifest?.metrics?.slices;
@@ -1003,12 +1020,12 @@ function StageViewer({
 
   const hasTraj = manifestArtifact(stage, 'trajectory_model') !== null;
 
-  if (waitingOnly) return <WaitingPreview stage={stage} connected={connected} runKey={`${jobId}:${stage.stage}:${stage.started_at ?? 'pending'}`} />;
+  if (waitingOnly) return <WaitingPreview stage={stage} connected={connected} runKey={`${jobId}:${stage.stage}:${stage.started_at ?? 'pending'}`} resultStage={resultStage} onOpenResult={onOpenResult} elapsed={elapsed} etaText={etaText} />;
 
   // 查看器按阶段键固定映射（架构约束：不按算法分支）。
   if (stage.stage === 'pose') {
     if (hasTraj) return <TrajectoryViewer jobId={jobId} stage={stage.stage} />;
-    return <WaitingPreview stage={stage} connected={connected} runKey={`${jobId}:${stage.stage}:${stage.started_at ?? 'pending'}`} />;
+    return <WaitingPreview stage={stage} connected={connected} runKey={`${jobId}:${stage.stage}:${stage.started_at ?? 'pending'}`} resultStage={resultStage} onOpenResult={onOpenResult} />;
   }
 
   if (stage.stage === 'surface') {
@@ -1021,7 +1038,7 @@ function StageViewer({
         />
       );
     }
-    return <WaitingPreview stage={stage} connected={connected} runKey={`${jobId}:${stage.stage}:${stage.started_at ?? 'pending'}`} />;
+    return <WaitingPreview stage={stage} connected={connected} runKey={`${jobId}:${stage.stage}:${stage.started_at ?? 'pending'}`} resultStage={resultStage} onOpenResult={onOpenResult} />;
   }
 
   if (stage.stage === 'distance') {
@@ -1035,7 +1052,7 @@ function StageViewer({
         />
       );
     }
-    return <WaitingPreview stage={stage} connected={connected} runKey={`${jobId}:${stage.stage}:${stage.started_at ?? 'pending'}`} />;
+    return <WaitingPreview stage={stage} connected={connected} runKey={`${jobId}:${stage.stage}:${stage.started_at ?? 'pending'}`} resultStage={resultStage} onOpenResult={onOpenResult} />;
   }
 
   return null;

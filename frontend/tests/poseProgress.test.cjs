@@ -54,7 +54,7 @@ stage.status = 'failed';
 assert.equal(posePhaseLabel(stage), '位姿估计失败');
 stage.status = 'completed';
 stage.progress = 100;
-assert.equal(stageProgressText(stage), '阶段 100%');
+assert.equal(stageProgressText(stage), '已完成');
 
 // 展示层中文标签：单位、耗时、环节、消息与不可启动原因。
 assert.equal(unitLabel('frame'), '帧');
@@ -74,7 +74,7 @@ const surfaceStage = {
 };
 assert.equal(stagePhaseLabel(surfaceStage), '表面融合');
 assert.equal(stageMessageLabel(surfaceStage), '正在融合 12 / 40 帧');
-assert.equal(stageMessageLabel({ ...surfaceStage, message: 'Completed' }), '已完成');
+assert.equal(stageMessageLabel({ ...surfaceStage, message: 'Completed' }), '处理中');
 assert.equal(stageMessageLabel({ ...surfaceStage, message: 'Tracking pose 5/9' }), '位姿跟踪 5 / 9 帧');
 assert.equal(blockedReasonLabel("Backend 'x' not in registry"), '所选后端未注册（x）');
 assert.equal(
@@ -87,12 +87,15 @@ assert.equal(blockedReasonLabel('Stage already completed'), '阶段已完成');
 const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
 const barSource = fs.readFileSync(path.join(__dirname, '../src/components/StageProgressBar.tsx'), 'utf8');
+const insightSource = fs.readFileSync(path.join(__dirname, '../src/components/runInsight.ts'), 'utf8');
+const insightExports = {};
+new Function('exports', ts.transpileModule(insightSource, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText)(insightExports);
 const barCompiled = ts.transpileModule(barSource, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
 }).outputText;
 const barExports = {};
 new Function('require', 'exports', barCompiled)((name) =>
-  name === './progressLabel' ? exportsForTest : require(name), barExports);
+  name === './runInsight' ? insightExports : require(name), barExports);
 const { StageProgressBar } = barExports;
 for (const [published, expected] of [[10, '10%'], [50, '50%'], [100, '100%']]) {
   const update = patchExports.stageProgressPatch({ stage: 'pose', phase: 'input_publishing',
@@ -102,7 +105,7 @@ for (const [published, expected] of [[10, '10%'], [50, '50%'], [100, '100%']]) {
   const detailBar = renderToStaticMarkup(React.createElement(StageProgressBar, { stage: liveStage, large: true }));
   for (const html of [cardBar, detailBar]) {
     assert.match(html, new RegExp(`style="width:${expected}"`));
-    assert.match(html, /aria-label="输入发布进度"/);
+    assert.match(html, /aria-label="输入发布进度（非位姿阶段进度）"/);
     assert.doesNotMatch(html, /progress-indeterminate|progress-activity/);
   }
 }
@@ -112,7 +115,7 @@ assert.equal(progressBarState(exportStage).percent, 100);
 assert.equal(stageProgressText(exportStage), '输入发布完成，正在等待 GLIM 导出');
 const exportBar = renderToStaticMarkup(React.createElement(StageProgressBar, { stage: exportStage }));
 assert.match(exportBar, /style="width:100%"/);
-assert.match(exportBar, /progress-activity/);
+assert.doesNotMatch(exportBar, /aria-label="阶段完成状态"/);
 assert.doesNotMatch(stageProgressText(exportStage), /阶段 100%/);
 const startBar = renderToStaticMarkup(React.createElement(StageProgressBar, {
   stage: { ...exportStage, phase: 'starting_glim', lidar_published: 0 },

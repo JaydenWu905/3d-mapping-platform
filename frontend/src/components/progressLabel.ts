@@ -173,6 +173,9 @@ export function stageMessageLabel(stage: StageDetail): string {
   if (stage.status === 'cancelled') return '已取消';
   if (stage.status === 'cancelling') return '正在取消';
   const message = trimText(stage.message);
+  if (stage.status === 'running' && (/Completed|已完成|阶段完成|outputs validated/.test(message))) {
+    return statusMessageFallback(stage);
+  }
   if (stage.status === 'failed') {
     const code = /^Algorithm adapter exited with code (\d+)$/.exec(message);
     return code ? `运行失败（退出代码 ${code[1]}）` : '运行失败，请查看日志与技术详情';
@@ -274,6 +277,7 @@ export function progressBarState(stage: StageDetail): ProgressBarState {
 }
 
 export function progressLabel(stage: StageDetail): string {
+  if (stage.status === 'waiting' || stage.status === 'queued' || stage.status === 'not_integrated') return '';
   const metrics = stage.manifest?.metrics;
   if (stage.stage === 'pose' && metrics?.pose_count != null) {
     return `输出 ${metrics.pose_count} 位姿 · 全包 ${metrics.bag_frame_count ?? '—'} 帧`;
@@ -322,7 +326,10 @@ export function posePhaseLabel(stage: StageDetail): string {
 }
 
 export function stageProgressText(stage: StageDetail): string {
-  return stage.stage === 'pose' && stage.backend === 'glim' && stage.status !== 'completed'
-    ? posePhaseLabel(stage)
-    : `阶段 ${Math.round(stage.progress)}%`;
+  if (stage.status === 'completed') return '已完成';
+  if (stage.status === 'failed') return '失败';
+  if (stage.status === 'cancelled') return '已取消';
+  if (stage.status === 'queued') return '等待计算资源';
+  if (stage.stage === 'pose' && stage.backend === 'glim') return posePhaseLabel(stage);
+  return '';
 }

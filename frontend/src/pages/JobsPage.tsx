@@ -121,7 +121,7 @@ export function JobsPage() {
     },
     dataLabels: {
       enabled: true,
-      style: { fontSize: '14px', fontWeight: 600, colors: ['#ffffff'] },
+      style: { fontSize: '16px', fontWeight: 600, colors: ['#ffffff'] },
     },
     stroke: { width: 0 },
     xaxis: {
