@@ -165,13 +165,16 @@ def main() -> int:
         }
         atomic_write_json(params_path, params)
         progress(stage_dir, "validating", "Validated real bag and imported Pose inputs")
-        command = [pixi, "run", "--manifest-path", str(mrhash_root), "python",
+        command = [pixi, "run", "--as-is", "--manifest-path", str(mrhash_root), "python",
                    str(apps_dir / "rosbag_runner.py"), str(config_path)]
         print(f"[mrhash] dataset={job['dataset']} profile={profile} mode={args.mode}", flush=True)
         print("[mrhash] launching pixi-managed rosbag_runner.py", flush=True)
         progress(stage_dir, "mapping", "MrHash is running; algorithm does not expose reliable progress")
         # MrHash writes profiler sidecars to cwd; keep every write inside this Job.
-        completed = subprocess.run(command, cwd=run_dir, check=False)
+        child_env = os.environ.copy()
+        child_env.pop("OMP_NUM_THREADS", None)
+        child_env.pop("OPENBLAS_NUM_THREADS", None)
+        completed = subprocess.run(command, cwd=run_dir, check=False, env=child_env)
         if completed.returncode != 0:
             progress(stage_dir, "failed", f"MrHash exited with code {completed.returncode}", "failed")
             return completed.returncode

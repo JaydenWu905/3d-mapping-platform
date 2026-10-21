@@ -18,5 +18,6 @@ done
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 PLATFORM_PYTHON="$SCRIPT_DIR/../.venv/bin/python"
+unset OMP_NUM_THREADS OPENBLAS_NUM_THREADS
 export PYTHONPATH="$SCRIPT_DIR/.."
 exec "$PLATFORM_PYTHON" "$SCRIPT_DIR/distance_run.py" --job-dir "$JOB_DIR"
