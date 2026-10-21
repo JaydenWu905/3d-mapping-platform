@@ -43,18 +43,27 @@ class BackendRegistry:
             raw = json.loads(path.read_text(encoding="utf-8"))
             defs = [BackendDef(**d) for d in raw.get("backends", [])]
             if stage == "distance":
-                from app.services.distance_readiness import distance_unavailable_reason
+                from app.services.distance_readiness import distance_unavailable_reason, distance_full_chain_accepted
                 for definition in defs:
                     if definition.id == "voxel_esdf":
                         definition.unavailable_reason = distance_unavailable_reason()
                         definition.capabilities.update(code_integrated=True, real_execution=not definition.unavailable_reason,
-                                                       cpu_checked=not definition.unavailable_reason, full_chain_accepted=False)
+                                                       cpu_checked=not definition.unavailable_reason, full_chain_accepted=distance_full_chain_accepted())
             self._stages[stage] = {d.id: d for d in defs}
             for d in defs:
                 self._by_id[(stage, d.id)] = d
 
     def list_stage(self, stage: str) -> list[BackendDef]:
-        return list(self._stages.get(stage, {}).values())
+        definitions = list(self._stages.get(stage, {}).values())
+        if stage == "distance":
+            from app.services.distance_readiness import distance_unavailable_reason, distance_full_chain_accepted
+            for definition in definitions:
+                if definition.id == "voxel_esdf":
+                    definition.unavailable_reason = distance_unavailable_reason()
+                    definition.capabilities.update(real_execution=not definition.unavailable_reason,
+                                                   cpu_checked=not definition.unavailable_reason,
+                                                   full_chain_accepted=distance_full_chain_accepted())
+        return definitions
 
     def all(self) -> dict[str, list[BackendDef]]:
         return {stage: self.list_stage(stage) for stage in STAGES}

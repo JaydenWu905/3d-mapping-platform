@@ -106,7 +106,7 @@ stop_one() {
 case "${1:-}" in
   start)
     start_one backend "$BACKEND_PORT" "$ROOT/backend" "$ROOT/backend/.venv/bin/uvicorn" app.main:app app.main:app --host 127.0.0.1 --port "$BACKEND_PORT"
-    start_one frontend "$FRONTEND_PORT" "$ROOT/frontend" "$(command -v node)" "$ROOT/frontend/node_modules/vite/bin/vite.js" "$ROOT/frontend/node_modules/vite/bin/vite.js" --host 127.0.0.1 --port "$FRONTEND_PORT" --strictPort
+    start_one frontend "$FRONTEND_PORT" "$ROOT/frontend" "$(command -v node)" "$ROOT/frontend/node_modules/vite/bin/vite.js" "$ROOT/frontend/node_modules/vite/bin/vite.js" preview --host 127.0.0.1 --port "$FRONTEND_PORT" --strictPort
     ;;
   stop)
     stop_one frontend "$ROOT/frontend" "$ROOT/frontend/node_modules/vite/bin/vite.js"

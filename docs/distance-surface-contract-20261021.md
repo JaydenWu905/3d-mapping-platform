@@ -22,7 +22,7 @@
 
 运行 `bash ops/continue-gpu.sh native-surface-tests NEW_REPORT_DIR`。脚本调用实际编译转换器，并由真实 Voxblox reader 导出原生层逐体素值，**不拿预览 PLY 代替原生距离读回**。
 
-证据目录 `/root/autodl-tmp/deployment-preservation/20261021-gpu-distance/surface-native-02`，h=.1 m：
+证据目录 `/root/autodl-tmp/deployment-preservation/20261021-gpu-distance/surface-native-03`，h=.1 m：
 
 | 输入/检查 | 预期与实际 |
 |---|---|
@@ -34,6 +34,7 @@
 | 中心坐标 | 原生读回每个坐标满足 (i+.5)h |
 | 缺失角点、weight=1角点 | 精确核对支持体素集合，均恰好使相邻8个cell未知；没有正值传播填充 |
 | 重复、空、NaN、weight=0、全低权重、无零交叉 | 均非零退出，无成功输出登记 |
+| 2.5 m 半径 | 支持域中超过半径的样本仍未知；解析预期50个有效中心，原生读回恰为50 |
 | 保存失败 | 预建 map.esdf 为目录，真实 SaveLayer 失败；退出2 |
 
 另外原有真实 ELF 输入检查14例通过；旧模式诊断读回通过**只证明诊断可运行**。不把这些输入/结构测试当作上述数值证明。真实 shell/Python 阶段适配器的独立合成 fixture 验证：正常结束状态completed；真实保存失败状态failed、退出1、没有成功manifest。两个 fixture 位于证据目录下 `SYNTHETIC_runner_*`，不是真实 Job。

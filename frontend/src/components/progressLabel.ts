@@ -268,6 +268,9 @@ export function progressLabel(stage: StageDetail): string {
     }
     return stage.status === 'failed' ? '位姿估计失败' : '等待执行 / 启动 GLIM';
   }
+  if (stage.stage === 'distance' && stage.status === 'completed' && typeof metrics?.observed === 'number') {
+    return `输出 ${metrics.observed.toLocaleString('zh-CN')} 有效体素 · 分辨率 ${metrics.resolution_m ?? '—'} m`;
+  }
   if (!stage.total) return '未上报进度';
   const unit = unitLabel(stage.unit);
   return `${stage.current} / ${stage.total}${unit ? ` ${unit}` : ''}`;

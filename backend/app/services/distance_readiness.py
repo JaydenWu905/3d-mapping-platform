@@ -3,13 +3,11 @@ from pathlib import Path
 import hashlib
 import json
 import os
-from functools import lru_cache
 from app.config import BACKEND_ROOT
 
 CONTRACT_BLOCKER = '真实 Distance 需要与当前二进制匹配的小样本数值验收及完整 Surface 独立读回验收记录。'
 
-@lru_cache(maxsize=8)
-def _digest(path: str, size: int, mtime: int, ctime: int) -> str:
+def _digest(path: str) -> str:
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 def distance_unavailable_reason() -> str:
@@ -19,11 +17,20 @@ def distance_unavailable_reason() -> str:
     try:
         report = json.loads(Path(os.environ.get('ESDF_ACCEPTANCE_REPORT','')).read_text())
         for binary, key in [(exe,'executable_sha256'),(exe.with_name('verify_esdf_layer'),'reader_sha256')]:
-            stat=binary.stat()
-            if _digest(str(binary.resolve()),stat.st_size,stat.st_mtime_ns,stat.st_ctime_ns)!=report[key]:
+            if _digest(str(binary.resolve()))!=report[key]:
                 return 'Distance 二进制已改变，需要重新执行真实验收'
         if report.get('accepted') is not True or report.get('native_numeric_accepted') is not True or report.get('real_surface_readback_accepted') is not True:
             return CONTRACT_BLOCKER
     except (OSError, ValueError, KeyError):
         return CONTRACT_BLOCKER
     return ''
+
+
+def distance_full_chain_accepted() -> bool:
+    if distance_unavailable_reason():
+        return False
+    try:
+        report = json.loads(Path(os.environ['ESDF_ACCEPTANCE_REPORT']).read_text())
+        return report.get('real_three_stage_accepted') is True and bool(report.get('real_three_stage_job_id'))
+    except (OSError, ValueError, KeyError):
+        return False

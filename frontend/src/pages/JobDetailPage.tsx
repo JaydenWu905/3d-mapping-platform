@@ -81,7 +81,7 @@ function isActiveStage(stage: StageDetail): boolean {
 
 /** 已有成果保留真实查看器的交互提示。 */
 function previewHint(stage: StageDetail): string {
-  if (hasUsablePreview(stage)) return '可旋转 · 缩放 · 平移 · 重置视角';
+  if (hasUsablePreview(stage)) return stage.stage === 'distance' ? '切片切换 · 原生地图可下载' : '可旋转 · 缩放 · 平移 · 重置视角';
   if (stage.status === 'not_integrated') return '未请求该阶段';
   if (stage.status === 'failed' || stage.status === 'cancelled' || stage.status === 'completed') {
     return '无可用预览产物';

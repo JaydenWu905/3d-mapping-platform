@@ -45,6 +45,12 @@ def main():
  errors=[abs(d-(radius-math.sqrt(x*x+y*y+z*z))) for x,y,z,d in data]
  assert max(errors)<bound,(max(errors),bound)
  rec.update(tolerance_m=bound,max_error_m=max(errors),tolerance_basis='linear interpolation Hessian bound: 3*h^2/(8*(R-sqrt(3)*h))')
+ # Explicit finite calculation radius; supported cells beyond it remain unknown.
+ radius_rows=[(i*h,j*h,k*h,.023-i*h,3,255,0,0,0) for i in range(-30,31) for j in [0,1] for k in [0,1]]
+ data,rec=run('calculation_radius',radius_rows)
+ got={tuple(round(v/h-.5) for v in row[:3]) for row in data}
+ assert got=={(i,0,0) for i in range(-25,25)},got
+ rec.update(observed_expected=50,observed_actual=len(got),outside_radius_preserved_unknown=True)
  # Unknown corner hole and low weight eliminate exactly incident cells; no propagation.
  base=rows((1,0,0),.05);hole=(0.,0.,0.)
  for name,rr in [('missing_corner',[r for r in base if r[:3]!=hole]),('low_weight',[(*r[:4],1,*r[5:]) if r[:3]==hole else r for r in base])]:

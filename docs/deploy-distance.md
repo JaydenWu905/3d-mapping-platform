@@ -1,3 +1,7 @@
+> **2026-10-21 更新：** GPU恢复后真实构建、小样本数值与既有完整Surface独立验证已完成；正式算法定义、当前三阶段结果与命令见 [本次部署报告](../ops/INTEGRATION_20261021.md) 和 [零面距离场契约](distance-surface-contract-20261021.md)。下文2026-10-20内容保留历史证据，旧“尚未编译/无生产模式”不代表最新状态。
+
+当前构建/验收入口：`bash ops/continue-gpu.sh preflight`、`build`、`native-surface-tests NEW_REPORT_DIR`。正式模式为 `--surface-esdf --input-grid mrhash_integer_centers --input-resolution 0 --source-voxel-size H --voxel_size H`，不能用旧diagnostic冒充。生产就绪绑定真实数值及完整Surface验收证书的转换器/reader SHA；新的完整任务用 `bash ops/continue-gpu.sh acceptance ins_longcorridor01`（该命令会新建并启动，不要重复运行已有验收Job）。
+
 # Distance 部署与验收指南（2026-10-20 第二轮修订）
 
 > 代码已接入；本轮最小源码修复、Python参考与共享C++输入核心检查通过。**完整Voxblox转换器未编译运行，真实ESDF和新Job三阶段未验收。** 当前没有可用的正式生产转换模式。不能只安装依赖或删除gate就标为就绪。
