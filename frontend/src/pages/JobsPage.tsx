@@ -177,7 +177,7 @@ export function JobsPage() {
     return (
       <Stack alignItems="center" spacing={2} sx={{ py: 12, color: 'text.secondary' }}>
         <CircularProgress size={28} />
-        <Typography sx={{ fontSize: 16 }}>正在加载任务列表…</Typography>
+        <Typography sx={{ fontSize: 'var(--font-body)' }}>正在加载任务列表…</Typography>
       </Stack>
     );
   }
@@ -201,7 +201,7 @@ export function JobsPage() {
           <Typography component="h1" sx={{ fontSize: 32, fontWeight: 700, lineHeight: 1.2 }}>
             任务总览
           </Typography>
-          <Typography sx={{ mt: 0.5, fontSize: 16, color: 'text.secondary' }}>
+          <Typography sx={{ mt: 0.5, fontSize: 'var(--font-body)', color: 'text.secondary' }}>
             查看三维建图任务状态、阶段进度与最近七日活动。
           </Typography>
         </Box>
@@ -255,14 +255,14 @@ export function JobsPage() {
               >
                 <Icon fontSize="small" />
               </Box>
-              <Typography sx={{ fontSize: 16, color: 'text.secondary' }}>{label}</Typography>
+              <Typography sx={{ fontSize: 'var(--font-body)', color: 'text.secondary' }}>{label}</Typography>
             </Stack>
             <Typography
               sx={{ mt: 1, fontSize: 42, fontWeight: 700, lineHeight: 1.1, fontFamily: 'var(--mono)' }}
             >
               {value}
             </Typography>
-            <Typography sx={{ fontSize: 12, color: 'text.disabled' }}>
+            <Typography sx={{ fontSize: 'var(--font-secondary)', color: 'text.disabled' }}>
               来自真实任务列表
             </Typography>
           </Card>
@@ -337,7 +337,7 @@ export function JobsPage() {
             </Select>
           </FormControl>
           <Box sx={{ flex: 1 }} />
-          <Typography sx={{ fontSize: 14, color: 'text.secondary' }}>
+          <Typography sx={{ fontSize: 'var(--font-body)', color: 'text.secondary' }}>
             共 {filtered.length} 个任务
           </Typography>
         </Stack>
@@ -385,7 +385,7 @@ export function JobsPage() {
                           <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
                             <Box
                               component="code"
-                              sx={{ fontSize: 14, fontWeight: 600, wordBreak: 'break-all' }}
+                              sx={{ fontSize: 'var(--font-body)', fontWeight: 600, wordBreak: 'break-all' }}
                             >
                               {job.job_id}
                             </Box>
@@ -395,7 +395,7 @@ export function JobsPage() {
                                 sx={{
                                   px: 0.75,
                                   py: 0.1,
-                                  fontSize: 11,
+                                  fontSize: 'var(--font-secondary)',
                                   color: 'warning.dark',
                                   bgcolor: 'warning.lighter',
                                   border: '1px solid',
@@ -407,8 +407,8 @@ export function JobsPage() {
                             ) : null}
                           </Stack>
                         </TableCell>
-                        <TableCell sx={{ fontSize: 14 }}>{job.dataset}</TableCell>
-                        <TableCell sx={{ fontSize: 14, whiteSpace: 'nowrap' }}>
+                        <TableCell sx={{ fontSize: 'var(--font-body)' }}>{job.dataset}</TableCell>
+                        <TableCell sx={{ fontSize: 'var(--font-body)', whiteSpace: 'nowrap' }}>
                           {formatDate(job.created_at)}
                         </TableCell>
                         <TableCell>
@@ -425,7 +425,7 @@ export function JobsPage() {
                                   gap: 0.5,
                                   px: 0.75,
                                   py: 0.15,
-                                  fontSize: 12,
+                                  fontSize: 'var(--font-secondary)',
                                   border: '1px solid',
                                   borderColor: 'divider',
                                   color: 'text.secondary',
@@ -478,7 +478,7 @@ export function JobsPage() {
       >
         <DialogTitle>删除任务</DialogTitle>
         <DialogContent>
-          <DialogContentText sx={{ fontSize: 16 }}>
+          <DialogContentText sx={{ fontSize: 'var(--font-body)' }}>
             确认删除任务 <Box component="code">{pendingDelete?.job_id}</Box> ？
             该操作会删除其磁盘上的所有数据，且不可恢复。
           </DialogContentText>

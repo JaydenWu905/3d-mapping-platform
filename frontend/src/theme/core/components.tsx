@@ -24,6 +24,9 @@ const MuiButton: Components<Theme>['MuiButton'] = {
   styleOverrides: {
     root: {
       borderRadius: 0,
+      minHeight: 40,
+      padding: "8px 14px",
+      lineHeight: 1.5,
     },
     containedInherit: ({ theme }) => ({
       color: theme.vars.palette.common.white,
@@ -34,11 +37,12 @@ const MuiButton: Components<Theme>['MuiButton'] = {
       },
     }),
     sizeSmall: ({ theme }) => ({
-      fontSize: theme.typography.pxToRem(18),
+      minHeight: 36,
+      fontSize: theme.typography.pxToRem(16),
     }),
     sizeLarge: ({ theme }) => ({
       minHeight: 48,
-      fontSize: theme.typography.pxToRem(18),
+      fontSize: theme.typography.pxToRem(16),
     }),
   },
 };
@@ -75,7 +79,7 @@ const MuiOutlinedInput: Components<Theme>['MuiOutlinedInput'] = {
       borderColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.24),
     }),
     input: ({ theme }) => ({
-      fontSize: theme.typography.pxToRem(18),
+      fontSize: theme.typography.pxToRem(16),
     }),
   },
 };
@@ -83,7 +87,7 @@ const MuiOutlinedInput: Components<Theme>['MuiOutlinedInput'] = {
 const MuiInputBase: Components<Theme>['MuiInputBase'] = {
   styleOverrides: {
     root: ({ theme }) => ({
-      fontSize: theme.typography.pxToRem(18),
+      fontSize: theme.typography.pxToRem(16),
     }),
   },
 };
@@ -91,7 +95,7 @@ const MuiInputBase: Components<Theme>['MuiInputBase'] = {
 const MuiSelect: Components<Theme>['MuiSelect'] = {
   styleOverrides: {
     select: ({ theme }) => ({
-      fontSize: theme.typography.pxToRem(18),
+      fontSize: theme.typography.pxToRem(16),
     }),
   },
 };
@@ -110,7 +114,7 @@ const MuiPaper: Components<Theme>['MuiPaper'] = {
 const MuiTableCell: Components<Theme>['MuiTableCell'] = {
   styleOverrides: {
     root: ({ theme }) => ({
-      fontSize: theme.typography.pxToRem(18),
+      fontSize: theme.typography.pxToRem(16),
     }),
     head: ({ theme }) => ({
       fontSize: theme.typography.pxToRem(16),

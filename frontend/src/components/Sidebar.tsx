@@ -68,7 +68,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           <Typography sx={{ fontSize: 18, fontWeight: 800, lineHeight: 1.2 }} noWrap>
             三维建图平台
           </Typography>
-          <Typography sx={{ fontSize: 12, color: 'text.secondary', mt: 0.25 }} noWrap>
+          <Typography sx={{ fontSize: 'var(--font-secondary)', color: 'text.secondary', mt: 0.25 }} noWrap>
             三维重建工作台
           </Typography>
         </Box>
@@ -110,7 +110,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               <ListItemText
                 primary={item.label}
                 secondary={item.caption}
-                primaryTypographyProps={{ fontSize: 16, fontWeight: 700, lineHeight: 1.35 }}
+                primaryTypographyProps={{ fontSize: 'var(--font-body)', fontWeight: 700, lineHeight: 1.35 }}
                 secondaryTypographyProps={{
                   fontSize: 11.5,
                   color: active ? 'primary.dark' : 'text.secondary',
@@ -123,7 +123,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </List>
 
       <Box sx={{ mt: 'auto', px: 2, py: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-        <Typography sx={{ fontSize: 12, color: 'text.secondary', mb: 0.75 }}>
+        <Typography sx={{ fontSize: 'var(--font-secondary)', color: 'text.secondary', mb: 0.75 }}>
           处理流程
         </Typography>
         <Stack spacing={0.5}>
@@ -136,7 +136,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                   flex: 'none',
                   display: 'grid',
                   placeItems: 'center',
-                  fontSize: 10,
+                  fontSize: 'var(--font-secondary)',
                   fontWeight: 800,
                   color: 'primary.contrastText',
                   bgcolor: ['primary.main', 'secondary.main', 'info.main'][index],
@@ -144,7 +144,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               >
                 {index + 1}
               </Box>
-              <Typography sx={{ fontSize: 13, color: 'text.primary' }}>{label}</Typography>
+              <Typography sx={{ fontSize: 'var(--font-secondary)', color: 'text.primary' }}>{label}</Typography>
             </Stack>
           ))}
         </Stack>

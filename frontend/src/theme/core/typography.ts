@@ -8,7 +8,7 @@ import { themeConfig } from '../theme-config';
 
 /**
  * Local type scale:
- * - body / button: 18px
+ * - body / button: 16px; secondary: 14px
  * - page headings: 28–32px
  * - key numbers: applied via `.metric-value` (36–44px)
  * - chart axes / legends: configured at >= 16px in useChart
@@ -74,16 +74,16 @@ export const typography: TypographyVariantsOptions = {
     fontSize: pxToRem(16),
   },
   body1: {
-    lineHeight: 1.55,
-    fontSize: pxToRem(18),
+    lineHeight: 1.65,
+    fontSize: pxToRem(16),
   },
   body2: {
-    lineHeight: 1.55,
-    fontSize: pxToRem(18),
+    lineHeight: 1.6,
+    fontSize: pxToRem(14),
   },
   caption: {
-    lineHeight: 1.5,
-    fontSize: pxToRem(16),
+    lineHeight: 1.6,
+    fontSize: pxToRem(14),
   },
   overline: {
     fontWeight: 700,
@@ -93,8 +93,8 @@ export const typography: TypographyVariantsOptions = {
   },
   button: {
     fontWeight: 600,
-    lineHeight: 24 / 18,
-    fontSize: pxToRem(18),
+    lineHeight: 1.5,
+    fontSize: pxToRem(16),
     textTransform: 'unset',
   },
 };

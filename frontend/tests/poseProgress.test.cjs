@@ -120,7 +120,8 @@ const startBar = renderToStaticMarkup(React.createElement(StageProgressBar, {
 assert.doesNotMatch(startBar, /progress-bg/);
 assert.match(startBar, /progress-activity/);
 assert.equal(progressBarState({ ...exportStage, phase: 'input_publishing', lidar_total: 0 }).percent, null);
-for (const file of ['StageCard.tsx', '../pages/JobDetailPage.tsx']) {
+// The single progress display lives on stage cards; the compact sidebar does not duplicate it.
+for (const file of ['StageCard.tsx']) {
   const source = fs.readFileSync(path.join(__dirname, '../src/components', file), 'utf8');
   assert.match(source, /<StageProgressBar stage=\{/);
 }

@@ -40,6 +40,10 @@ const PHASE_LABELS: Record<string, string> = {
   optimizing: '优化处理',
   mapping: '表面融合',
   computing: '距离场计算',
+  esdf_generation: '距离计算',
+  slice_rendering: '整理距离切片',
+  building_preview: '生成预览',
+  validating_outputs: '检查输出',
   exporting: '正在导出',
   completed: '已完成',
   failed: '失败',
@@ -141,8 +145,13 @@ export function stagePhaseLabel(stage: StageDetail): string {
   if (stage.stage === 'pose' && stage.backend === 'glim') {
     return posePhaseLabel(stage);
   }
+  if (stage.status === 'waiting') {
+    const match = /^(Pose|Surface) must be completed/.exec(stage.run_blocked_reason || '');
+    if (match) return `等待${match[1] === 'Pose' ? '位姿估计' : '表面重建'}完成`;
+    return stage.can_run ? '准备就绪' : '等待开始';
+  }
   if (stage.status === 'not_integrated') return '未请求';
-  if (stage.status === 'queued') return '排队中';
+  if (stage.status === 'queued') return '等待计算资源';
   if (stage.status === 'cancelling') return '取消中';
   if (stage.status === 'completed') return '已完成';
   if (stage.status === 'failed') return '失败';
@@ -158,7 +167,17 @@ export function stagePhaseLabel(stage: StageDetail): string {
 
 /** 阶段消息的中文摘要；未知英文回退到状态文案，原始消息仍保留在 title 中。 */
 export function stageMessageLabel(stage: StageDetail): string {
+  if (stage.status === 'waiting') return stagePhaseLabel(stage);
+  if (stage.status === 'queued') return '等待计算资源';
+  if (stage.status === 'completed') return '已完成，可查看真实结果';
+  if (stage.status === 'cancelled') return '已取消';
+  if (stage.status === 'cancelling') return '正在取消';
   const message = trimText(stage.message);
+  if (stage.status === 'failed') {
+    const code = /^Algorithm adapter exited with code (\d+)$/.exec(message);
+    return code ? `运行失败（退出代码 ${code[1]}）` : '运行失败，请查看日志与技术详情';
+  }
+  if (/tqdm|融合调用|分母|全包消息/.test(message)) return '正在重建表面';
   if (!message) return statusMessageFallback(stage);
   const mapped = MESSAGE_LABELS[message];
   if (mapped) return mapped;
@@ -271,7 +290,11 @@ export function progressLabel(stage: StageDetail): string {
   if (stage.stage === 'distance' && stage.status === 'completed' && typeof metrics?.observed === 'number') {
     return `输出 ${metrics.observed.toLocaleString('zh-CN')} 有效体素 · 分辨率 ${metrics.resolution_m ?? '—'} m`;
   }
-  if (!stage.total) return '未上报进度';
+  if (stage.stage === 'surface' && typeof metrics?.fused_frames === 'number') {
+    return `已融合 ${metrics.fused_frames.toLocaleString('zh-CN')} 帧 · 选中 ${metrics.selected_frames ?? '—'} 帧`;
+  }
+  if (stage.stage === 'surface' && stage.total > 0) return `处理计数 ${stage.current} / ${stage.total}`;
+  if (!stage.total) return stage.status === 'running' ? '暂未收到计数' : '';
   const unit = unitLabel(stage.unit);
   return `${stage.current} / ${stage.total}${unit ? ` ${unit}` : ''}`;
 }
@@ -282,7 +305,7 @@ export function posePhaseLabel(stage: StageDetail): string {
   if (stage.status === 'cancelled') return '位姿估计已取消';
   if (stage.status === 'cancelling') return '位姿估计取消中';
   if (stage.status === 'queued') return '位姿估计排队中';
-  if (stage.status === 'waiting' && !trimText(stage.phase)) return '等待执行 / 启动 GLIM';
+  if (stage.status === 'waiting') return stage.can_run ? '准备就绪' : '等待开始';
   switch (stage.phase) {
     case 'input_publishing': return '输入发布';
     case 'waiting_glim_export': return '输入发布完成，正在等待 GLIM 导出';

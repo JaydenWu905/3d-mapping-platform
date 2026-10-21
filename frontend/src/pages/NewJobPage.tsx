@@ -160,7 +160,7 @@ function SectionTitle({
           height: 26,
           display: 'grid',
           placeItems: 'center',
-          fontSize: 14,
+          fontSize: 'var(--font-body)',
           fontWeight: 700,
           color: 'common.white',
           bgcolor: 'primary.main',
@@ -170,7 +170,7 @@ function SectionTitle({
       </Box>
       <Box sx={{ minWidth: 0 }}>
         <Typography sx={{ fontSize: 20, fontWeight: 700, lineHeight: 1.35 }}>{title}</Typography>
-        <Typography sx={{ fontSize: 16, color: 'text.secondary' }}>{description}</Typography>
+        <Typography sx={{ fontSize: 'var(--font-body)', color: 'text.secondary' }}>{description}</Typography>
       </Box>
     </Stack>
   );
@@ -187,7 +187,7 @@ function TechnicalDetails({ label, children }: { label: string; children: ReactN
         component="summary"
         sx={{
           cursor: 'pointer',
-          fontSize: 14,
+          fontSize: 'var(--font-body)',
           fontWeight: 600,
           color: 'text.secondary',
           '&:hover': { color: 'text.primary' },
@@ -203,7 +203,7 @@ function TechnicalDetails({ label, children }: { label: string; children: ReactN
           p: 1.5,
           maxHeight: 240,
           overflow: 'auto',
-          fontSize: 12,
+          fontSize: 'var(--font-secondary)',
           lineHeight: 1.55,
           fontFamily: 'var(--mono)',
           whiteSpace: 'pre-wrap',
@@ -402,7 +402,7 @@ export function NewJobPage() {
         <Typography component="h1" sx={{ fontSize: 32, fontWeight: 700, lineHeight: 1.2 }}>
           新建任务
         </Typography>
-        <Typography sx={{ mt: 0.5, fontSize: 16, color: 'text.secondary' }}>
+        <Typography sx={{ mt: 0.5, fontSize: 'var(--font-body)', color: 'text.secondary' }}>
           上传数据、选择设备配置与各阶段算法，然后创建三维建图任务。
         </Typography>
       </Box>
@@ -416,7 +416,7 @@ export function NewJobPage() {
       {!backends || !datasets ? (
         <Stack alignItems="center" spacing={2} sx={{ py: 12, color: 'text.secondary' }}>
           <CircularProgress size={28} />
-          <Typography sx={{ fontSize: 16 }}>加载算法与数据集配置…</Typography>
+          <Typography sx={{ fontSize: 'var(--font-body)' }}>加载算法与数据集配置…</Typography>
         </Stack>
       ) : (
         <Stack spacing={2}>
@@ -435,7 +435,7 @@ export function NewJobPage() {
               }}
             >
               <Box>
-                <Typography sx={{ mb: 1, fontSize: 16, fontWeight: 700 }}>上传 bag 并注册数据集</Typography>
+                <Typography sx={{ mb: 1, fontSize: 'var(--font-body)', fontWeight: 700 }}>上传 bag 并注册数据集</Typography>
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }}>
                   <Button
                     component="label"
@@ -459,7 +459,7 @@ export function NewJobPage() {
                   <Typography
                     sx={{
                       minWidth: 0,
-                      fontSize: 14,
+                      fontSize: 'var(--font-body)',
                       color: uploadFile ? 'text.primary' : 'text.secondary',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
@@ -501,14 +501,14 @@ export function NewJobPage() {
                 {selectedProfile ? (
                   <Stack spacing={0.75} sx={{ mt: 1 }}>
                     {selectedProfile.scope ? (
-                      <Typography sx={{ fontSize: 14, color: 'text.secondary' }}>
+                      <Typography sx={{ fontSize: 'var(--font-body)', color: 'text.secondary' }}>
                         适用范围：{selectedProfile.scope}
                       </Typography>
                     ) : null}
-                    <Typography sx={{ fontSize: 14, color: 'text.secondary' }}>
+                    <Typography sx={{ fontSize: 'var(--font-body)', color: 'text.secondary' }}>
                       {selectedProfile.calibration_note}
                     </Typography>
-                    <Typography sx={{ fontSize: 12, color: 'text.disabled' }}>
+                    <Typography sx={{ fontSize: 'var(--font-secondary)', color: 'text.disabled' }}>
                       大小限制：
                       {selectedProfile.size_bytes !== undefined
                         ? `须恰好 ${selectedProfile.size_bytes.toLocaleString('zh-CN')} 字节`
@@ -538,7 +538,7 @@ export function NewJobPage() {
                           />
                         }
                         label={
-                          <Typography sx={{ fontSize: 14 }}>
+                          <Typography sx={{ fontSize: 'var(--font-body)' }}>
                             {selectedProfile.attestation_label || '我确认本次数据与所选设备配置为同一套设备'}
                           </Typography>
                         }
@@ -558,14 +558,14 @@ export function NewJobPage() {
                     {uploading ? `上传与预检中 ${uploadProgress}%` : '上传、预检并注册数据集'}
                   </Button>
                   {uploadBlockedReason ? (
-                    <Typography sx={{ fontSize: 14, color: 'text.secondary' }}>{uploadBlockedReason}</Typography>
+                    <Typography sx={{ fontSize: 'var(--font-body)', color: 'text.secondary' }}>{uploadBlockedReason}</Typography>
                   ) : null}
                 </Stack>
 
                 {uploading ? (
                   <Box sx={{ mt: 1.5 }}>
                     <LinearProgress variant="determinate" value={uploadProgress} sx={{ height: 8 }} />
-                    <Typography sx={{ mt: 0.5, fontSize: 12, color: 'text.secondary' }}>
+                    <Typography sx={{ mt: 0.5, fontSize: 'var(--font-secondary)', color: 'text.secondary' }}>
                       分块上传中，可中断后继续；完成后自动进入 CPU 预检与数据集注册。
                     </Typography>
                   </Box>
@@ -593,12 +593,12 @@ export function NewJobPage() {
               </Box>
 
               <Box>
-                <Typography sx={{ mb: 1, fontSize: 16, fontWeight: 700 }}>已注册数据集</Typography>
+                <Typography sx={{ mb: 1, fontSize: 'var(--font-body)', fontWeight: 700 }}>已注册数据集</Typography>
                 {datasets.length === 0 ? (
                   <Box
                     sx={{
                       p: 2,
-                      fontSize: 14,
+                      fontSize: 'var(--font-body)',
                       color: 'text.secondary',
                       border: '1px dashed',
                       borderColor: 'divider',
@@ -639,18 +639,18 @@ export function NewJobPage() {
                         />
                         <Box sx={{ minWidth: 0, flex: 1 }}>
                           <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap">
-                            <Typography sx={{ fontSize: 15, fontWeight: 700 }}>{ds.name}</Typography>
-                            <Box component="code" sx={{ fontSize: 12, color: 'text.secondary', wordBreak: 'break-all' }}>
+                            <Typography sx={{ fontSize: 'var(--font-body)', fontWeight: 700 }}>{ds.name}</Typography>
+                            <Box component="code" sx={{ fontSize: 'var(--font-secondary)', color: 'text.secondary', wordBreak: 'break-all' }}>
                               {ds.id}
                             </Box>
                           </Stack>
                           {ds.description && hasChinese(ds.description) ? (
-                            <Typography sx={{ mt: 0.25, fontSize: 13, color: 'text.secondary' }}>
+                            <Typography sx={{ mt: 0.25, fontSize: 'var(--font-secondary)', color: 'text.secondary' }}>
                               {ds.description}
                             </Typography>
                           ) : null}
                           {ds.input_manifest?.execution === 'mock' ? (
-                            <Typography sx={{ mt: 0.5, fontSize: 13, color: 'primary.dark', fontWeight: 600 }}>
+                            <Typography sx={{ mt: 0.5, fontSize: 'var(--font-secondary)', color: 'primary.dark', fontWeight: 600 }}>
                               演示任务 · 合成数据 · 后台每阶段约30秒
                             </Typography>
                           ) : null}
@@ -710,11 +710,11 @@ export function NewJobPage() {
                 const selectedPoseBackend = backends.groups.pose?.find((item) => item.id === selected.pose);
                 return (
                   <Box key={stage}>
-                    <Typography sx={{ mb: 1, fontSize: 16, fontWeight: 700 }}>
+                    <Typography sx={{ mb: 1, fontSize: 'var(--font-body)', fontWeight: 700 }}>
                       {STAGE_NAMES[stage]}
                     </Typography>
                     {definitions.length === 0 ? (
-                      <Typography sx={{ fontSize: 14, color: 'text.secondary' }}>
+                      <Typography sx={{ fontSize: 'var(--font-body)', color: 'text.secondary' }}>
                         该阶段暂无可用算法。
                       </Typography>
                     ) : (
@@ -759,7 +759,7 @@ export function NewJobPage() {
                               />
                               <Box sx={{ minWidth: 0, flex: 1 }}>
                                 <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap">
-                                  <Typography sx={{ fontSize: 15, fontWeight: 700 }}>
+                                  <Typography sx={{ fontSize: 'var(--font-body)', fontWeight: 700 }}>
                                     {backend.display_name}
                                   </Typography>
                                   <Box
@@ -767,7 +767,7 @@ export function NewJobPage() {
                                     sx={{
                                       px: 0.75,
                                       py: 0.1,
-                                      fontSize: 11,
+                                      fontSize: 'var(--font-secondary)',
                                       fontWeight: 600,
                                       color: tone === 'default' ? 'text.secondary' : `${tone}.dark`,
                                       bgcolor: tone === 'default' ? 'grey.100' : `${tone}.lighter`,
@@ -778,7 +778,7 @@ export function NewJobPage() {
                                     {BACKEND_STATUS_LABELS[backend.status] ?? backend.status}
                                   </Box>
                                 </Stack>
-                                <Typography sx={{ mt: 0.25, fontSize: 11, color: 'text.disabled', wordBreak: 'break-all' }}>
+                                <Typography sx={{ mt: 0.25, fontSize: 'var(--font-secondary)', color: 'text.disabled', wordBreak: 'break-all' }}>
                                   输入：{backend.input_modalities.map(modalityLabel).join(' / ') || '—'}
                                 </Typography>
                                 {incompatibility ? (
@@ -833,7 +833,7 @@ export function NewJobPage() {
             >
               {hasRunModes ? (
                 <Box>
-                  <Typography sx={{ mb: 0.75, fontSize: 16, fontWeight: 700 }}>范围模式</Typography>
+                  <Typography sx={{ mb: 0.75, fontSize: 'var(--font-body)', fontWeight: 700 }}>范围模式</Typography>
                   <FormControl fullWidth size="small">
                     <Select
                       value={runMode}
@@ -844,7 +844,7 @@ export function NewJobPage() {
                       <MenuItem value="short">短段验证</MenuItem>
                     </Select>
                   </FormControl>
-                  <Typography sx={{ mt: 0.75, fontSize: 14, color: 'text.secondary' }}>
+                  <Typography sx={{ mt: 0.75, fontSize: 'var(--font-body)', color: 'text.secondary' }}>
                     {runMode === 'full'
                       ? '完整运行：位姿估计处理完整序列，表面重建处理全部可用帧，不限制前 100 帧。'
                       : '短段验证：位姿估计处理完整序列，表面重建仅处理原始第 1–100 帧，沿用已验证策略。'}
@@ -854,7 +854,7 @@ export function NewJobPage() {
 
               {!real ? (
                 <Box>
-                  <Typography sx={{ mb: 0.75, fontSize: 16, fontWeight: 700 }}>演示失败选项</Typography>
+                  <Typography sx={{ mb: 0.75, fontSize: 'var(--font-body)', fontWeight: 700 }}>演示失败选项</Typography>
                   <FormControl fullWidth size="small">
                     <Select
                       value={failStage}
@@ -867,7 +867,7 @@ export function NewJobPage() {
                       <MenuItem value="distance">{STAGE_NAMES.distance}阶段失败</MenuItem>
                     </Select>
                   </FormControl>
-                  <Typography sx={{ mt: 0.75, fontSize: 14, color: 'text.secondary' }}>
+                  <Typography sx={{ mt: 0.75, fontSize: 'var(--font-body)', color: 'text.secondary' }}>
                     仅模拟运行器（Mock Runner）使用，用于演示阶段失败、取消与重跑；真实算法接入后自动忽略。
                   </Typography>
                 </Box>
@@ -902,7 +902,7 @@ export function NewJobPage() {
               取消
             </Button>
             <Box sx={{ flex: 1 }} />
-            <Typography sx={{ fontSize: 14, color: 'text.secondary' }}>
+            <Typography sx={{ fontSize: 'var(--font-body)', color: 'text.secondary' }}>
               将创建：{requiredStages.map((stage) => STAGE_NAMES[stage]).join(' → ')}
               {real ? '（自动运行）' : '（演示）'}
             </Typography>

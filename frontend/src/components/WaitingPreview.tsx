@@ -1,248 +1,61 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Alert,
-  Box,
-  Typography,
-} from '@mui/material';
+import { useEffect, useRef, useState } from 'react';
+import { Box, Typography } from '@mui/material';
 import type { StageDetail } from '../types';
-import { stagePhaseLabel } from './progressLabel';
 import { useReducedMotion } from '../hooks/useReducedMotion';
-import { drawWaitingScene, stageColor } from './waitingPreview/draw';
-import { advanceRobotProgress, buildScannerMap } from './waitingPreview/route';
-import { variantForRun } from './waitingPreview/variation';
-import {
-  deriveWaitingPreviewState,
-  type WaitingPreviewMode,
-} from './waitingPreview/state';
+import { stageNotice, waitingMessages, waitingTitle } from './waitingPreview/presentation';
 
-export type WaitingPreviewProps = {
-  stage: StageDetail;
-  connected: boolean;
-  runKey?: string;
-};
-const FRAME_INTERVAL_MS = 1000 / 30;
-const DPR_CAP = 2;
-const STAGE_ORDINALS = { pose: '第一阶段', surface: '第二阶段', distance: '第三阶段' };
+export type WaitingPreviewProps = { stage: StageDetail; connected: boolean; runKey?: string };
 
-function noticeSeverity(
-  mode: WaitingPreviewMode,
-): 'info' | 'warning' | 'error' {
-  if (mode === 'failed') return 'error';
-  if (mode === 'cancelled' || mode === 'completed-missing') return 'warning';
-  return 'info';
+/** Decorative SVG loops have no access to counters, percentages or elapsed time. */
+function ProcessingGlyph({ stage }: { stage: string }) {
+  return <svg className="processing-glyph" viewBox="0 0 280 150" aria-hidden="true">
+    {stage === 'pose' ? <g fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M55 95 L98 53 L143 88 L186 52 L225 75" opacity=".16" />
+      <path className="processing-trace" d="M55 95 L98 53 L143 88 L186 52 L225 75" />
+      {[[55,95],[98,53],[143,88],[186,52],[225,75]].map(([x,y],i)=><circle className="processing-dot" style={{animationDelay:`${i * .5}s`}} key={i} cx={x} cy={y} r="5" fill="currentColor" stroke="none" />)}
+    </g> : stage === 'surface' ? <g stroke="currentColor" strokeWidth="1.5">
+      {[[102,50],[140,50],[178,50],[83,83],[121,83],[159,83],[197,83]].map(([x,y],i)=><g className="processing-voxel" style={{animationDelay:`${i * .4}s`}} key={i} transform={`translate(${x} ${y})`}>
+        <path d="M0 -15 L17 -5 L0 5 L-17 -5 Z" fill="currentColor" fillOpacity=".2" />
+        <path d="M-17 -5 L0 5 L0 25 L-17 15 Z M0 5 L17 -5 L17 15 L0 25 Z" fill="currentColor" fillOpacity=".08" />
+      </g>)}
+    </g> : <g fill="none" stroke="currentColor" strokeWidth="1.5">
+      {[1,2,3].map(i=><ellipse key={i} className="processing-contour" style={{animationDelay:`${i * .7}s`}} cx="140" cy="76" rx={30+i*23} ry={14+i*12} />)}
+      <path d="M108 81 L124 60 L153 57 L173 79 L151 94 L124 96 Z" fill="currentColor" fillOpacity=".12" strokeWidth="2" />
+    </g>}
+  </svg>;
 }
 
-/**
- * 当前阶段没有可用真实产物时的等待区。
- * 画面在有效进度范围内随小车同步展开；新一轮自动更换房间和方向，没有场景交互。
- */
 export function WaitingPreview({ stage, connected, runKey }: WaitingPreviewProps) {
-  const reducedMotion = useReducedMotion();
+  const reduced = useReducedMotion();
   const everConnected = useRef(false);
-  useEffect(() => {
-    if (connected) everConnected.current = true;
-  }, [connected]);
-  const connectionLost = everConnected.current && !connected;
-
-  const state = useMemo(
-    () => deriveWaitingPreviewState(stage, connected, connectionLost),
-    [stage, connected, connectionLost],
-  );
-
-  const sceneKey = runKey ?? `${stage.stage}:${stage.backend}:${stage.started_at ?? 'pending'}`;
-  const variant = useMemo(() => variantForRun(sceneKey), [sceneKey]);
-  const [hidden, setHidden] = useState(
-    () => typeof document !== 'undefined' && document.hidden,
-  );
-
-  const map = useMemo(() => buildScannerMap(variant.room, variant.direction), [variant]);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const wrapRef = useRef<HTMLDivElement | null>(null);
-  const rafRef = useRef<number | null>(null);
-  const timeRef = useRef(0);
-  const robotProgressRef = useRef(state.reveal);
-  const lastTickRef = useRef(0);
-  const lastDrawRef = useRef(0);
-  const sceneRef = useRef({ map, state, reducedMotion });
-  sceneRef.current = { map, state, reducedMotion };
-
-  const renderFrame = useCallback((advance: boolean) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const width = canvas.clientWidth;
-    const height = canvas.clientHeight;
-    if (width < 2 || height < 2) return;
-
-    const dpr = Math.min(DPR_CAP, Math.max(1, window.devicePixelRatio || 1));
-    const pixelWidth = Math.round(width * dpr);
-    const pixelHeight = Math.round(height * dpr);
-    if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
-      canvas.width = pixelWidth;
-      canvas.height = pixelHeight;
-    }
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    const snapshot = sceneRef.current;
-    if (advance) {
-      const now = performance.now();
-      const delta = lastTickRef.current
-        ? Math.min(0.1, (now - lastTickRef.current) / 1000)
-        : 0;
-      lastTickRef.current = now;
-      timeRef.current += delta;
-      if (!snapshot.state.standby) {
-        robotProgressRef.current = advanceRobotProgress(snapshot.map, robotProgressRef.current, snapshot.state.reveal, delta);
-      }
-    }
-
-    if (!snapshot.state.showScene) return;
-    if (snapshot.reducedMotion) robotProgressRef.current = snapshot.state.reveal;
-    drawWaitingScene(ctx, width, height, {
-      map: snapshot.map,
-      progress: snapshot.state.reveal,
-      robotProgress: robotProgressRef.current,
-      stage: snapshot.state.stage,
-      standby: snapshot.state.standby,
-      time: timeRef.current,
-    });
-  }, []);
-
-  const canAnimate =
-    state.animate &&
-    state.showScene &&
-    !reducedMotion &&
-    !hidden;
-
-  // 新一轮使用新的自动场景，清空上一轮的动画计时。
-  useEffect(() => {
-    timeRef.current = 0;
-    robotProgressRef.current = sceneRef.current.state.reveal;
-    lastTickRef.current = 0;
-    lastDrawRef.current = 0;
-    renderFrame(false);
-  }, [sceneKey, renderFrame]);
-
-  // 尺寸变化时重建 DPR 画布；只在静态时立即重绘，动画由唯一 RAF 负责。
-  useEffect(() => {
-    const wrap = wrapRef.current;
-    if (!wrap) return undefined;
-    const observer = new ResizeObserver(() => {
-      if (!canAnimate) renderFrame(false);
-    });
-    observer.observe(wrap);
-    renderFrame(false);
-    return () => observer.disconnect();
-  }, [canAnimate, renderFrame]);
-
-  // 减少动态效果、页面隐藏或状态不支持动画时，保留静态帧但响应新快照。
-  useEffect(() => {
-    if (!canAnimate) renderFrame(false);
-  }, [
-    canAnimate,
-    state,
-    map,
-    reducedMotion,
-    hidden,
-    renderFrame,
-  ]);
-
-  useEffect(() => {
-    if (!canAnimate) return undefined;
-    let cancelled = false;
-    lastTickRef.current = performance.now();
-    lastDrawRef.current = 0;
-
-    const loop = (now: number) => {
-      if (cancelled) return;
-      rafRef.current = requestAnimationFrame(loop);
-      if (now - lastDrawRef.current < FRAME_INTERVAL_MS) return;
-      lastDrawRef.current = now;
-      renderFrame(true);
-    };
-    rafRef.current = requestAnimationFrame(loop);
-
-    return () => {
-      cancelled = true;
-      if (rafRef.current !== null) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
-      lastTickRef.current = 0;
-    };
-  }, [canAnimate, renderFrame]);
-
+  if (connected) everConnected.current = true;
+  const [hidden, setHidden] = useState(() => document.hidden);
+  const [copyIndex, setCopyIndex] = useState(0);
+  const running = stage.status === 'running';
+  const animate = running && connected && !reduced && !hidden;
+  const messages = waitingMessages(stage);
+  const phaseKey = `${runKey}:${stage.stage}:${stage.status}:${stage.phase}`;
+  useEffect(() => { setCopyIndex(0); }, [phaseKey]);
   useEffect(() => {
     const onVisibility = () => setHidden(document.hidden);
     document.addEventListener('visibilitychange', onVisibility);
     return () => document.removeEventListener('visibilitychange', onVisibility);
   }, []);
-
-  const accent = stageColor(state.stage);
-  const motionNote = reducedMotion ? '静态显示' : '';
-  const phase = connectionLost ? '连接中断，正在重连'
-    : state.standby ? stage.phase === 'associating' ? '轨迹关联' : '等待轨迹导出'
-    : stagePhaseLabel(stage);
-  const caption = state.mode === 'not-started'
-    ? `${STAGE_ORDINALS[state.stage]}尚未开始`
-    : `${state.stageLabel}：${phase}`;
-
-  return (
-    <Box
-      ref={wrapRef}
-      className={`waiting-preview waiting-preview--${state.mode}`}
-      data-waiting-stage={state.stage}
-      data-waiting-mode={state.mode}
-      data-waiting-scene={state.showScene ? 'true' : 'false'}
-      data-waiting-reveal={state.reveal.toFixed(4)}
-      data-waiting-percent={state.percent === null ? '' : state.percent.toFixed(2)}
-      data-waiting-animating={canAnimate ? 'true' : 'false'}
-      data-waiting-room={variant.room}
-      data-waiting-direction={variant.direction}
-      sx={{ '--waiting-accent': accent }}
-    >
-      <Box className="waiting-preview__top">
-        <Box className="waiting-preview__tag">等待动画 · 非实时地图</Box>
-        <Typography className="waiting-preview__stage">{state.stageLabel}</Typography>
-        <Box sx={{ flex: 1 }} />
-        {motionNote ? (
-          <Typography className="waiting-preview__motion">{motionNote}</Typography>
-        ) : null}
-        <Typography className="waiting-preview__percent">
-          {state.percentText}
-        </Typography>
-      </Box>
-
-      {state.showScene ? (
-        <>
-          <canvas
-            ref={canvasRef}
-            className="waiting-preview__canvas"
-            aria-hidden="true"
-          />
-          <Box className="waiting-preview__bottom">
-            <Typography className="waiting-preview__title" role="status" aria-live="polite">
-              {caption}
-            </Typography>
-          </Box>
-        </>
-      ) : (
-        <Box className="waiting-preview__notice">
-          <Alert severity={noticeSeverity(state.mode)} sx={{ maxWidth: 560 }}>
-            <Typography sx={{ fontSize: 16, fontWeight: 700 }}>
-              {state.title}
-            </Typography>
-            <Typography sx={{ fontSize: 13, lineHeight: 1.6 }}>
-              {state.detail}
-            </Typography>
-          </Alert>
-          <Typography className="waiting-preview__footnote">
-            图形为示意，不是真实地图；不会用示意动画代替真实结果。
-          </Typography>
-        </Box>
-      )}
+  useEffect(() => {
+    if (!animate || messages.length < 2) return undefined;
+    const timer = window.setInterval(() => setCopyIndex(i => i + 1), 18000);
+    return () => window.clearInterval(timer);
+  }, [animate, messages.length, phaseKey]);
+  const notice = stageNotice(stage);
+  return <Box className="processing-preview" data-waiting-stage={stage.stage} data-waiting-mode={stage.status}
+    data-waiting-animating={animate ? 'true' : 'false'} data-reduced-motion={reduced ? 'true' : 'false'}>
+    <span className="processing-preview__tag">处理示意</span>
+    <Box className={`processing-preview__art processing-preview__art--${stage.stage}`}>
+      {running ? <ProcessingGlyph stage={stage.stage} /> : <span className="processing-preview__symbol" aria-hidden="true">{stage.status === 'failed' ? '!' : stage.status === 'cancelled' ? '—' : stage.status === 'queued' ? '···' : '◇'}</span>}
     </Box>
-  );
+    <Typography className="processing-preview__title">{waitingTitle(stage)}</Typography>
+    <Typography className="processing-preview__copy">{messages[copyIndex % messages.length]}</Typography>
+    {notice && stage.status !== 'failed' ? <Typography color="warning.main">{notice.text}</Typography> : null}
+    {!connected && running ? <Typography color="text.secondary">{everConnected.current ? '连接中断，正在重连；保留最后收到的状态。' : '正在连接状态服务。'}</Typography> : null}
+  </Box>;
 }

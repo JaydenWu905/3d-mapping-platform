@@ -151,7 +151,8 @@ export function EsdfViewer({ jobId, stage, slices, artifacts }: EsdfViewerProps)
         <span className="gradient-note">{arrows && arrows[plane] ? `|∇| 最大值 = ${arrows[plane].magnitude_max}` : ''}</span>
       </div>
 
-      <p className="esdf-legend">单位 m；红色 −1.5 → 紫色 0 → 蓝色 +1.5。正侧沿原 TSDF 传感器侧；白色为无有效预览采样，不能当作自由空间。切片仅显示 |d|≤1.5 m 的观测支持域，原生地图计算半径为 2.5 m；未分配或未观测体素均为未知。</p>
+      <p className="esdf-legend">距离（m）：红 −1.5 → 紫 0 → 蓝 +1.5。白色无有效预览采样，不能视为自由空间。</p>
+      <details className="esdf-explanation"><summary>距离场说明</summary><p>正侧沿原 TSDF 传感器侧。切片仅显示 |d|≤1.5 m 的观测支持域；原生地图计算半径为 2.5 m，未分配或未观测体素均为未知。预览筛选不改变原生产物。</p></details>
     </div>
   );
 }
