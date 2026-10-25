@@ -13,3 +13,7 @@
 本机验收使用的 `pygeowrapper.cpython-311-x86_64-linux-gnu.so` SHA-256 为 `d4d8da277b29836746eb01c1bc0f7b1d16189071fd2b8f8cbd161f4fd6d89267`。其构建时间早于当前 `geowrapper.cpp`，现有 CMake/Ninja 元数据也不完全一致；**尚未证明保存源码能逐字节生成已验收扩展**。不要把 `.pixi`、build、`.so` 或整套环境放进平台仓库。新机器须独立重建并重新验收，细节见[恢复说明](DEPLOYMENT_INS_RELEASE.md#8-恢复和迁移本轮不执行安装构建)。
 
 本机 MrHash 工作区另有未提交的 RGB-D、实验配置与 profiler 文件；这些不属于已验收 LiDAR 发布内容，不能混入上述提交。
+
+## 2026-10-25 发布候选更新
+
+计划把上述两个独立提交保留在平台目标仓库的 `dependency/mrhash-ins-20261025` 引用，以便审查并从可访问 Git 地址检出；这不是把 MrHash 二进制塞入平台源码。当前机器 GitHub HTTPS 没有写入凭据、SSH publickey 被拒，实际推送失败；该引用**尚未发布**。新机器重新构建和原生扩展来源验证仍是完整真实链路的阻断。见 [本轮验证](RELEASE_VALIDATION_20261025.md)。
