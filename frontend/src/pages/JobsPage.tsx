@@ -1,3 +1,4 @@
+import { jobDisplayName } from '../utils/jobName';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -313,7 +314,7 @@ export function JobsPage() {
             size="small"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="搜索任务 ID 或数据集"
+            placeholder="搜索任务名称或数据集"
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -356,7 +357,7 @@ export function JobsPage() {
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>任务 ID</TableCell>
+                  <TableCell>任务名称</TableCell>
                   <TableCell>数据集</TableCell>
                   <TableCell>创建时间</TableCell>
                   <TableCell>状态</TableCell>
@@ -384,10 +385,10 @@ export function JobsPage() {
                         <TableCell>
                           <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
                             <Box
-                              component="code"
+                              component="span"
                               sx={{ fontSize: 'var(--font-body)', fontWeight: 600, wordBreak: 'break-all' }}
                             >
-                              {job.job_id}
+                              {jobDisplayName(job)}
                             </Box>
                             {job.preview_job ? (
                               <Box
@@ -479,7 +480,7 @@ export function JobsPage() {
         <DialogTitle>删除任务</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ fontSize: 'var(--font-body)' }}>
-            确认删除任务 <Box component="code">{pendingDelete?.job_id}</Box> ？
+            确认删除任务 <Box component="code">{pendingDelete ? jobDisplayName(pendingDelete) : ''}</Box> ？
             该操作会删除其磁盘上的所有数据，且不可恢复。
           </DialogContentText>
           {deleteError ? (

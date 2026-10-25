@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import Alert from '@mui/material/Alert';
@@ -26,6 +26,11 @@ import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
 
 import { api, messageOf } from '../api/api';
 import { ArtifactsPanel } from '../components/ArtifactsPanel';
+import { ResultDetails, RawResultDetails } from '../components/ResultDetails';
+import { RenameJobDialog } from '../components/RenameJobDialog';
+import { readableNumber } from '../components/resultPresentation';
+import { jobDisplayName } from '../utils/jobName';
+import { TaskTitleContext } from '../hooks/taskTitle';
 import { DurationComparison } from '../components/DurationComparison';
 import { Chart, useChart } from '../components/chart';
 import { LogViewer } from '../components/LogViewer';
@@ -39,7 +44,7 @@ import {
   stagePhaseLabel,
 } from '../components/progressLabel';
 import { StatusBadge } from '../components/StatusBadge';
-import { durationRows, historicalStageSeconds, inputEta, measuredProgress, stageEta, type CountSample } from '../components/runInsight';
+import { durationRows, measuredProgress } from '../components/runInsight';
 import { stageNotice } from '../components/waitingPreview/presentation';
 import { WaitingPreview } from '../components/WaitingPreview';
 import { hasUsablePreview } from '../components/waitingPreview/artifacts';
@@ -80,22 +85,6 @@ function previewHint(stage: StageDetail): string {
   return '等待动画 · 非实时地图';
 }
 
-function validationText(scope: string | undefined, stages?: string[]): string {
-  if (stages?.includes("distance")) {
-    return "本任务包含三个阶段；运行状态、原生产物与工程验收分别记录。工程链路成功不代表建图精度或规划安全已验收。";
-  }
-  if (scope === 'ins_full_pose_surface') {
-    return '本任务使用已验证的 INS profile 运行完整两阶段；完成情况以任务状态为准，不代表任意 bag 兼容或建图精度通过。';
-  }
-  if (scope === 'custom_device_pose_surface_unverified') {
-    return '本任务使用自采设备配置；CPU 预检和参数匹配不代表 GLIM/MrHash 结果或精度已验收。';
-  }
-  if (scope === 'full_surface_only') {
-    return '本任务仅验收完整表面重建，不代表完整一键流程或建图精度通过。';
-  }
-  return '短段成功不代表完整场景重建或精度验收。';
-}
-
 function poseScopeText(job: JobDetail): string {
   const pose = job.run_scope?.pose;
   if (pose === 'reused') return '复用已有真实位姿（本任务未运行位姿估计算法）';
@@ -115,25 +104,18 @@ export function JobDetailPage() {
   const [busy, setBusy] = useState(false);
   const [displayMode, setDisplayMode] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const setTaskTitle = useContext(TaskTitleContext);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const everConnected = useRef(false);
   const reducedMotion = useReducedMotion();
   const [now, setNow] = useState(Date.now());
-  const [historical, setHistorical] = useState<{ jobId: string; jobs: JobDetail[] }>({ jobId: '', jobs: [] });
   const anchors = useRef<Partial<Record<StageKey, { run: string; reported: number; at: number }>>>({});
-  const inputHistory = useRef<{ run: string; samples: CountSample[] }>({ run: '', samples: [] });
 
   useEffect(() => {
-    if (!job || !visibleStageKeys(job).some(key => job.stages[key].status === 'running') || job.preview_job) return undefined;
-    let cancelled = false;
-    void api.listJobs().then(async list => {
-      const matches = list.filter(item => item.job_id !== job.job_id && item.dataset === job.dataset && item.status === 'completed' && !item.preview_job).slice(0, 12);
-      const settled = await Promise.allSettled(matches.map(item => api.getJob(item.job_id)));
-      if (!cancelled) setHistorical({ jobId: job.job_id, jobs: settled.flatMap(result => result.status === 'fulfilled' ? [result.value] : []) });
-    }).catch(() => { if (!cancelled) setHistorical({ jobId: job.job_id, jobs: [] }); });
-    return () => { cancelled = true; };
-  }, [job?.job_id, job?.dataset, job?.preview_job, job?.status]);
+    if (job?.job_id === jobId) setTaskTitle({ path: `/jobs/${jobId}`, title: jobDisplayName(job) });
+  }, [jobId, job?.job_id, job?.name, job?.created_at, setTaskTitle]);
 
   useEffect(() => {
     if (!job || !visibleStageKeys(job).some(key => ['running', 'cancelling'].includes(job.stages[key].status))) return undefined;
@@ -211,22 +193,8 @@ export function JobDetailPage() {
     if (!anchor || anchor.run !== run || anchor.reported !== reported) anchors.current[key] = { run, reported, at: now };
     liveElapsed[key] = reported + Math.max(0, (now - anchors.current[key]!.at) / 1000);
   }
-  const pose = job?.stages.pose;
-  if (job && pose) {
-    const run = `${job.job_id}:pose:${pose.started_at ?? 'pending'}`;
-    if (inputHistory.current.run !== run) inputHistory.current = { run, samples: [] };
-    const count = Number(pose.lidar_published ?? 0);
-    const samples = inputHistory.current.samples;
-    if (pose.status === 'running' && pose.phase === 'input_publishing' && Number.isFinite(count) && count >= 0 &&
-        (!samples.length || samples[samples.length - 1].count !== count)) {
-      inputHistory.current.samples = [...samples, { at: now, count }].slice(-30);
-    }
-  }
   const durationData = job ? durationRows(job, visibleStageKeys(job), liveElapsed) : [];
   const currentElapsed = stage && isStageKey(stage.stage) ? liveElapsed[stage.stage] ?? stage.elapsed_sec : 0;
-  const historicalSeconds = job && stage && isStageKey(stage.stage) && historical.jobId === job.job_id
-    ? historicalStageSeconds(job, historical.jobs, stage.stage) : null;
-  const measuredInputEta = stage?.stage === 'pose' ? inputEta(stage, inputHistory.current.samples) : null;
 
   const observedChartOptions = useChart({
     chart: { type: 'line', animations: { enabled: !reducedMotion, speed: 360 } },
@@ -335,15 +303,15 @@ export function JobDetailPage() {
               <Typography
                 component="h1"
                 sx={{
-                  fontFamily: 'var(--mono)',
                   fontSize: 30,
                   fontWeight: 700,
                   lineHeight: 1.2,
                   wordBreak: 'break-all',
                 }}
               >
-                {job.job_id}
+                {jobDisplayName(job)}
               </Typography>
+              <Button size="small" onClick={() => setRenameOpen(true)}>重命名</Button>
               {isDemo ? (
                 <Box
                   component="span"
@@ -480,12 +448,7 @@ export function JobDetailPage() {
         </Alert>
       ) : null}
 
-      <Box className="job-scope-summary">
-        <span>{job.run_mode === 'short' ? '短段运行' : job.run_mode === 'full' ? '完整运行' : '运行范围'}</span>
-        <span>位姿：{poseScopeText(job)}</span>
-        <span>{job.run_scope ? `表面：第 ${job.run_scope.surface_start_frame}–${job.run_scope.surface_end_frame ?? '末尾'} 帧` : '表面：未登记帧范围'}</span>
-        <span className="job-scope-summary__note">标定依据待确认，详见运行说明。</span>
-      </Box>
+      {job.run_mode ? <Box className="job-scope-summary"><span>{job.run_mode === 'short' ? '短段验证' : '完整运行'}</span></Box> : null}
 
       <Card sx={{ p: 2, mb: 2, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
         <PipelineView
@@ -580,7 +543,6 @@ export function JobDetailPage() {
                   setSelectedStage(key);
                 }}
                 elapsed={previewStage.status === 'running' && isStageKey(previewStage.stage) ? liveElapsed[previewStage.stage] : undefined}
-                etaText={previewStage === stage ? stageEta(previewStage, currentElapsed, historicalSeconds, measuredInputEta) : undefined}
               />
             ) : (
               <Box className="viewer-empty">该任务没有阶段信息。</Box>
@@ -625,9 +587,6 @@ export function JobDetailPage() {
                     {measuredProgress(stage).label}
                   </Typography>
                   <Typography className="run-insight__elapsed">已运行 {formatElapsed(currentElapsed)}</Typography>
-                  <Typography className="run-insight__eta" data-eta-source={measuredInputEta !== null ? 'input-rate' : historicalSeconds !== null && currentElapsed < historicalSeconds * .8 ? 'history' : 'unavailable'}>
-                    预计剩余：{stageEta(stage, currentElapsed, historicalSeconds, measuredInputEta)}
-                  </Typography>
                 </> : null}
               </Stack>
 
@@ -656,12 +615,31 @@ export function JobDetailPage() {
           alignItems: 'start',
         }}
       >
-        <CollapsibleSection title="技术详情" summary="原始计数含义、状态字段与本页观测图表。">
+        <CollapsibleSection title="结果详情" summary="当前阶段的关键指标与预览说明。" defaultOpen={!!stage?.manifest}>
+          {stage ? <><Typography component="h3" sx={{ fontSize: 20, fontWeight: 700 }}>{STAGE_NAMES[stage.stage as StageKey]}</Typography><ResultDetails stage={stage.stage} manifest={stage.manifest} /></> : null}
+        </CollapsibleSection>
+
+        <CollapsibleSection title="下载" summary="按阶段查看原生产物、处理数据与预览文件。">
+          {STAGE_ORDER.filter(key => requestedStages.includes(key) || job.stages[key].manifest).map(key => <section className="stage-downloads" key={key} data-download-stage={key}>
+            <Typography component="h3" sx={{ fontSize: 20, fontWeight: 700 }}>{STAGE_NAMES[key]}</Typography>
+            <ArtifactsPanel jobId={job.job_id} stage={key} manifest={job.stages[key].manifest} />
+          </section>)}
+        </CollapsibleSection>
+
+        <CollapsibleSection title="技术详情" summary="内部标识、原始结果、运行范围与诊断信息。">
+          <Stack spacing={1} sx={{ mb: 2 }}>
+            <InfoRow label="Job ID" value={job.job_id} mono />
+            <InfoRow label="位姿范围" value={poseScopeText(job)} />
+            <InfoRow label="表面帧范围" value={job.run_scope ? `第 ${job.run_scope.surface_start_frame}–${job.run_scope.surface_end_frame ?? '末尾'} 帧` : '未登记'} />
+            <InfoRow label="标定依据" value="待确认；原始设备配置保留在设备与算法配置中。" />
+            <InfoRow label="验收记录" value={job.validation_scope || '未登记'} mono />
+          </Stack>
+          <RawResultDetails manifest={stage?.manifest ?? null} />
           {stage ? <Stack spacing={1}>
             <InfoRow label="后端能力状态" value={BACKEND_STATUS_LABELS[stage.backend_status] ?? stage.backend_status} />
             <InfoRow label="原始单位" value={stage.unit || '—'} />
             <InfoRow label="原始消息" value={stage.message || '—'} />
-            <Typography>运行中的 Surface 处理计数沿用算法上报值（tqdm 融合调用数），分母为全包消息数；最终已融合、选中及跳过数量以结果统计为准。</Typography>
+            <Typography>运行中的 Surface 输入进度来自当前运行中成功返回的 compute 调用数 / 选中帧总量；已关联与已跳过计数由 reader 上报。输入结束后的导出与 GLB 生成独立显示；Distance 百分比只表示当前环节。</Typography>
             <InfoRow label="启动限制" value={stage.run_blocked_reason || '无'} />
           </Stack> : null}
 
@@ -673,7 +651,7 @@ export function JobDetailPage() {
                 type="line"
                 className="detail-observe-chart"
                 series={[
-                  { name: '输入发布进度', data: inputSeries },
+                  { name: '输入处理进度', data: inputSeries },
                   { name: '阶段进度', data: stageSeries },
                 ]}
                 options={observedChartOptions}
@@ -683,19 +661,6 @@ export function JobDetailPage() {
                 只记录本页面打开后的真实读数；刷新页面后重新观测，不补造历史。
               </Typography>
 
-        </CollapsibleSection>
-
-        <CollapsibleSection
-          title="下载与结果详情"
-          summary="完整文件、预览清单与原始结果指标。"
-        >
-          {stage ? (
-            <ArtifactsPanel
-              jobId={job.job_id}
-              stage={stage.stage as StageKey}
-              manifest={stage.manifest}
-            />
-          ) : null}
         </CollapsibleSection>
 
         <CollapsibleSection
@@ -795,49 +760,9 @@ export function JobDetailPage() {
           </Stack>
         </CollapsibleSection>
 
-        <CollapsibleSection
-          title="运行范围与验收说明"
-          summary="包含运行范围、标定依据、预览简化与本次验收边界。"
-        >
-          <Stack spacing={1.25}>
-            {requestedStages.includes('distance') ? null : (
-              <Typography sx={{ fontSize: 'var(--font-body)', fontWeight: 600 }}>
-                本任务未请求距离场。
-              </Typography>
-            )}
-            <InfoRow
-              label="位姿范围"
-              value={job.run_scope ? poseScopeText(job) : '—'}
-            />
-            <InfoRow
-              label="表面帧范围"
-              value={
-                job.run_scope
-                  ? `原始第 ${job.run_scope.surface_start_frame}–${
-                      job.run_scope.surface_end_frame ?? '末尾'
-                    } 帧`
-                  : '—'
-              }
-            />
-            <Typography sx={{ fontSize: 'var(--font-body)', lineHeight: 1.7, color: 'text.secondary' }}>
-              {validationText(job.validation_scope, job.requested_stages)}
-            </Typography>
-            <Typography sx={{ fontSize: 'var(--font-body)', lineHeight: 1.7, color: 'text.secondary' }}>
-              标定与预检说明：设备外参及 IMU 单位依据仍需确认；CPU 预检只验证数据结构与配置条件，不代表算法成功或精度合格。
-            </Typography>
-            {stage?.stage === 'surface' &&
-            stage.manifest?.metrics?.preview_simplification_applied === true ? (
-              <Typography sx={{ fontSize: 'var(--font-body)', lineHeight: 1.7, color: 'text.secondary' }}>
-                浏览器 GLB 预览已简化：
-                {String(stage.manifest.metrics.preview_source_faces ?? '—')} →{' '}
-                {String(stage.manifest.metrics.preview_faces ?? '—')}{' '}
-                面。简化可能改变细小分量与边界；完整原生 Mesh 可在上方产物区下载。
-              </Typography>
-            ) : null}
-          </Stack>
-        </CollapsibleSection>
       </Box>
 
+      <RenameJobDialog open={renameOpen} jobId={job.job_id} name={jobDisplayName(job)} onClose={() => setRenameOpen(false)} onSaved={refresh} />
       <Dialog
         open={deleteOpen}
         onClose={() => {
@@ -849,7 +774,7 @@ export function JobDetailPage() {
         <DialogTitle>删除任务</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ fontSize: 'var(--font-body)' }}>
-            确认删除任务 <Box component="code">{job.job_id}</Box> ？
+            确认删除任务 <Box component="span">{jobDisplayName(job)}</Box> ？
             该操作会删除其磁盘上的所有数据，且不可恢复。
           </DialogContentText>
           {deleteError ? (
@@ -910,12 +835,14 @@ function CollapsibleSection({
   title,
   summary,
   children,
+  defaultOpen = false,
 }: {
   title: string;
   summary: string;
   children: ReactNode;
+  defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   return (
     <Box
       component="section"
@@ -923,6 +850,7 @@ function CollapsibleSection({
     >
       <Box
         component="details"
+        open={open}
         onToggle={(event) => setOpen(event.currentTarget.open)}
         sx={{ '&[open] .collapse-arrow': { transform: 'rotate(90deg)' } }}
       >
@@ -984,9 +912,8 @@ function PreviewNote({ metrics }: { metrics: Record<string, unknown> }) {
         预览简化说明
       </Box>
       <Typography sx={{ px: 1.25, pb: 1.25, fontSize: 'var(--font-body)', lineHeight: 1.7 }}>
-        浏览器 GLB 预览已简化：{String(metrics.preview_source_faces ?? '—')} →{' '}
-        {String(metrics.preview_faces ?? '—')} 面。简化可能改变细小分量与边界；完整原生
-        Mesh 可在下方“产物、完整指标与算法细节”中下载。
+        浏览器 GLB 预览已简化：{typeof metrics.preview_source_faces === 'number' ? readableNumber(metrics.preview_source_faces, 0) : '—'} →{' '}
+        {typeof metrics.preview_faces === 'number' ? readableNumber(metrics.preview_faces, 0) : '—'} 面。完整原生 Mesh 可在“下载”中单独获取。
       </Typography>
     </Box>
   );
@@ -1001,7 +928,6 @@ function StageViewer({
   resultStage,
   onOpenResult,
   elapsed,
-  etaText,
 }: {
   jobId: string;
   stage: StageDetail;
@@ -1011,7 +937,6 @@ function StageViewer({
   resultStage: StageKey | null;
   onOpenResult: (key: StageKey) => void;
   elapsed?: number;
-  etaText?: string;
 }) {
   const slices = useMemo(() => {
     const value = manifest?.metrics?.slices;
@@ -1020,7 +945,7 @@ function StageViewer({
 
   const hasTraj = manifestArtifact(stage, 'trajectory_model') !== null;
 
-  if (waitingOnly) return <WaitingPreview stage={stage} connected={connected} runKey={`${jobId}:${stage.stage}:${stage.started_at ?? 'pending'}`} resultStage={resultStage} onOpenResult={onOpenResult} elapsed={elapsed} etaText={etaText} />;
+  if (waitingOnly) return <WaitingPreview stage={stage} connected={connected} runKey={`${jobId}:${stage.stage}:${stage.started_at ?? 'pending'}`} resultStage={resultStage} onOpenResult={onOpenResult} elapsed={elapsed} />;
 
   // 查看器按阶段键固定映射（架构约束：不按算法分支）。
   if (stage.stage === 'pose') {

@@ -43,7 +43,7 @@ export function useObservedProgress(
   const kind: ProgressKind = bar?.kind === 'input' ? 'input' : 'stage';
   const shouldSample =
     !!stage &&
-    percent !== null &&
+    percent !== null && bar?.kind !== 'step' &&
     (ACTIVE_STATUSES.has(stage.status) || TERMINAL_STATUSES.has(stage.status));
   const terminal = !!stage && TERMINAL_STATUSES.has(stage.status);
 

@@ -1,4 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { jobNameError, normalizedJobName } from '../utils/jobName';
+import TextField from '@mui/material/TextField';
 import { useNavigate } from 'react-router-dom';
 
 import Alert from '@mui/material/Alert';
@@ -228,6 +230,7 @@ export function NewJobPage() {
     distance: null,
   });
   const [dataset, setDataset] = useState<string>('');
+  const [taskName, setTaskName] = useState('');
   const [includeDistance, setIncludeDistance] = useState(false);
   const [runMode, setRunMode] = useState<'full' | 'short'>('full');
   const [failStage, setFailStage] = useState<string>('');
@@ -356,6 +359,8 @@ export function NewJobPage() {
     setError(null);
     try {
       const activeDataset = datasets?.find((item) => item.id === dataset);
+      const nameError = jobNameError(taskName);
+      if (nameError) throw new Error(nameError);
       const poseBackend = backends?.groups.pose?.find((item) => item.id === selected.pose);
       const real = activeDataset?.input_manifest?.execution === 'real';
       const stages: StageKey[] = real && !includeDistance ? STAGE_ORDER.slice(0, 2) : [...STAGE_ORDER];
@@ -366,6 +371,7 @@ export function NewJobPage() {
       ));
       if (missing.length > 0) throw new Error(`以下阶段未选择可用算法：${missing.map((stage) => STAGE_NAMES[stage]).join('、')}`);
       const body = {
+        name: normalizedJobName(taskName),
         dataset,
         ...(Array.isArray(activeDataset?.input_manifest?.run_modes) ? { run_mode: runMode } : {}),
         backends: Object.fromEntries(
@@ -420,6 +426,11 @@ export function NewJobPage() {
         </Stack>
       ) : (
         <Stack spacing={2}>
+          <Card sx={{ p: 2, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
+            <TextField label="任务名称" required fullWidth value={taskName} placeholder="例如：走廊扫描测试"
+              onChange={e => setTaskName(e.target.value)} error={!!taskName && !!jobNameError(taskName)}
+              helperText={taskName && jobNameError(taskName) || '1–80 个字符，可使用中文、英文、数字及常用标点。'} />
+          </Card>
           <Card sx={{ p: 2, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
             <SectionTitle
               index="①"
@@ -847,7 +858,7 @@ export function NewJobPage() {
                   <Typography sx={{ mt: 0.75, fontSize: 'var(--font-body)', color: 'text.secondary' }}>
                     {runMode === 'full'
                       ? '完整运行：位姿估计处理完整序列，表面重建处理全部可用帧，不限制前 100 帧。'
-                      : '短段验证：位姿估计处理完整序列，表面重建仅处理原始第 1–100 帧，沿用已验证策略。'}
+                      : '短段验证：位姿估计处理完整序列，表面重建仅处理原始第 1–100 帧，用于快速检查处理流程。'}
                   </Typography>
                 </Box>
               ) : null}

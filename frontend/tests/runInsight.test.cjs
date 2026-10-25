@@ -2,12 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
-function load(file) {
-  const out = {};
-  new Function('exports', ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src/components', file), 'utf8'),
-    { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText)(out);
-  return out;
-}
+function load(file) { return require('./loadSource.cjs')('../src/components/'+file); }
 const { measuredProgress, durationRows, inputEta, historicalStageSeconds, stageEta } = load('runInsight.ts');
 const pose = { stage:'pose', backend:'glim', status:'running', phase:'input_publishing', lidar_published:50, lidar_total:100, elapsed_sec:60 };
 assert.equal(measuredProgress(pose).percent, 50);

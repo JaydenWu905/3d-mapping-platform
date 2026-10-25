@@ -77,6 +77,12 @@ def main():
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
+    import os
+    reporter = None
+    if os.environ.get("PLATFORM_ALGORITHM_PROGRESS_PATH"):
+        from app.models.live_progress import ProgressReporter
+        reporter = ProgressReporter()
+        reporter.emit("loading_preview",force=True)
     print(f"[postprocess] 读取 {args.input_ply}")
     data = load_ply_data(args.input_ply)
     print(f"[postprocess] 共 {data.shape[0]} 点, {data.shape[1]} 列")
@@ -95,12 +101,14 @@ def main():
     }
 
     meta = {}
-    for name, (u_all, v_all, w_all) in planes.items():
+    if reporter: reporter.emit("slice_rendering",0,len(planes),scope="step",unit="切片方向",force=True)
+    for index, (name, (u_all, v_all, w_all)) in enumerate(planes.items()):
         w_center = float(np.median(w_all))
         thickness = 0.1  # 切片厚度
         mask = np.abs(w_all - w_center) < thickness
         if mask.sum() < 50:
             print(f"[postprocess] {name} 切片点数太少，跳过")
+            if reporter: reporter.emit("slice_rendering",index+1,len(planes),scope="step",unit="切片方向",force=True)
             continue
         print(f"[postprocess] {name} 切片 {mask.sum()} 点")
         out_png = args.output_dir / f"slice_{name}.png"
@@ -112,6 +120,7 @@ def main():
         if info:
             info.update(normal_axis={"xy":"z","xz":"y","yz":"x"}[name], center_m=w_center, half_thickness_m=thickness, sampled_points=int(mask.sum()), unit="meter", unknown_color="white", preview_abs_distance_max_m=1.5)
             meta[name] = info
+        if reporter: reporter.emit("slice_rendering",index+1,len(planes),scope="step",unit="切片方向",force=True)
 
     (args.output_dir / "slices_meta.json").write_text(
         json.dumps(meta, indent=2), encoding="utf-8"

@@ -8,7 +8,7 @@ const compiled = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText;
 const exportsForTest = {};
-new Function('exports', compiled)(exportsForTest);
+Object.assign(exportsForTest, require('./loadSource.cjs')('../src/utils/jobDisplay.ts'));
 
 const {
   STAGE_NAMES,

@@ -70,6 +70,17 @@ export interface StageDetail {
   unit: string;
   message: string;
   elapsed_sec: number;
+  progress_run_id?: string;
+  progress_started_at?: string;
+  progress_seq?: number;
+  progress_scope?: 'input' | 'step' | 'stage' | 'none';
+  selected_frames?: number;
+  visited_frames?: number;
+  matched_frames?: number;
+  fused_frames?: number;
+  skipped_frames?: number;
+  counter_updated_at?: string;
+  counter_age_sec?: number;
   lidar_published?: number;
   lidar_total?: number;
   imu_published?: number;
@@ -84,6 +95,7 @@ export interface StageDetail {
 
 export interface JobDetail {
   job_id: string;
+  name?: string | null;
   device_config?: { id: string; version: string; sha256?: string | null; snapshot: string; effective_params: string };
   created_at: string;
   status: string;
@@ -101,6 +113,7 @@ export interface JobDetail {
 
 export interface JobSummary {
   job_id: string;
+  name?: string | null;
   created_at: string;
   status: string;
   dataset: string;
@@ -131,6 +144,17 @@ export type StageProgressEvent = {
   unit?: string;
   message?: string;
   elapsed_sec?: number;
+  progress_run_id?: string;
+  progress_started_at?: string;
+  progress_seq?: number;
+  progress_scope?: 'input' | 'step' | 'stage' | 'none';
+  selected_frames?: number;
+  visited_frames?: number;
+  matched_frames?: number;
+  fused_frames?: number;
+  skipped_frames?: number;
+  counter_updated_at?: string;
+  counter_age_sec?: number;
   lidar_published?: number;
   lidar_total?: number;
   imu_published?: number;

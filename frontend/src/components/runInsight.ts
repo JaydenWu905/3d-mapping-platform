@@ -1,14 +1,33 @@
+import { stagePhaseLabel } from './progressLabel';
 import type { JobDetail, StageDetail, StageKey } from '../types';
 
-export type MeasuredProgress = { percent: number | null; label: string; kind: 'input' | 'stage' | 'none' };
+export type MeasuredProgress = { percent: number | null; label: string; kind: 'input' | 'step' | 'stage' | 'none' };
 
-/** Only a completed stage, or a counted input stream, has a defensible percentage here.
- * MrHash's live current is tqdm fusion calls against all bag messages, and the
- * Distance adapter's 10/80 are milestones: neither is a completion fraction.
- */
+/** Versioned direct counters describe input or a named step, never an overall
+ * runtime estimate. Legacy log/milestone records remain non-percentage displays. */
 export function measuredProgress(stage: StageDetail): MeasuredProgress {
   if (stage.status === 'completed') return { percent: 100, label: '阶段已完成', kind: 'stage' };
-  if (stage.status !== 'running') return { percent: null, label: '', kind: 'none' };
+  const counts = stage.stage === 'surface' && typeof stage.selected_frames === 'number'
+    ? `已选中 ${stage.selected_frames.toLocaleString('zh-CN')} · 已关联 ${(stage.matched_frames ?? 0).toLocaleString('zh-CN')} · 已融合 ${(stage.fused_frames ?? 0).toLocaleString('zh-CN')} · 已跳过 ${(stage.skipped_frames ?? 0).toLocaleString('zh-CN')} 帧` : '';
+  if (stage.status !== 'running') return { percent: null, label: ['failed','cancelled','cancelling'].includes(stage.status) ? counts : '', kind: 'none' };
+  const quiet = (stage.counter_age_sec ?? 0) >= 15 ? ' · 暂无新计数，仍在处理中' : '';
+  if (stage.progress_run_id && stage.stage === 'surface') {
+    const total = stage.selected_frames ?? 0, fused = stage.fused_frames ?? 0;
+    if (stage.phase === 'mapping' && total > 0 && fused >= 0 && fused <= total) {
+      const percent = fused / total * 100;
+      return {percent,kind:'input',label:`输入处理进度 ${Math.floor(fused * 1000 / total) / 10}%（非整个阶段完成） · ${counts}${quiet}`};
+    }
+    return {percent:null,kind:'none',label:`${stagePhaseLabel(stage)} · 处理中${counts ? ` · ${counts}` : ''}${quiet}`};
+  }
+  if (stage.progress_run_id && stage.stage === 'distance') {
+    const current = stage.current ?? 0, total = stage.total ?? 0;
+    const phase = stagePhaseLabel(stage);
+    if (stage.progress_scope === 'step' && Number.isFinite(total) && total > 0 && Number.isFinite(current) && current >= 0 && current <= total) {
+      const percent = current / total * 100;
+      return {percent,kind:'step',label:`${phase} ${Math.floor(current * 1000 / total) / 10}% · ${current.toLocaleString('zh-CN')}/${total.toLocaleString('zh-CN')} ${stage.unit}（仅当前环节，阶段仍在运行）${quiet}`};
+    }
+    return {percent:null,kind:'none',label:`${phase} · 处理中${current > 0 ? ` · 已处理 ${current.toLocaleString('zh-CN')} ${stage.unit}` : '（当前环节无可计量总量）'}${quiet}`};
+  }
   if (stage.stage === 'pose' && stage.backend === 'glim') {
     const total = Number(stage.lidar_total ?? 0);
     const current = Number(stage.lidar_published ?? 0);

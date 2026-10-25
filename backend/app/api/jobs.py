@@ -5,7 +5,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
-from app.models.job import CreateJobRequest
+from app.models.job import CreateJobRequest, RenameJobRequest
 from app.services.job_service import (
     JobNotFoundError,
     JobService,
@@ -27,6 +27,7 @@ async def create_job(req: CreateJobRequest, request: Request) -> dict[str, Any]:
             backends=req.backends,
             fail_stage=req.fail_stage,
             requested_stages=req.requested_stages,
+            name=req.name,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
@@ -39,7 +40,7 @@ async def list_jobs(request: Request) -> list[dict[str, Any]]:
     registry = get_registry()
     return [
         {
-            **{k: j.get(k) for k in ("job_id", "created_at", "status", "dataset", "preview_job")},
+            **{k: j.get(k) for k in ("job_id", "name", "created_at", "status", "dataset", "preview_job")},
             **{"stages": {
                 s: jobs.stage_detail(j, s, registry, collect_backend_labels(registry))["status"]
                 for s in j.get("stages", {})
@@ -63,5 +64,15 @@ async def delete_job(job_id: str, request: Request) -> None:
     jobs: JobService = request.app.state.jobs
     try:
         jobs.delete_job(job_id)
+    except JobNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.patch("/{job_id}")
+async def rename_job(job_id: str, req: RenameJobRequest, request: Request) -> dict[str, Any]:
+    jobs: JobService = request.app.state.jobs
+    try:
+        await jobs.rename_job(job_id, req.name)
+        return jobs.job_detail(job_id, get_registry(), collect_backend_labels(get_registry()))
     except JobNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))

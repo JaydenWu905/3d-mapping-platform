@@ -1,0 +1,30 @@
+# 2026-10-25 三阶段源码交付与新机器部署
+
+## 固定来源与验收边界
+
+平台源码基于远端 main `01fd3fc19fa9e936b792f935c00a7713c5c69d15`。本分支的具体最终 SHA 见 PR/交付报告；克隆后 `git checkout <完整SHA>`。转换器源、reader 与 `backend/scripts/build_esdf.sh` 均在平台提交内。Voxblox 为 `c8066b04075d2fee509de295346b1c0b788c4f38`，其余 8 个固定源在 `ops/distance-sources.lock.json`，用 `--fetch` 从对应仓库取得；不能复用仅存在原机的 ELF 路径。
+
+MrHash 上游 `https://github.com/rvp-group/mrhash.git` 只发布到 `f284cf6cf90d91f9e0be92de8c8c8c02d051bcb0`。平台实际 INS reader 和 native 修改在本地两个可审查提交 `b08903397621c7cc769809e5b88e5e35aa2cd1a6`、`23c98bb09eaf1fe06f54153b046b506303ce599d`；其三个 Gitlink 分别为 args `114200a9ad5fe06c8dea76e15d92325695cf3e34`、json `a0e9fb1e638cfbb5b8b556b7c51eaa81977bad48`、tinyply `ab9c7c63aecbe78f20020fa3ba58924bc1c990d1`。**发布引用：`https://github.com/JaydenWu905/3d-mapping-platform/tree/dependency/mrhash-ins-20261025`，只有推送该独立引用并从全新克隆验证后才可视为可取得。** 本机保留未提交的 RGB-D/实验文件，未进入这两个提交。原机实际加载的 editable Pixi site-packages 扩展 SHA 为 `d4d8da277b29836746eb01c1bc0f7b1d16189071fd2b8f8cbd161f4fd6d89267`；它的构建时间早于当前源码，尚不能证明新编译产生相同字节。新机器须编译、核对实际加载位置/版本并重新跑真实链路；不能复制此二进制冒充源码重建。详见 [MrHash 来源审计](MRHASH_DEPENDENCY.md)。
+
+原机 2026-10-21 [真实三阶段验收](../ops/INTEGRATION_20261021.md) 使用单个固定 INS bag；Pose 1539 帧、1527 有效轨迹，Surface 1527 融合帧，Distance 原生 6,973,652 有效体素。它证明原机这一数据与配置的工程链路，不证明新机器、其他传感器、精度或安全性。
+
+## 安装顺序
+
+1. Ubuntu 22.04 x86_64，具 CUDA GPU。原机 RTX 4090 24 GiB、驱动 595.71.05、CUDA 编译工具 12.8.61；GLIM 作者包为 CUDA 12.6 变体。原机三阶段采样最大 RAM 32.568 GiB、GPU 20,642 MiB；准备至少相当资源并留构建、bag 和产物磁盘空间。历史无卡 2 GiB 限制仅影响无卡启动。核对驱动/CUDA ABI，不以 `nvidia-smi` 显示的最高兼容版本代替 nvcc。
+2. 安装 Python 3.12、Node 24、npm 11；`python3.12 -m venv backend/.venv && backend/.venv/bin/pip install -r backend/requirements.txt`，`(cd frontend && npm ci && npm run build)`。原机平台 Python 3.12.3、Node 24.21.0、npm 11.19.0；`backend/requirements.txt` 有版本下界，原机精确 Python 包见 `ops/releases/ins-two-stage-20261015/platform-python.lock.txt`。前端由 package-lock 固定。
+3. 安装 ROS2 Humble、`ros-humble-glim-ros-cuda12.6=1.2.2-0jammy`、`ros-humble-glim-cuda12.6=1.2.2-0jammy`、GTSAM 4.3.0、gtsam_points 1.2.2；遵循 [GLIM 官方安装](https://koide3.github.io/glim/installation.html) 和 [原机安装步骤/包源](../ops/GLIM_ENVIRONMENT_SETUP.md)。另用系统 Python 3.10 建 `../envs/glim_bridge`，安装 `rosbags==0.11.5`；须能在 ROS setup 子进程导入 rclpy 3.3.22、sensor_msgs 4.9.2。绝不把 ROS `PYTHONPATH` 全局注入平台/Pixi。
+4. 从可访问的 MrHash 引用取固定提交（引用尚未发布时这是**阻断**）：`git clone --branch dependency/mrhash-ins-20261025 https://github.com/JaydenWu905/3d-mapping-platform.git ../mrhash`，`git -C ../mrhash checkout 23c98bb09eaf1fe06f54153b046b506303ce599d`，`git -C ../mrhash submodule update --init --recursive`。若独立引用已迁至正式 fork，改用报告中的最终 URL。安装 Pixi 0.79.0，按该仓库 `pyproject.toml` + `pixi.lock` 建环境/本地原生扩展；原机环境 Python 3.11.13、torch 2.7.0、rosbags 0.10.10、Open3D 0.18.0。平台调用 `pixi run --as-is`，因此必须预装完成。检查 `MRHASH_ROOT` checkout 提交、子模块、`pixi run --as-is --manifest-path ../mrhash python -c 'import mrhash.src.pygeowrapper; print(mrhash.src.pygeowrapper.__file__)'`，记录实际扩展 SHA。若实际导入路径不同，先修复环境再运行。
+5. 安装 CMake、g++、Eigen 3.4、Protobuf 3.12、glog 开发包、gflags 开发包；原机 `libgoogle-glog-dev=0.5.0+really0.4.0-2`、`libgflags-dev=2.2.2-2`。用系统 Python 3.10 建隔离 `../envs/distance-tools`，`pip install -r ops/distance-tools.requirements.txt`（catkin-tools 0.9.5）。运行 `bash ops/distance-env.sh bash backend/scripts/build_esdf.sh --fetch`，随后 `bash ops/distance-env.sh bash backend/scripts/build_esdf.sh --build`。该脚本从锁文件抓精确提交，串行构建 Voxblox 核心和平台转换器/reader；不需要 ROS1 服务，不在平台进程 source ROS1/ROS2。跑 `bash ops/continue-gpu.sh native-surface-tests <全新报告目录>`；记录转换器/reader SHA、真实数值报告。`--build` 需要至少 8 GiB cgroup 内存；真实映射按上面的实测资源规划。
+6. `cp ops/templates/glim-runtime.env.example ops/glim-runtime.env`，将 `GLIM_WORKSPACE` 改为**平台克隆目录的父目录**，将 `GLIM_CONFIG_PATH` 改为工作区相对的 `<克隆目录名>/ops/templates/glim-ins-mid360`，`MRHASH_ROOT` 指向第4步 checkout。`cp ops/templates/device_runtime.json.example ops/device_runtime.json`，其 `ins_default` 改为同一相对路径。复制 `ops/templates/ins_verified.local.json.example` 到 `backend/config/datasets/ins_verified.local.json`，按本机数据目录调整 `root`、`pose.bag_path`、`pose.config_path`，并检查参数；机器文件均被 ignore。`ops/glim-runtime.env` 不放令牌。GLIM 配置模板来自原机无界面 MID-360 运行副本，可修改并保留设备版本；原始外参依据需设备负责人确认。
+7. `bash ops/check-machine.sh`、`bash ops/continue-gpu.sh preflight`。GPU 预检包括可见 GPU、内存、固定源码、ROS/GLIM/MrHash、Distance 转换器。设置机器专属 `ops/platform.local.env` 中 `ESDF_EXECUTABLE` 为新编译 ELF、`ESDF_ACCEPTANCE_REPORT` 为**新机器**真实数值和完整 Surface 独立读回形成的验收 JSON。`distance_readiness.py` 会逐次校验 ELF 和 reader SHA；不能抄原机证书或只改布尔值解锁。原机证书只用于追溯，不在 Git 内。重建后先跑独立真实 Surface，再用独立新 Job 跑 Pose→Surface→Distance，检查 native reader、符号/未知、manifest、下载、浏览器预览，记录资源与结果。
+8. 构建及检查通过后 `bash ops/platform.sh start`、`bash ops/platform.sh status`、`curl --noproxy '*' -f http://127.0.0.1:8000/api/health`。浏览器 `http://127.0.0.1:5173/jobs/new`。生产需要服务监管/反向代理时自行部署；自带脚本使用回环地址和 nohup。
+
+## 数据单独交付
+
+- **页面演示**：`demo_jobs/demo_room` 随源码，约 632 KiB，后端自动种入新克隆的 `jobs/demo`，明确标为 Mock。它能展示页面与预览，不证明算法。
+- **重做固定 INS 真实 Job**：需由数据所有者通过单独渠道交付 `2024-06-04-16-24-55.bag`，17,125,894,059 字节，SHA-256 `b7a0e7b20e8f447ff6f49be9470b812ded678e28d96f943f7f9b97fd40250c7f`；来源为 INS indoor_long_corridor01 原始交接数据，本仓库未包含，公开再分发权限未确认。需配套 `ops/templates/glim-ins-mid360`、设备 profile `backend/config/upload_devices/ins_livox_mid360_same_rig.json`、MrHash `ins_livox_mid360.cfg` 及机器路径映射；配置模板在代码仓库，设备标定原始依据仍待确认。
+- **复制原机验收 Job 的同一份预览/结果**：另需原机 `jobs/job_1792547241_905fcb` 整个 Job 目录及输入 manifest、各阶段 run_config、provenance、原生与预览产物；其来源为 2026-10-21 原机新 Job，公开共享权限同样未确认，**未上传 GitHub**。关键校验点：Surface `voxel_points` 231,346,251 字节、SHA `3ff2dd060b669f805ed1dd78c154b42810fc1dd244a7060d4eb58dead4e54460`；Distance `map.esdf` 116,616,855 字节、SHA `9dddbe8f759f9963397a0661a11b4716b2a5d1aad962bcd3bfcb4ed0f26b4114`；完整文件逐项大小/SHA 应由交付者从该 Job manifest 导出并校验。仅有 bag 重新运行不会保证逐字节相同输出。
+
+## 范围与配置
+
+用户可复制 `backend/config/upload_devices/self_capture_livox_custom.json.template` 为新的 `<id>.json`，填写话题、frame、T_lidar_imu、单位、时间语义、预检范围和算法 profile；同时改 `ops/device_runtime.json` 中 GLIM preset。相同 `CustomMsg` + `Imu` 格式可走现有 reader，但需真实数据验收。其他消息格式/ROS2 bag 要适配上传预检、桥接、MrHash reader 和算法配置。当前 Distance 只支持固定 finest、同分辨率、无自适应的已验收输入契约。

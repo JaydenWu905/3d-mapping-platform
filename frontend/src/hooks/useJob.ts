@@ -3,7 +3,6 @@ import { api, messageOf } from '../api/api';
 import { isStageKey } from '../types';
 import type {
   JobDetail,
-  JobStatusEvent,
   SnapshotEvent,
   StageDetail,
   StageProgressEvent,
@@ -11,6 +10,7 @@ import type {
   StageStatusEvent,
 } from '../types';
 import { stageProgressPatch } from '../components/stageProgressPatch';
+import { mergeJobSnapshot, mergeStageProgress } from '../components/progressMerge';
 
 export interface JobActions {
   runAll: () => Promise<void>;
@@ -33,7 +33,7 @@ function patchStage(prev: JobDetail | null, stage: string, patch: Partial<StageD
   if (!prev || !isStageKey(stage) || !prev.stages[stage]) return prev;
   return {
     ...prev,
-    stages: { ...prev.stages, [stage]: { ...prev.stages[stage], ...patch } },
+    stages: { ...prev.stages, [stage]: mergeStageProgress(prev.stages[stage], patch) },
   };
 }
 
@@ -49,16 +49,20 @@ export function useJob(jobId: string | undefined): JobState {
   const [connected, setConnected] = useState(false);
   const jobIdRef = useRef(jobId);
   jobIdRef.current = jobId;
+  const restRequest = useRef(0);
+  const liveRevision = useRef(0);
 
   const refresh = useCallback(async () => {
     const id = jobIdRef.current;
     if (!id) return;
+    const request = ++restRequest.current;
+    const liveAtStart = liveRevision.current;
     try {
       setError(null);
       const snapshot = await api.getJob(id);
-      if (jobIdRef.current === id) setJob(snapshot);
+      if (jobIdRef.current === id && request === restRequest.current) setJob(previous => mergeJobSnapshot(previous, snapshot, liveRevision.current !== liveAtStart));
     } catch (e) {
-      if (jobIdRef.current === id) setError(messageOf(e));
+      if (jobIdRef.current === id && request === restRequest.current) setError(messageOf(e));
     }
   }, []);
 
@@ -113,7 +117,9 @@ export function useJob(jobId: string | undefined): JobState {
       stream.addEventListener('snapshot', (ev: MessageEvent) => {
         try {
           const data = JSON.parse(ev.data) as SnapshotEvent;
-          setJob(data);
+          if (closed || stream !== es || data.job_id !== jobId) return;
+          liveRevision.current++;
+          setJob(previous => mergeJobSnapshot(previous, data));
         } catch {
           /* 忽略坏帧 */
         }
@@ -121,9 +127,9 @@ export function useJob(jobId: string | undefined): JobState {
 
       stream.addEventListener('job.status', (ev: MessageEvent) => {
         try {
-          const data = JSON.parse(ev.data) as JobStatusEvent;
-          setJob((prev) => (prev ? { ...prev, status: data.status } : prev));
-          if (terminal(data.status)) void refresh();
+          JSON.parse(ev.data);
+          if (closed || stream !== es) return;
+          void refresh();
         } catch {
           /* ignore */
         }
@@ -132,13 +138,9 @@ export function useJob(jobId: string | undefined): JobState {
       stream.addEventListener('stage.status', (ev: MessageEvent) => {
         try {
           const data = JSON.parse(ev.data) as StageStatusEvent;
-          setJob((prev) => {
-            const prevStatus = prev && isStageKey(data.stage) ? prev.stages[data.stage]?.status : undefined;
-            return patchStage(prev, data.stage, {
-              status: (data.status as StageDetail['status'] | undefined) ?? prevStatus,
-              message: data.message,
-            });
-          });
+          if (closed || stream !== es) return;
+          liveRevision.current++;
+          setJob(prev => patchStage(prev, data.stage, stageProgressPatch(data as StageProgressEvent)));
           if (terminal(data.status)) void refresh();
         } catch {
           /* ignore */
@@ -148,6 +150,8 @@ export function useJob(jobId: string | undefined): JobState {
       stream.addEventListener('stage.progress', (ev: MessageEvent) => {
         try {
           const data = JSON.parse(ev.data) as StageProgressEvent;
+          if (closed || stream !== es) return;
+          liveRevision.current++;
           setJob((prev) => {
             return patchStage(prev, data.stage, stageProgressPatch(data));
           });
@@ -162,7 +166,7 @@ export function useJob(jobId: string | undefined): JobState {
           const data = JSON.parse(ev.data) as StageResultEvent;
           // Terminal truth lives on disk (progress + manifest). Re-fetching also
           // repairs any coalesced/dropped live progress frame.
-          if (data && data.stage) void refresh();
+          if (!closed && stream === es && data && data.stage) void refresh();
         } catch {
           /* ignore */
         }

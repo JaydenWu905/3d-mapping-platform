@@ -17,8 +17,10 @@ from app.config import DEMO_JOBS_DIR, JOBS_DIR, STAGES
 from app.models.job import (
     derive_job_status,
     new_job,
+    normalize_job_name,
     stage_dependency_satisfied,
 )
+from app.models.live_progress import LIVE_FIELDS
 from app.models.manifest import load_manifest
 from app.models.progress import atomic_write_json, load_progress, read_json
 from app.services.backend_runtime import has_real_runner, missing_runner_reason
@@ -80,6 +82,7 @@ class JobService:
         job_id: str | None = None,
         requested_stages: list[str] | None = None,
         run_mode: str | None = None,
+        name: str | None = None,
     ) -> dict[str, Any]:
         from app.services.registry_service import get_registry
 
@@ -129,7 +132,7 @@ class JobService:
                 raise ValueError("Explicit full/short modes require the supported GLIM/Livox CustomMsg/MrHash profile")
 
         job = new_job(dataset, backends, fail_stage, job_id=job_id, preview_job=preview_job,
-                      requested_stages=requested_stages)
+                      requested_stages=requested_stages, name=name)
         job["run_scope"] = {"pose": "full" if backends.get("pose") == "glim" else "registered", "surface_start_frame": 1,
                             "surface_end_frame": dataset_def.surface.get("integration_end_frame") if dataset_def.execution == "real" else None}
         if run_mode is not None:
@@ -224,6 +227,7 @@ class JobService:
         job = read_json(path, None)
         if not isinstance(job, dict):
             raise JobNotFoundError(f"Unknown job: {job_id}")
+        self._overlay_display_metadata(job)
         self._normalize_legacy_plan(job)
         job["status"] = derive_job_status(job)
         return job
@@ -247,6 +251,11 @@ class JobService:
         job["status"] = derive_job_status(job)
         atomic_write_json(self.job_dir(job["job_id"]) / "job.json", job)
 
+    def _overlay_display_metadata(self, job: dict[str, Any]) -> None:
+        metadata = read_json(self.job_dir(job["job_id"]) / "display_metadata.json", {})
+        if isinstance(metadata, dict) and isinstance(metadata.get("name"), str):
+            job["name"] = metadata["name"]
+
     def list_jobs(self) -> list[dict[str, Any]]:
         jobs: list[dict[str, Any]] = []
         if not self.jobs_dir.exists():
@@ -257,6 +266,7 @@ class JobService:
             job = read_json(folder / "job.json", None)
             if not isinstance(job, dict):
                 continue
+            self._overlay_display_metadata(job)
             self._normalize_legacy_plan(job)
             job["status"] = derive_job_status(job)
             jobs.append(job)
@@ -269,6 +279,17 @@ class JobService:
         if not path.exists():
             raise JobNotFoundError(f"Unknown job: {job_id}")
         shutil.rmtree(path)
+
+    async def rename_job(self, job_id: str, name: str) -> None:
+        job_id = self._safe_job_id(job_id)
+        name = normalize_job_name(name)
+        async with self.lock(job_id):
+            path = self.job_dir(job_id) / "job.json"
+            job = read_json(path, None)
+            if not isinstance(job, dict):
+                raise JobNotFoundError(f"Unknown job: {job_id}")
+            # Separate metadata survives stale runner saves and preserves legacy job.json.
+            atomic_write_json(self.job_dir(job_id) / "display_metadata.json", {"name": name})
 
     # ------------------------------------------------------------ stage state
     def set_stage_status(
@@ -311,7 +332,9 @@ class JobService:
         manifest = load_manifest(stage_dir)
 
         status = st.get("status", "waiting")
-        if status == "waiting" and manifest and manifest.get("status") == "completed":
+        if status == "waiting" and manifest and manifest.get("status") == "completed" and (
+            not progress.get("progress_run_id") or progress.get("status") == "completed"
+        ):
             status = "completed"  # self-heal when a run finished but job.json lagged
 
         def_ = registry.find(stage, backend_id)
@@ -323,6 +346,7 @@ class JobService:
             "backend_display": label_by(def_, backend_label.get(backend_id, backend_id)),
             "backend_status": def_.status if def_ else None,
             "status": status,
+            **{key: progress[key] for key in LIVE_FIELDS if key in progress},
             "phase": progress.get("phase", ""),
             "progress": round(float(progress.get("progress", 0.0)), 2),
             "current": progress.get("current", 0),
@@ -352,7 +376,7 @@ class JobService:
     ) -> tuple[bool, str]:
         if stage not in job.get("requested_stages", STAGES):
             return False, "此阶段未包含在本 Job 的执行范围"
-        if status in ("running", "queued"):
+        if status in ("running", "queued", "cancelling"):
             return False, "Stage already running"
         if status in ("completed",):
             return False, "Stage already completed"
@@ -397,12 +421,16 @@ class JobService:
         for job in self.list_jobs():
             dirty = False
             for stage, state in job.get("stages", {}).items():
-                if state.get("status") not in ("running", "queued"):
+                if state.get("status") not in ("running", "queued", "cancelling"):
                     continue
                 state["status"] = "failed"
                 state["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
                 progress = load_progress(self.stage_dir(job["job_id"], stage), stage,
                                          state.get("backend", ""))
+                if progress.get("progress_run_id"):
+                    progress["progress_seq"] = progress.get("progress_seq", 0) + 1
+                    progress["progress_scope"] = "none"
+                    progress["progress"] = 0.0
                 progress.update(status="failed", phase="interrupted",
                                 message="Backend restarted while the subprocess was running",
                                 updated_at=time.strftime("%Y-%m-%dT%H:%M:%S"))
@@ -417,6 +445,7 @@ class JobService:
         job = self.load_job(job_id)
         return {
             "job_id": job["job_id"],
+            "name": job.get("name"),
             "created_at": job.get("created_at", ""),
             "status": job["status"],
             "dataset": job.get("dataset", ""),

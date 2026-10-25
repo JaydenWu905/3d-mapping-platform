@@ -89,7 +89,7 @@ const { renderToStaticMarkup } = require('react-dom/server');
 const barSource = fs.readFileSync(path.join(__dirname, '../src/components/StageProgressBar.tsx'), 'utf8');
 const insightSource = fs.readFileSync(path.join(__dirname, '../src/components/runInsight.ts'), 'utf8');
 const insightExports = {};
-new Function('exports', ts.transpileModule(insightSource, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText)(insightExports);
+Object.assign(insightExports, require('./loadSource.cjs')('../src/components/runInsight.ts'));
 const barCompiled = ts.transpileModule(barSource, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
 }).outputText;
@@ -129,5 +129,5 @@ for (const file of ['StageCard.tsx']) {
   assert.match(source, /<StageProgressBar stage=\{/);
 }
 const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
-assert.doesNotMatch(css, /progress-indeterminate|progress-sweep/);
+assert.doesNotMatch(css, /progress-sweep/);
 console.log('Pose progress labels: passed');

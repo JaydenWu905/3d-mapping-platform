@@ -130,13 +130,15 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           {['位姿估计', '表面重建', '距离场'].map((label, index) => (
             <Stack key={label} direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
               <Box
+                className="sidebar-stage-number"
                 sx={{
-                  width: 16,
-                  height: 16,
+                  width: 22,
+                  height: 22,
                   flex: 'none',
                   display: 'grid',
                   placeItems: 'center',
-                  fontSize: 'var(--font-secondary)',
+                  fontSize: 14,
+                  lineHeight: 1,
                   fontWeight: 800,
                   color: 'primary.contrastText',
                   bgcolor: ['primary.main', 'secondary.main', 'info.main'][index],

@@ -39,17 +39,17 @@ export function waitingTitle(stage: StageDetail): string {
 export function waitingMessages(stage: StageDetail): readonly string[] {
   if (stage.status === 'failed') return ['这一步没能完成。可展开技术详情或日志查看原因。'];
   if (stage.status === 'cancelled') return ['处理已停止。若有已完成的阶段，可切换查看结果。'];
-  if (stage.status === 'cancelling') return ['正在等待进程退出，先让这一轮收好尾。'];
+  if (stage.status === 'cancelling') return ['正在等待处理进程退出。'];
   if (stage.status === 'queued') return [stage.message && /位置|前方|第\s*\d/.test(stage.message) ? stage.message : '正在等待计算资源。队列信息以任务状态为准。'];
   if (stage.status === 'completed') return ['请检查结果清单，或在文件可用时下载原生产物。'];
   if (stage.status === 'not_integrated') return ['本阶段不在此次运行范围内。'];
   if (stage.status === 'waiting') return [dependencyLabel(stage) ? '前一步的结果就绪后，才能处理这一阶段。' : '运行范围和阶段算法已保留，可按任务状态选择操作。'];
   if (stage.stage === 'pose') {
     if (stage.phase === 'waiting_glim_export' || stage.phase === 'exporting') return ['输入已送达，正在等待轨迹导出。', 'GLIM 正在整理轨迹，已运行时间会继续更新。'];
-    if (stage.phase === 'associating') return ['正在对齐时间与轨迹，让帧和位置对上号。', '给扫描记录核对座位，避免张冠李戴。'];
-    return ['正在还原扫描路线，帮每一帧找到自己的位置。', '扫描记录正在对坐标，方向感也需要认真整理。'];
+    if (stage.phase === 'associating') return ['正在对齐点云帧时间与位姿时间。', '时间关联完成后，表面重建可读取对应帧的位姿。'];
+    return ['位姿估计使用 LiDAR 扫描与 IMU 数据估计位置和朝向。', '示意路线仅说明处理过程，实际轨迹以生成的结果为准。'];
   }
-  if (/export|preview|slice/.test(stage.phase)) return ['计算结果正在整理，准备好可查看的预览与文件。', '正在给结果收拾行李：预览归预览，原始文件也会保留。'];
-  if (stage.stage === 'surface') return ['点云正在拼图，墙面和地板各就各位。', '把零散的点认真拼好，空间就有了轮廓。'];
-  return ['给空间配一把距离尺，看看哪里宽、哪里窄。', '正在计算表面周围的距离，给每个有效体素量一量。'];
+  if (/export|preview|slice/.test(stage.phase)) return ['计算结果正在整理，准备好可查看的预览与文件。', '预览文件与原生产物会分别列出。'];
+  if (stage.stage === 'surface') return ['依据位姿融合点云观测，生成场景表面。', '表面重建将不同位置的观测放入共同坐标系。'];
+  return ['基于已重建的数据计算空间到表面的距离。', '未观测区域不表示已确认安全或可通行。'];
 }

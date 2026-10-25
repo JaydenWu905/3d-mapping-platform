@@ -16,5 +16,7 @@ export function stageProgressPatch(data: StageProgressEvent): Partial<StageDetai
   if (data.imu_published !== undefined) patch.imu_published = data.imu_published;
   if (data.imu_total !== undefined) patch.imu_total = data.imu_total;
   if (data.input_updated_at !== undefined) patch.input_updated_at = data.input_updated_at;
+  const fields = ['progress_run_id','progress_started_at','progress_seq','progress_scope','selected_frames','visited_frames','matched_frames','fused_frames','skipped_frames','counter_updated_at','counter_age_sec'] as const;
+  for (const key of fields) if (data[key] !== undefined) Object.assign(patch, { [key]: data[key] });
   return patch;
 }

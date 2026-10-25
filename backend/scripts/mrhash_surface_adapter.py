@@ -17,6 +17,7 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 PROJECT_ROOT = BACKEND_ROOT.parent
 sys.path.insert(0, str(BACKEND_ROOT))
 
+from app.models.live_progress import ProgressReporter
 from app.models.progress import atomic_write_json, read_json  # noqa: E402
 from app.services.mesh_preview import build_preview_glb  # noqa: E402
 from app.services.surface_input_service import validate_surface_input  # noqa: E402
@@ -24,12 +25,15 @@ from app.services.surface_input_service import validate_surface_input  # noqa: E
 
 def progress(stage_dir: Path, phase: str, message: str, status: str = "running",
              percent: float = 0.0) -> None:
-    atomic_write_json(stage_dir / "progress.json", {
-        "stage": "surface", "backend": "mrhash_lidar", "status": status,
-        "phase": phase, "progress": percent, "current": 0, "total": 0,
-        "unit": "", "message": message,
-        "updated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
-    })
+    if os.environ.get("PLATFORM_ALGORITHM_PROGRESS_PATH"):
+        ProgressReporter().emit("finalizing" if status == "completed" else phase, force=True)
+    else:
+        # Standalone packaging remains usable without the process runner.
+        atomic_write_json(stage_dir / "progress.json", {
+            "stage": "surface", "backend": "mrhash_lidar", "status": status,
+            "phase": phase, "progress": percent, "current": 0, "total": 0,
+            "unit": "", "message": message, "updated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        })
 
 
 def ply_header(path: Path) -> dict[str, object]:
@@ -166,12 +170,14 @@ def main() -> int:
         atomic_write_json(params_path, params)
         progress(stage_dir, "validating", "Validated real bag and imported Pose inputs")
         command = [pixi, "run", "--as-is", "--manifest-path", str(mrhash_root), "python",
-                   str(apps_dir / "rosbag_runner.py"), str(config_path)]
+                   str(BACKEND_ROOT / "scripts" / "mrhash_live_runner.py"), "--runner", str(apps_dir / "rosbag_runner.py"), str(config_path)]
         print(f"[mrhash] dataset={job['dataset']} profile={profile} mode={args.mode}", flush=True)
         print("[mrhash] launching pixi-managed rosbag_runner.py", flush=True)
-        progress(stage_dir, "mapping", "MrHash is running; algorithm does not expose reliable progress")
+        progress(stage_dir, "mapping", "MrHash is running; direct reader and successful compute counters are enabled")
         # MrHash writes profiler sidecars to cwd; keep every write inside this Job.
         child_env = os.environ.copy()
+        child_env.setdefault("PLATFORM_ALGORITHM_PROGRESS_PATH", str(stage_dir / "algorithm_progress.json"))
+        child_env.setdefault("PLATFORM_PROGRESS_RUN_ID", uuid.uuid4().hex)
         child_env.pop("OMP_NUM_THREADS", None)
         child_env.pop("OPENBLAS_NUM_THREADS", None)
         completed = subprocess.run(command, cwd=run_dir, check=False, env=child_env)

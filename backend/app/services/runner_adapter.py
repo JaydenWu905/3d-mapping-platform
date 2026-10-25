@@ -21,11 +21,13 @@ import os
 import re
 import signal
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 from app.config import BACKEND_ROOT, PROJECT_ROOT
 from app.models.manifest import load_manifest
-from app.models.progress import atomic_write_json, load_progress
+from app.models.progress import atomic_write_json, load_progress, default_progress, read_json
+from app.models.live_progress import LIVE_FIELDS, accept_algorithm_snapshot, progress_identity
 from app.services.backend_runtime import has_real_runner, missing_runner_reason, runner_script
 
 
@@ -81,6 +83,13 @@ class SubprocessRunnerAdapter(RunnerAdapter):
     async def run_stage(self, job_id: str, stage: str, backend: str) -> StageResult:
         """Reserve the single GPU across jobs and backend processes."""
         key = (job_id, stage)
+        if stage == "distance" or (stage == "surface" and backend == "mrhash_lidar"):
+            initial = default_progress(stage, backend)
+            initial.update(progress_identity())
+            self._jobs.stage_dir(job_id, stage).mkdir(parents=True, exist_ok=True)
+            self._progress_states[key] = initial
+            self._progress_locks[key] = asyncio.Lock()
+            atomic_write_json(self._jobs.stage_dir(job_id, stage) / "progress.json", initial)
         lock_path = PROJECT_ROOT / "runtime" / "locks" / "gpu_pipeline.lock"
         lock_path.parent.mkdir(parents=True, exist_ok=True)
         fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
@@ -90,6 +99,8 @@ class SubprocessRunnerAdapter(RunnerAdapter):
                 if key in self._cancel_requested:
                     self._cancel_requested.discard(key)
                     job = self._jobs.load_job(job_id)
+                    if self._progress_states.get(key, {}).get("progress_run_id"):
+                        return await self._finish(job_id, stage, backend, "cancelled", "Cancelled by user", 0, time.monotonic())
                     self._jobs.set_stage_status(job, stage, "cancelled")
                     await self._events.publish(job_id, "stage.status", {"stage": stage, "status": "cancelled"})
                     await self._events.publish(job_id, "stage.result", {"stage": stage, "status": "cancelled"})
@@ -101,6 +112,11 @@ class SubprocessRunnerAdapter(RunnerAdapter):
                     job = self._jobs.load_job(job_id)
                     if job["stages"][stage]["status"] != "queued":
                         self._jobs.set_stage_status(job, stage, "queued")
+                        if self._progress_states.get(key, {}).get("progress_run_id"):
+                            queued = {**self._progress_states[key], "status":"queued", "phase":"queued", "progress_seq":self._progress_states[key].get("progress_seq",0)+1}
+                            self._progress_states[key] = queued
+                            atomic_write_json(self._jobs.stage_dir(job_id,stage)/"progress.json",queued)
+                            await self._emit_progress(job_id,stage,queued)
                         await self._events.publish(job_id, "stage.status", {"stage": stage, "status": "queued"})
                     await asyncio.sleep(0.5)
             return await self._run_stage_locked(job_id, stage, backend)
@@ -129,7 +145,10 @@ class SubprocessRunnerAdapter(RunnerAdapter):
         stage_dir.mkdir(parents=True, exist_ok=True)
         for stale in ("result_manifest.json",):
             (stage_dir / stale).unlink(missing_ok=True)
-        progress = load_progress(stage_dir, stage, backend)
+        progress = load_progress(stage_dir, stage, backend) if stage == "pose" else dict(self._progress_states.get(key) or default_progress(stage, backend))
+        if stage == "distance" or (stage == "surface" and backend == "mrhash_lidar"):
+            if not progress.get("progress_run_id"): progress.update(progress_identity())
+            progress["progress_seq"] = progress.get("progress_seq",0) + 1
         progress.update(status="running", phase="starting", progress=0.0, current=0,
                         total=0, unit="", message="等待启动 GLIM" if stage == "pose" else "Starting real MrHash process",
                         elapsed_sec=0.0, updated_at=time.strftime("%Y-%m-%dT%H:%M:%S"))
@@ -154,6 +173,7 @@ class SubprocessRunnerAdapter(RunnerAdapter):
             process = await asyncio.create_subprocess_exec(
                 *command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
                 start_new_session=True,
+                env={**os.environ, **({"PLATFORM_PROGRESS_RUN_ID": progress["progress_run_id"], "PLATFORM_PROGRESS_SEQ":str(progress.get("progress_seq",0)), "PLATFORM_ALGORITHM_PROGRESS_PATH": str(stage_dir / "algorithm_progress.json")} if progress.get("progress_run_id") else {})},
             )
             self._processes[key] = process
             # Close the small race between the pre-spawn cancellation check
@@ -321,7 +341,7 @@ class SubprocessRunnerAdapter(RunnerAdapter):
         log.flush()
         enqueue(timestamped)
         match = self._TQDM_RE.search(line)
-        if match and stage == "surface":
+        if match and stage == "surface" and not self._progress_states.get((job_id, stage), {}).get("progress_run_id"):
             await self._record_tqdm_progress(
                 job_id, stage, int(match["percent"]),
                 int(match["current"]), int(match["total"])
@@ -374,26 +394,35 @@ class SubprocessRunnerAdapter(RunnerAdapter):
             key = (job_id, stage)
             lock = self._progress_locks.setdefault(key, asyncio.Lock())
             async with lock:
-                disk = load_progress(self._jobs.stage_dir(job_id, stage), stage, backend)
                 cached = self._progress_states.get(key, {})
-                if stage == "surface" and int(cached.get("current") or 0) > int(disk.get("current") or 0):
-                    disk.update({name: cached.get(name) for name in
-                                 ("current", "total", "progress", "unit")})
-                progress = disk
-                progress["elapsed_sec"] = round(time.monotonic() - started, 1)
-                self._progress_states[key] = progress
-                if stage != "pose":
+                if cached.get("progress_run_id"):
+                    source = read_json(self._jobs.stage_dir(job_id, stage) / "algorithm_progress.json", {})
+                    progress = accept_algorithm_snapshot(cached, source)
+                    progress = {**progress, "elapsed_sec": round(time.monotonic() - started, 1)}
+                    if key in self._cancel_requested: progress["status"] = "cancelling"
+                    stamp = progress.get("counter_updated_at")
+                    try:
+                        progress["counter_age_sec"] = max(0, (datetime.now(timezone.utc) - datetime.fromisoformat(stamp)).total_seconds()) if stamp else 0
+                    except (ValueError, TypeError):
+                        progress["counter_age_sec"] = 0
                     atomic_write_json(self._jobs.stage_dir(job_id, stage) / "progress.json", progress)
+                else:
+                    progress = load_progress(self._jobs.stage_dir(job_id, stage), stage, backend)
+                    progress["elapsed_sec"] = round(time.monotonic() - started, 1)
+                    if stage != "pose":
+                        atomic_write_json(self._jobs.stage_dir(job_id, stage) / "progress.json", progress)
+                self._progress_states[key] = progress
             snapshot = repr(sorted(progress.items()))
             if snapshot != last:
                 await self._emit_progress(job_id, stage, progress)
                 last = snapshot
-            await asyncio.sleep(1)
+            await asyncio.sleep(.5)
 
     async def _emit_progress(self, job_id: str, stage: str, progress: dict) -> None:
         payload = {key: progress.get(key) for key in
                    ("status", "phase", "progress", "current", "total", "unit", "message", "elapsed_sec",
                     "lidar_published", "lidar_total", "imu_published", "imu_total", "input_updated_at")}
+        payload.update({key: progress[key] for key in LIVE_FIELDS if key in progress})
         payload["stage"] = stage
         await self._events.publish(job_id, "stage.progress", payload)
 
@@ -406,14 +435,20 @@ class SubprocessRunnerAdapter(RunnerAdapter):
         key = (job_id, stage)
         progress = dict(load_progress(stage_dir, stage, backend) if stage == "pose"
                         else self._progress_states.get(key) or load_progress(stage_dir, stage, backend))
+        if progress.get("progress_run_id"):
+            progress = accept_algorithm_snapshot(progress, read_json(stage_dir / "algorithm_progress.json", {}))
+            progress["progress_seq"] = progress.get("progress_seq", 0) + 1
+            progress["progress_scope"] = "stage" if status == "completed" else "none"
         progress.update(status=status, phase=status, message=message,
                         elapsed_sec=round(time.monotonic() - started, 1),
                         updated_at=time.strftime("%Y-%m-%dT%H:%M:%S"))
+        if status != "completed":
+            progress["progress"] = 0.0
         if status == "completed":
             progress["progress"] = 100.0
             if stage == "surface" and backend == "mrhash_lidar":
                 metrics = (load_manifest(stage_dir) or {}).get("metrics", {})
-                progress.update(current=metrics.get("fused_frames", 0),
+                progress.update(selected_frames=metrics.get("selected_frames", 0), fused_frames=metrics.get("fused_frames", 0), matched_frames=metrics.get("matched_pose_frames", metrics.get("fused_frames", 0)), skipped_frames=metrics.get("skipped_no_pose_frames", 0), current=metrics.get("fused_frames", 0),
                                 total=metrics.get("selected_frames", 0), unit="融合 / 选中帧",
                                 message=f"阶段完成；选中 {metrics.get('selected_frames', '—')} 帧，融合 {metrics.get('fused_frames', '—')} 帧，跳过无 Pose {metrics.get('skipped_no_pose_frames', '—')} 帧；100% 表示阶段完成")
             elif int(progress.get("total") or 0) > 0:
