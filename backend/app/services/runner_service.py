@@ -11,7 +11,8 @@ import asyncio
 from typing import Any
 
 from app.config import STAGES
-from app.models.progress import default_progress, atomic_write_json
+from app.models.progress import default_progress, atomic_write_json, load_progress
+from app.models.live_progress import progress_identity
 from app.services.backend_runtime import has_real_runner, missing_runner_reason
 from app.services.job_service import collect_backend_labels
 from app.services.mock_runner import MockRunnerAdapter
@@ -70,7 +71,7 @@ class RunnerService:
     def start_run_all(self, job_id: str) -> None:
         job = self._jobs.load_job(job_id)
         if job.get("requested_stages", STAGES) != STAGES:
-            raise StartStageError("Real two-stage jobs use run-planned; Distance is not integrated")
+            raise StartStageError("Two-stage jobs use run-planned")
         self._start_chain(job_id, STAGES)
 
     def start_run_planned(self, job_id: str) -> None:
@@ -143,11 +144,14 @@ class RunnerService:
         task = self._stage_tasks.get(key)
         if task is None or task.done():
             raise StageNotRunningError(f"Stage '{stage}' is not running")
+        job = self._jobs.load_job(job_id)
+        self._jobs.set_stage_status(job, stage, "cancelling")
+        progress = load_progress(self._jobs.stage_dir(job_id, stage), stage, job["backends"].get(stage,""))
         adapter = self._task_adapters.get(key)
         if adapter is not None:
             adapter.cancel(job_id, stage)
         asyncio.create_task(self._events.publish(
-            job_id, "stage.status", {"stage": stage, "status": "cancelling"}
+            job_id, "stage.status", {**progress, "stage": stage, "status": "cancelling"}
         ))
 
     def retry_stage(self, job_id: str, stage: str) -> None:
@@ -178,6 +182,8 @@ class RunnerService:
         job = self._jobs.load_job(job_id)
         backend = job["backends"].get(stage, "")
         prog = default_progress(stage, backend)
+        if self._jobs.datasets.get(job["dataset"]).execution != "mock" and (stage == "distance" or (stage == "surface" and backend == "mrhash_lidar")):
+            prog.update(progress_identity())
         atomic_write_json(self._jobs.stage_dir(job_id, stage) / "progress.json", prog)
         # mark waiting in job.json
         st = self._jobs.stage_mark(job, stage)

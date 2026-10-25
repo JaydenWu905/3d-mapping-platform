@@ -1,6 +1,8 @@
 """Backend registry + dataset listing API."""
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import APIRouter, HTTPException, Request
 
 from app.config import STAGES
@@ -31,4 +33,4 @@ async def list_stage_backends(stage: str, request: Request) -> list[object]:
 
 @router.get("/datasets")
 async def list_datasets(request: Request) -> list[dict]:
-    return get_job_service().list_datasets()
+    return await asyncio.to_thread(get_job_service().list_datasets)

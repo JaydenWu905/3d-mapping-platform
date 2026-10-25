@@ -5,7 +5,7 @@ import type { StageStatus } from '../types';
 export const STATUS_LABELS: Record<string, string> = {
   created: '已创建',
   waiting: '等待中',
-  queued: 'GPU 排队中',
+  queued: '排队中',
   not_integrated: '未请求',
   running: '运行中',
   cancelling: '取消中',
@@ -45,8 +45,8 @@ export function StatusBadge({
       size={size}
       sx={{
         borderRadius: 0,
-        height: medium ? 28 : 22,
-        fontSize: medium ? 14 : 12,
+        height: medium ? 34 : 30,
+        fontSize: medium ? 'var(--font-body)' : 'var(--font-secondary)',
         fontWeight: 600,
         color: tone === 'default' ? 'text.secondary' : `${tone}.dark`,
         bgcolor: tone === 'default' ? 'grey.100' : `${tone}.lighter`,

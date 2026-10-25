@@ -68,7 +68,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           <Typography sx={{ fontSize: 18, fontWeight: 800, lineHeight: 1.2 }} noWrap>
             三维建图平台
           </Typography>
-          <Typography sx={{ fontSize: 12, color: 'text.secondary', mt: 0.25 }} noWrap>
+          <Typography sx={{ fontSize: 'var(--font-secondary)', color: 'text.secondary', mt: 0.25 }} noWrap>
             三维重建工作台
           </Typography>
         </Box>
@@ -110,11 +110,11 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               <ListItemText
                 primary={item.label}
                 secondary={item.caption}
-                primaryTypographyProps={{ fontSize: 16, fontWeight: 700, lineHeight: 1.35 }}
+                primaryTypographyProps={{ fontSize: 'var(--font-body)', fontWeight: 700, lineHeight: 1.35 }}
                 secondaryTypographyProps={{
-                  fontSize: 11.5,
+                  fontSize: 'var(--font-secondary)',
                   color: active ? 'primary.dark' : 'text.secondary',
-                  noWrap: true,
+                  noWrap: false,
                 }}
               />
             </ListItemButton>
@@ -123,20 +123,22 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </List>
 
       <Box sx={{ mt: 'auto', px: 2, py: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-        <Typography sx={{ fontSize: 12, color: 'text.secondary', mb: 0.75 }}>
+        <Typography sx={{ fontSize: 'var(--font-secondary)', color: 'text.secondary', mb: 0.75 }}>
           处理流程
         </Typography>
         <Stack spacing={0.5}>
           {['位姿估计', '表面重建', '距离场'].map((label, index) => (
             <Stack key={label} direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
               <Box
+                className="sidebar-stage-number"
                 sx={{
-                  width: 16,
-                  height: 16,
+                  width: 22,
+                  height: 22,
                   flex: 'none',
                   display: 'grid',
                   placeItems: 'center',
-                  fontSize: 10,
+                  fontSize: 14,
+                  lineHeight: 1,
                   fontWeight: 800,
                   color: 'primary.contrastText',
                   bgcolor: ['primary.main', 'secondary.main', 'info.main'][index],
@@ -144,7 +146,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               >
                 {index + 1}
               </Box>
-              <Typography sx={{ fontSize: 13, color: 'text.primary' }}>{label}</Typography>
+              <Typography sx={{ fontSize: 'var(--font-secondary)', color: 'text.primary' }}>{label}</Typography>
             </Stack>
           ))}
         </Stack>

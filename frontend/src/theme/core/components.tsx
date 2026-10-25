@@ -24,6 +24,9 @@ const MuiButton: Components<Theme>['MuiButton'] = {
   styleOverrides: {
     root: {
       borderRadius: 0,
+      minHeight: 44,
+      padding: "9px 16px",
+      lineHeight: 1.5,
     },
     containedInherit: ({ theme }) => ({
       color: theme.vars.palette.common.white,
@@ -34,10 +37,11 @@ const MuiButton: Components<Theme>['MuiButton'] = {
       },
     }),
     sizeSmall: ({ theme }) => ({
-      fontSize: theme.typography.pxToRem(18),
+      minHeight: 40,
+      fontSize: theme.typography.pxToRem(17),
     }),
     sizeLarge: ({ theme }) => ({
-      minHeight: 48,
+      minHeight: 50,
       fontSize: theme.typography.pxToRem(18),
     }),
   },
@@ -110,7 +114,7 @@ const MuiPaper: Components<Theme>['MuiPaper'] = {
 const MuiTableCell: Components<Theme>['MuiTableCell'] = {
   styleOverrides: {
     root: ({ theme }) => ({
-      fontSize: theme.typography.pxToRem(18),
+      fontSize: theme.typography.pxToRem(16),
     }),
     head: ({ theme }) => ({
       fontSize: theme.typography.pxToRem(16),

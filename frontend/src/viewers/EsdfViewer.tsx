@@ -10,7 +10,7 @@ export interface EsdfViewerProps {
 }
 
 const PLANE_HINTS: Record<string, string> = {
-  xy: '沿 Z 高度切片 · 房间俯视（viewport 纹理示意）',
+  xy: '沿 Z 高度切片 · 世界坐标 XY 平面',
   xz: '沿 Y 切片 · 侧视',
   yz: '沿 X 切片 · 侧视',
 };
@@ -151,7 +151,8 @@ export function EsdfViewer({ jobId, stage, slices, artifacts }: EsdfViewerProps)
         <span className="gradient-note">{arrows && arrows[plane] ? `|∇| 最大值 = ${arrows[plane].magnitude_max}` : ''}</span>
       </div>
 
-      <p className="esdf-legend">暖色 = 靠近障碍物表面（距离小），冷色 = 离表面远 · 箭头指向距离梯度上升方向</p>
+      <p className="esdf-legend">距离（m）：红 −1.5 → 紫 0 → 蓝 +1.5。白色无有效预览采样，不能视为自由空间。</p>
+      <details className="esdf-explanation"><summary>距离场说明</summary><p>正侧沿原 TSDF 传感器侧。切片仅显示 |d|≤1.5 m 的观测支持域；原生地图计算半径为 2.5 m，未分配或未观测体素均为未知。预览筛选不改变原生产物。</p></details>
     </div>
   );
 }

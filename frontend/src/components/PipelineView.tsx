@@ -57,7 +57,7 @@ function UnrequestedStage({ stage }: { stage: StageKey }) {
             height: 24,
             display: 'grid',
             placeItems: 'center',
-            fontSize: 13,
+            fontSize: 'var(--font-secondary)',
             fontWeight: 700,
             color: 'text.disabled',
             bgcolor: 'grey.200',
@@ -74,7 +74,7 @@ function UnrequestedStage({ stage }: { stage: StageKey }) {
             flex: 'none',
             px: 1,
             py: 0.25,
-            fontSize: 12,
+            fontSize: 'var(--font-secondary)',
             fontWeight: 600,
             color: 'text.disabled',
             border: '1px solid',
@@ -85,8 +85,8 @@ function UnrequestedStage({ stage }: { stage: StageKey }) {
         </Typography>
       </Stack>
 
-      <Typography sx={{ fontSize: 14, color: 'text.secondary', mt: 1 }}>{message}</Typography>
-      <Typography sx={{ fontSize: 12, color: 'text.disabled', mt: 'auto' }}>
+      <Typography sx={{ fontSize: 'var(--font-body)', color: 'text.secondary', mt: 1 }}>{message}</Typography>
+      <Typography sx={{ fontSize: 'var(--font-secondary)', color: 'text.disabled', mt: 'auto' }}>
         本阶段未纳入本次任务范围，不影响其他阶段结果。
       </Typography>
     </Box>
@@ -109,7 +109,7 @@ export function PipelineView({
       <Typography
         sx={{
           mb: 1,
-          fontSize: 14,
+          fontSize: 'var(--font-body)',
           fontWeight: 600,
           color: 'text.secondary',
           letterSpacing: '0.04em',

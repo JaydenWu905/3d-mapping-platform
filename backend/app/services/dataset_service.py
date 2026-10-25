@@ -6,6 +6,9 @@ server configuration and are never accepted from an HTTP request.
 from __future__ import annotations
 
 import hashlib
+from functools import lru_cache
+import threading
+import time
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -126,11 +129,25 @@ class DatasetService:
         # loaded by this service. Launch validation then uses index hashes and
         # per-file existence/size checks instead of re-hashing image corpora.
         self._validation_cache: dict[str, list[str]] = {}
+        self._validation_lock = threading.Lock()
+        self._validation_versions: dict[str, tuple] = {}
 
     def validation_errors(self, definition: DatasetDefinition) -> list[str]:
-        if definition.id not in self._validation_cache:
-            self._validation_cache[definition.id] = definition.validate()
-        return list(self._validation_cache[definition.id])
+        with self._validation_lock:
+            versions = []
+            for key in sorted(definition.files):
+                try:
+                    version = _file_version(definition.source_file(key))
+                    versions.append((key, version))
+                    if not _version_stable(version):
+                        versions.append((key, time.monotonic_ns()))
+                except (OSError, DatasetError):
+                    versions.append((key, None))
+            fingerprint = (repr(definition), tuple(versions))
+            if self._validation_versions.get(definition.id) != fingerprint:
+                self._validation_cache[definition.id] = definition.validate()
+                self._validation_versions[definition.id] = fingerprint
+            return list(self._validation_cache[definition.id])
 
     def get(self, dataset_id: str) -> DatasetDefinition:
         defs = {d.id: d for d in self.definitions()}
@@ -203,11 +220,34 @@ class DatasetService:
         return result
 
 
+def _file_version(path: Path) -> tuple[int, ...]:
+    st = path.stat()
+    return st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns, st.st_ctime_ns
+
+
+def _version_stable(version: tuple[int, ...]) -> bool:
+    # Some deployed filesystems expose only coarse timestamps. Do not cache
+    # files that could still be rewritten within the same timestamp tick.
+    return time.time_ns() - max(version[-2:]) > 2_000_000_000
+
+
 def _sha256(path: Path) -> str:
+    path = path.resolve()
+    version = _file_version(path)
+    if not _version_stable(version):
+        return _hash_file_version.__wrapped__(str(path), version)
+    return _hash_file_version(str(path), version)
+
+
+@lru_cache(maxsize=128)
+def _hash_file_version(filename: str, version: tuple[int, ...]) -> str:
+    path = Path(filename)
     digest = hashlib.sha256()
     with path.open("rb") as handle:
         for block in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(block)
+    if _file_version(path) != version:
+        raise DatasetError("Dataset file changed during SHA-256 validation")
     return digest.hexdigest()
 
 

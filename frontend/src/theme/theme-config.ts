@@ -41,9 +41,9 @@ export const themeConfig: ThemeConfig = {
    *************************************** */
   fontFamily: {
     primary:
-      '-apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", Roboto, "Helvetica Neue", Arial, sans-serif',
+      '-apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", Roboto, "Helvetica Neue", Arial, sans-serif',
     secondary:
-      '-apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", Roboto, "Helvetica Neue", Arial, sans-serif',
+      '-apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", Roboto, "Helvetica Neue", Arial, sans-serif',
   },
   /** **************************************
    * Palette — Minimal UI Free original multi-colour palette

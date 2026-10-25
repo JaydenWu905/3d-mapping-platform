@@ -24,7 +24,9 @@ def load_ply_data(path: Path) -> np.ndarray:
             if line.strip() == "end_header":
                 break
         # 读取所有数据行（忽略末尾空行）
-        data = np.loadtxt(fh, dtype=np.float64)
+        data = np.loadtxt(fh, dtype=np.float64, ndmin=2)
+    if data.shape[0] == 0 or data.shape[1] != 7 or not np.isfinite(data).all():
+        raise ValueError("Empty, invalid or nonfinite ESDF preview")
     return data
 
 
@@ -75,6 +77,12 @@ def main():
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
+    import os
+    reporter = None
+    if os.environ.get("PLATFORM_ALGORITHM_PROGRESS_PATH"):
+        from app.models.live_progress import ProgressReporter
+        reporter = ProgressReporter()
+        reporter.emit("loading_preview",force=True)
     print(f"[postprocess] 读取 {args.input_ply}")
     data = load_ply_data(args.input_ply)
     print(f"[postprocess] 共 {data.shape[0]} 点, {data.shape[1]} 列")
@@ -83,8 +91,7 @@ def main():
         raise ValueError(f"PLY 至少 7 列 (x y z distance r g b)，实际 {data.shape[1]}")
 
     xs, ys, zs, dist = data[:, 0], data[:, 1], data[:, 2], data[:, 3]
-    d_min = float(np.percentile(dist, 1))
-    d_max = float(np.percentile(dist, 99))
+    d_min, d_max = -1.5, 1.5  # Fixed signed meter legend; matches declared preview window.
     print(f"[postprocess] distance 范围: [{d_min:.3f}, {d_max:.3f}]")
 
     planes = {
@@ -94,21 +101,26 @@ def main():
     }
 
     meta = {}
-    for name, (u_all, v_all, w_all) in planes.items():
+    if reporter: reporter.emit("slice_rendering",0,len(planes),scope="step",unit="切片方向",force=True)
+    for index, (name, (u_all, v_all, w_all)) in enumerate(planes.items()):
         w_center = float(np.median(w_all))
         thickness = 0.1  # 切片厚度
         mask = np.abs(w_all - w_center) < thickness
         if mask.sum() < 50:
             print(f"[postprocess] {name} 切片点数太少，跳过")
+            if reporter: reporter.emit("slice_rendering",index+1,len(planes),scope="step",unit="切片方向",force=True)
             continue
         print(f"[postprocess] {name} 切片 {mask.sum()} 点")
         out_png = args.output_dir / f"slice_{name}.png"
+        order = np.argsort(-np.abs(w_all[mask] - w_center), kind="stable")
         info = render_slice(
-            u_all[mask], v_all[mask], dist[mask],
+            u_all[mask][order], v_all[mask][order], dist[mask][order],
             out_png, args.resolution, d_min, d_max
         )
         if info:
+            info.update(normal_axis={"xy":"z","xz":"y","yz":"x"}[name], center_m=w_center, half_thickness_m=thickness, sampled_points=int(mask.sum()), unit="meter", unknown_color="white", preview_abs_distance_max_m=1.5)
             meta[name] = info
+        if reporter: reporter.emit("slice_rendering",index+1,len(planes),scope="step",unit="切片方向",force=True)
 
     (args.output_dir / "slices_meta.json").write_text(
         json.dumps(meta, indent=2), encoding="utf-8"

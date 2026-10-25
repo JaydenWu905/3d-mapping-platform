@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import Alert from '@mui/material/Alert';
@@ -26,6 +26,12 @@ import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
 
 import { api, messageOf } from '../api/api';
 import { ArtifactsPanel } from '../components/ArtifactsPanel';
+import { ResultDetails, RawResultDetails } from '../components/ResultDetails';
+import { RenameJobDialog } from '../components/RenameJobDialog';
+import { readableNumber } from '../components/resultPresentation';
+import { jobDisplayName } from '../utils/jobName';
+import { TaskTitleContext } from '../hooks/taskTitle';
+import { DurationComparison } from '../components/DurationComparison';
 import { Chart, useChart } from '../components/chart';
 import { LogViewer } from '../components/LogViewer';
 import {
@@ -34,16 +40,12 @@ import {
   STAGE_LABELS,
 } from '../components/PipelineView';
 import {
-  blockedReasonLabel,
   formatElapsed,
-  progressLabel,
-  progressBarState,
-  stageMessageLabel,
   stagePhaseLabel,
-  stageProgressText,
 } from '../components/progressLabel';
-import { StageProgressBar } from '../components/StageProgressBar';
 import { StatusBadge } from '../components/StatusBadge';
+import { durationRows, measuredProgress } from '../components/runInsight';
+import { stageNotice } from '../components/waitingPreview/presentation';
 import { WaitingPreview } from '../components/WaitingPreview';
 import { hasUsablePreview } from '../components/waitingPreview/artifacts';
 import { choosePreviewStage, deriveTaskPreview, initialPreviewChoice } from '../components/waitingPreview/taskPreviewState';
@@ -58,12 +60,6 @@ import { MeshViewer } from '../viewers/MeshViewer';
 import { TrajectoryViewer } from '../viewers/TrajectoryViewer';
 
 const ACTIVE_STATUSES = ['running', 'queued', 'cancelling'];
-
-const STAGE_COLORS: Record<StageKey, string> = {
-  pose: '#1877F2',
-  surface: '#8E33FF',
-  distance: '#00B8D9',
-};
 
 function formatDate(iso: string): string {
   const date = new Date(iso);
@@ -81,25 +77,12 @@ function isActiveStage(stage: StageDetail): boolean {
 
 /** 已有成果保留真实查看器的交互提示。 */
 function previewHint(stage: StageDetail): string {
-  if (hasUsablePreview(stage)) return '可旋转 · 缩放 · 平移 · 重置视角';
+  if (hasUsablePreview(stage)) return stage.stage === 'distance' ? '切片切换 · 原生地图可下载' : '可旋转 · 缩放 · 平移 · 重置视角';
   if (stage.status === 'not_integrated') return '未请求该阶段';
   if (stage.status === 'failed' || stage.status === 'cancelled' || stage.status === 'completed') {
     return '无可用预览产物';
   }
   return '等待动画 · 非实时地图';
-}
-
-function validationText(scope: string | undefined): string {
-  if (scope === 'ins_full_pose_surface') {
-    return '本任务验收已验证 INS profile 的完整两阶段一键流程，不代表任意 bag 兼容或建图精度通过。';
-  }
-  if (scope === 'custom_device_pose_surface_unverified') {
-    return '本任务使用自采设备配置；CPU 预检和参数匹配不代表 GLIM/MrHash 结果或精度已验收。';
-  }
-  if (scope === 'full_surface_only') {
-    return '本任务仅验收完整表面重建，不代表完整一键流程或建图精度通过。';
-  }
-  return '短段成功不代表完整场景重建或精度验收。';
 }
 
 function poseScopeText(job: JobDetail): string {
@@ -121,10 +104,24 @@ export function JobDetailPage() {
   const [busy, setBusy] = useState(false);
   const [displayMode, setDisplayMode] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const setTaskTitle = useContext(TaskTitleContext);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const everConnected = useRef(false);
   const reducedMotion = useReducedMotion();
+  const [now, setNow] = useState(Date.now());
+  const anchors = useRef<Partial<Record<StageKey, { run: string; reported: number; at: number }>>>({});
+
+  useEffect(() => {
+    if (job?.job_id === jobId) setTaskTitle({ path: `/jobs/${jobId}`, title: jobDisplayName(job) });
+  }, [jobId, job?.job_id, job?.name, job?.created_at, setTaskTitle]);
+
+  useEffect(() => {
+    if (!job || !visibleStageKeys(job).some(key => ['running', 'cancelling'].includes(job.stages[key].status))) return undefined;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [job?.job_id, job?.status]);
 
   useEffect(() => {
     const dataset = job?.dataset;
@@ -186,22 +183,18 @@ export function JobDetailPage() {
     sample.kind === 'stage' ? Math.round(sample.percent) : null,
   );
 
-  const durations = useMemo(() => {
-    if (!job) return [];
-    return visibleStageKeys(job).flatMap((key) => {
-      const detail = job.stages[key];
-      const runtime = detail.manifest?.runtime_sec;
-      if (typeof runtime !== 'number' || !Number.isFinite(runtime)) return [];
-      return [
-        {
-          stage: key,
-          label: STAGE_NAMES[key],
-          value: Math.round(runtime * 10) / 10,
-          color: STAGE_COLORS[key],
-        },
-      ];
-    });
-  }, [job]);
+  const liveElapsed: Partial<Record<StageKey, number>> = {};
+  if (job) for (const key of visibleStageKeys(job)) {
+    const current = job.stages[key];
+    if (!['running', 'cancelling'].includes(current.status)) continue;
+    const run = `${job.job_id}:${key}:${current.started_at ?? 'pending'}`;
+    const reported = Math.max(0, Number(current.elapsed_sec) || 0);
+    const anchor = anchors.current[key];
+    if (!anchor || anchor.run !== run || anchor.reported !== reported) anchors.current[key] = { run, reported, at: now };
+    liveElapsed[key] = reported + Math.max(0, (now - anchors.current[key]!.at) / 1000);
+  }
+  const durationData = job ? durationRows(job, visibleStageKeys(job), liveElapsed) : [];
+  const currentElapsed = stage && isStageKey(stage.stage) ? liveElapsed[stage.stage] ?? stage.elapsed_sec : 0;
 
   const observedChartOptions = useChart({
     chart: { type: 'line', animations: { enabled: !reducedMotion, speed: 360 } },
@@ -230,29 +223,6 @@ export function JobDetailPage() {
     tooltip: {
       y: { formatter: (value: number) => `${Math.round(value)}%` },
     },
-    noData: { text: '暂无数据', style: { fontSize: '16px' } },
-  });
-
-  const durationChartOptions = useChart({
-    chart: { type: 'bar', animations: { enabled: !reducedMotion, speed: 360 } },
-    colors: durations.map((item) => item.color),
-    plotOptions: {
-      bar: { horizontal: true, distributed: true, barHeight: '52%', borderRadius: 0 },
-    },
-    dataLabels: {
-      enabled: true,
-      formatter: (value: string) => `${Math.round(Number(value))} 秒`,
-      style: { fontSize: '14px', fontWeight: 600, colors: ['#ffffff'] },
-    },
-    stroke: { width: 0 },
-    xaxis: {
-      categories: durations.map((item) => item.label),
-      labels: { style: { fontSize: '16px' } },
-    },
-    yaxis: { labels: { style: { fontSize: '16px' } } },
-    grid: { xaxis: { lines: { show: true } }, yaxis: { lines: { show: false } } },
-    legend: { show: false },
-    tooltip: { y: { formatter: (value: number) => `${value} 秒` } },
     noData: { text: '暂无数据', style: { fontSize: '16px' } },
   });
 
@@ -300,15 +270,16 @@ export function JobDetailPage() {
     return (
       <Stack alignItems="center" spacing={2} sx={{ py: 12, color: 'text.secondary' }}>
         <CircularProgress size={28} />
-        <Typography sx={{ fontSize: 16 }}>正在加载任务详情…</Typography>
+        <Typography sx={{ fontSize: 'var(--font-body)' }}>正在加载任务详情…</Typography>
       </Stack>
     );
   }
 
   const requestedStages = visibleStageKeys(job);
+  const notice = stage ? stageNotice(stage) : null;
+  const primaryDownload = stage?.manifest?.artifacts?.find(a => a.download === true && ['registered_trajectory', 'surface_mesh', 'esdf_map'].includes(a.artifact_id));
   const previewStage = preview.viewStageKey ? job.stages[preview.viewStageKey] : null;
   const activeStage = preview.activeStageKey ? job.stages[preview.activeStageKey] : null;
-  const activeBar = activeStage ? progressBarState(activeStage) : null;
   const isDemo = (datasetMeta?.dataset === job.dataset && datasetMeta.execution === 'mock') || job.preview_job
     || Object.values(job.stages).some(item => item.manifest?.backend_details?.mock_backend === true);
   const missingResults = job.status === 'completed'
@@ -332,22 +303,22 @@ export function JobDetailPage() {
               <Typography
                 component="h1"
                 sx={{
-                  fontFamily: 'var(--mono)',
                   fontSize: 30,
                   fontWeight: 700,
                   lineHeight: 1.2,
                   wordBreak: 'break-all',
                 }}
               >
-                {job.job_id}
+                {jobDisplayName(job)}
               </Typography>
+              <Button size="small" onClick={() => setRenameOpen(true)}>重命名</Button>
               {isDemo ? (
                 <Box
                   component="span"
                   sx={{
                     px: 0.75,
                     py: 0.1,
-                    fontSize: 11,
+                    fontSize: 'var(--font-secondary)',
                     color: 'warning.dark',
                     bgcolor: 'warning.lighter',
                     border: '1px solid',
@@ -368,10 +339,10 @@ export function JobDetailPage() {
               className="job-meta"
               sx={{ mt: 1, color: 'text.secondary', rowGap: 0.5 }}
             >
-              <Typography sx={{ fontSize: 14, display: 'flex', alignItems: 'baseline', gap: 0.75, flexWrap: 'wrap' }}>
+              <Typography sx={{ fontSize: 'var(--font-body)', display: 'flex', alignItems: 'baseline', gap: 0.75, flexWrap: 'wrap' }}>
                 数据集 <Box component="strong" sx={{ color: 'text.primary', fontSize: 18, fontWeight: 700, overflowWrap: 'anywhere' }}>{job.dataset}</Box>
               </Typography>
-              <Typography sx={{ fontSize: 14, display: 'flex', alignItems: 'baseline', gap: 0.75, flexWrap: 'wrap' }}>
+              <Typography sx={{ fontSize: 'var(--font-body)', display: 'flex', alignItems: 'baseline', gap: 0.75, flexWrap: 'wrap' }}>
                 创建于 <Box component="strong" sx={{ color: 'text.primary', fontSize: 18, fontWeight: 700 }}>{formatDate(job.created_at)}</Box>
               </Typography>
             </Stack>
@@ -397,7 +368,7 @@ export function JobDetailPage() {
               />
               <Typography
                 sx={{
-                  fontSize: 14,
+                  fontSize: 'var(--font-body)',
                   color: connected ? 'success.dark' : 'text.secondary',
                 }}
               >
@@ -405,7 +376,7 @@ export function JobDetailPage() {
               </Typography>
             </Stack>
             {job.fail_stage ? (
-              <Typography sx={{ mt: 0.5, fontSize: 14 }}>
+              <Typography sx={{ mt: 0.5, fontSize: 'var(--font-body)' }}>
                 模拟失败阶段{' '}
                 <Box component="strong" sx={{ color: 'error.main' }}>
                   {isStageKey(job.fail_stage) ? STAGE_NAMES[job.fail_stage] : job.fail_stage}
@@ -477,6 +448,8 @@ export function JobDetailPage() {
         </Alert>
       ) : null}
 
+      {job.run_mode ? <Box className="job-scope-summary"><span>{job.run_mode === 'short' ? '短段验证' : '完整运行'}</span></Box> : null}
+
       <Card sx={{ p: 2, mb: 2, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
         <PipelineView
           job={job}
@@ -514,11 +487,11 @@ export function JobDetailPage() {
         >
           <Box className="task-preview-live" role="status" aria-live="polite">
             <Typography component="strong">
-              {activeStage ? `后台正在执行：${STAGE_NAMES[activeStage.stage as StageKey]}`
+              {activeStage ? `${activeStage.status === 'queued' ? '等待计算资源' : activeStage.status === 'cancelling' ? '正在取消' : '后台正在执行'}：${STAGE_NAMES[activeStage.stage as StageKey]}`
                 : terminalIssue ? `${STAGE_NAMES[terminalIssue]}${job.stages[terminalIssue].status === 'failed' ? '运行失败' : '已取消'}，已有成果仍可查看`
-                : job.status === 'completed' ? '任务已完成' : job.status === 'running' ? '正在衔接下一阶段…' : '任务尚未开始'}
+                : job.status === 'completed' ? '任务已完成' : job.status === 'running' ? '等待阶段状态更新' : preview.availableResults.length ? '已有阶段结果，其他阶段待开始' : '任务尚未开始'}
             </Typography>
-            {activeStage ? <Typography>{stagePhaseLabel(activeStage)}{activeBar?.percent != null ? ` · ${activeBar.kind === 'input' ? '输入发布' : '阶段进度'} ${Math.round(activeBar.percent)}%` : ' · 进度未上报'}</Typography> : null}
+
             {!connected && everConnected.current ? <Typography color="warning.main">连接中断，正在重连</Typography> : null}
           </Box>
           {missingResults.length ? <Alert severity="warning" sx={{ borderRadius: 0 }}>{missingResults.map(key => STAGE_NAMES[key]).join('、')}已完成但缺少可用预览，请检查产物清单。</Alert> : null}
@@ -528,13 +501,13 @@ export function JobDetailPage() {
             alignItems="center"
             sx={{ px: 2, py: 1.25, borderBottom: '1px solid', borderColor: 'divider' }}
           >
-            <Typography sx={{ fontSize: 16, fontWeight: 700 }}>三维预览</Typography>
-            <Typography sx={{ fontSize: 14, color: 'text.secondary' }}>
+            <Typography sx={{ fontSize: 'var(--font-body)', fontWeight: 700 }}>三维预览</Typography>
+            <Typography sx={{ fontSize: 'var(--font-body)', color: 'text.secondary' }}>
               {previewStage ? STAGE_NAMES[previewStage.stage as StageKey] : ''}
             </Typography>
             <Box sx={{ flex: 1 }} />
-            <Typography sx={{ fontSize: 12, color: 'text.disabled' }}>
-              {previewStage ? preview.mode === 'results' ? previewHint(previewStage) : '自动小车 · 非实时地图' : ''}
+            <Typography sx={{ fontSize: 'var(--font-secondary)', color: 'text.disabled' }}>
+              {previewStage ? preview.mode === 'results' ? previewHint(previewStage) : '轻量处理示意' : ''}
             </Typography>
           </Stack>
 
@@ -543,10 +516,11 @@ export function JobDetailPage() {
               if (!mode) return;
               setPreviewChoice({ jobId, mode, resultStageKey: preview.resultStageKey, animationStageKey: null });
             }}>
-              <ToggleButton value="animation" data-preview-mode-button="animation" disabled={job.status === 'completed' && !activeStage && preview.availableResults.length > 0}>实时进度</ToggleButton>
-              <ToggleButton value="results" data-preview-mode-button="results" disabled={!preview.availableResults.length}>已有成果{preview.availableResults.length ? `（${preview.availableResults.length}）` : ''}</ToggleButton>
+              <ToggleButton value="animation" data-preview-mode-button="animation" disabled={job.status === 'completed' && !activeStage && preview.availableResults.length > 0}>处理状态</ToggleButton>
+              <ToggleButton value="results" data-preview-mode-button="results" disabled={!preview.availableResults.length}>真实结果{preview.availableResults.length ? `（${preview.availableResults.length}）` : ''}</ToggleButton>
             </ToggleButtonGroup>
-            {preview.mode === 'results' ? <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap aria-label="选择已有成果">
+            {primaryDownload && stage ? <Button component="a" variant="outlined" size="small" href={api.artifactUrl(job.job_id, stage.stage, primaryDownload.artifact_id)}>下载原生产物</Button> : null}
+            {preview.availableResults.length > 0 ? <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap aria-label="选择已有成果">
               {preview.availableResults.map(key => <Button key={key} size="small" data-result-stage={key} aria-pressed={preview.resultStageKey === key} variant={preview.resultStageKey === key ? 'contained' : 'outlined'} onClick={() => {
                 setPreviewChoice({ jobId, mode: 'results', resultStageKey: key, animationStageKey: null });
                 setSelectedStage(key);
@@ -563,6 +537,12 @@ export function JobDetailPage() {
                 manifest={previewStage.manifest}
                 connected={connected}
                 waitingOnly={preview.mode === 'animation'}
+                resultStage={preview.availableResults.find(key => key !== previewStage.stage) ?? null}
+                onOpenResult={key => {
+                  setPreviewChoice({ jobId, mode: 'results', resultStageKey: key, animationStageKey: null });
+                  setSelectedStage(key);
+                }}
+                elapsed={previewStage.status === 'running' && isStageKey(previewStage.stage) ? liveElapsed[previewStage.stage] : undefined}
               />
             ) : (
               <Box className="viewer-empty">该任务没有阶段信息。</Box>
@@ -584,7 +564,7 @@ export function JobDetailPage() {
                 </Typography>
                 <StatusBadge status={stage.status} size="medium" />
                 <Box sx={{ flex: 1 }} />
-                <Typography sx={{ fontSize: 12, color: 'text.disabled' }}>
+                <Typography sx={{ fontSize: 'var(--font-secondary)', color: 'text.disabled' }}>
                   阶段 {Math.max(1, requestedStages.indexOf(stage.stage as StageKey) + 1)} /{' '}
                   {requestedStages.length || '—'}
                 </Typography>
@@ -598,90 +578,30 @@ export function JobDetailPage() {
                       <Box component="span" sx={{ fontWeight: 600 }}>
                         {stage.backend_display || stage.backend || '未选择'}
                       </Box>
-                      <Box component="span" sx={{ color: 'text.secondary' }}>
-                        {' '}
-                        · {BACKEND_STATUS_LABELS[stage.backend_status] ?? stage.backend_status}
-                      </Box>
                     </>
                   }
                 />
                 <InfoRow label="当前环节" value={stagePhaseLabel(stage)} />
-                <InfoRow label="阶段耗时" value={formatElapsed(stage.elapsed_sec)} />
+                {stage.status === 'running' ? <>
+                  <Typography className="run-insight__progress" data-progress-kind={measuredProgress(stage).kind}>
+                    {measuredProgress(stage).label}
+                  </Typography>
+                  <Typography className="run-insight__elapsed">已运行 {formatElapsed(currentElapsed)}</Typography>
+                </> : null}
               </Stack>
 
-              <Box sx={{ mt: 1.75 }}>
-                <StageProgressBar stage={stage} large />
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  justifyContent="space-between"
-                  sx={{ mt: 0.75 }}
-                >
-                  <Typography sx={{ fontSize: 14, color: 'text.secondary', minWidth: 0 }}>
-                    {progressLabel(stage)}
-                  </Typography>
-                  <Typography sx={{ flex: 'none', fontSize: 14, color: 'text.secondary' }}>
-                    {stageProgressText(stage)}
-                  </Typography>
-                </Stack>
-                <Typography
-                  title={stage.message}
-                  sx={{
-                    mt: 0.75,
-                    fontSize: 13,
-                    color: 'text.secondary',
-                    wordBreak: 'break-word',
-                  }}
-                >
-                  {stageMessageLabel(stage)}
-                </Typography>
-                {!stage.can_run && stage.run_blocked_reason ? (
-                  <Alert severity="warning" sx={{ mt: 1.25 }}>
-                    当前阶段不可运行：{blockedReasonLabel(stage.run_blocked_reason)}
-                  </Alert>
-                ) : null}
-              </Box>
-
-              <Divider sx={{ my: 2 }} />
-
-              <Typography sx={{ fontSize: 16, fontWeight: 700 }}>
-                本次页面观测的进度
-              </Typography>
-              <Chart
-                type="line"
-                className="detail-observe-chart"
-                series={[
-                  { name: '输入发布进度', data: inputSeries },
-                  { name: '阶段进度', data: stageSeries },
-                ]}
-                options={observedChartOptions}
-                sx={{ height: 220, mt: 1 }}
-              />
-              <Typography sx={{ mt: 0.5, fontSize: 12, color: 'text.disabled' }}>
-                只记录本页面打开后的真实读数；刷新页面后重新观测，不补造历史。
-              </Typography>
-
-              <Divider sx={{ my: 2 }} />
-
-              <Typography sx={{ fontSize: 16, fontWeight: 700 }}>各阶段耗时</Typography>
-              <Chart
-                type="bar"
-                className="detail-duration-chart"
-                series={[{ name: '耗时（秒）', data: durations.map((item) => item.value) }]}
-                options={durationChartOptions}
-                sx={{ height: 190, mt: 1 }}
-              />
-              <Typography sx={{ mt: 0.5, fontSize: 12, color: 'text.disabled' }}>
-                仅展示已完成阶段产物清单中的真实运行耗时。
-              </Typography>
+              {notice ? <Alert severity={notice.severity} sx={{ mt: 1.5 }}>{notice.text}</Alert> : null}
             </Card>
           ) : (
             <Card sx={{ p: 2, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
-              <Typography sx={{ fontSize: 16, color: 'text.secondary' }}>
+              <Typography sx={{ fontSize: 'var(--font-body)', color: 'text.secondary' }}>
                 该任务没有可展示的阶段信息。
               </Typography>
             </Card>
           )}
+          <Card sx={{ p: 2, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
+            <DurationComparison rows={durationData} />
+          </Card>
         </Stack>
       </Box>
 
@@ -695,17 +615,52 @@ export function JobDetailPage() {
           alignItems: 'start',
         }}
       >
-        <CollapsibleSection
-          title="产物、完整指标与算法细节"
-          summary="按当前阶段展示 manifest 中的产物、指标和后端细节。"
-        >
-          {stage ? (
-            <ArtifactsPanel
-              jobId={job.job_id}
-              stage={stage.stage as StageKey}
-              manifest={stage.manifest}
-            />
-          ) : null}
+        <CollapsibleSection title="结果详情" summary="当前阶段的关键指标与预览说明。" defaultOpen={!!stage?.manifest}>
+          {stage ? <><Typography component="h3" sx={{ fontSize: 20, fontWeight: 700 }}>{STAGE_NAMES[stage.stage as StageKey]}</Typography><ResultDetails stage={stage.stage} manifest={stage.manifest} /></> : null}
+        </CollapsibleSection>
+
+        <CollapsibleSection title="下载" summary="按阶段查看原生产物、处理数据与预览文件。">
+          {STAGE_ORDER.filter(key => requestedStages.includes(key) || job.stages[key].manifest).map(key => <section className="stage-downloads" key={key} data-download-stage={key}>
+            <Typography component="h3" sx={{ fontSize: 20, fontWeight: 700 }}>{STAGE_NAMES[key]}</Typography>
+            <ArtifactsPanel jobId={job.job_id} stage={key} manifest={job.stages[key].manifest} />
+          </section>)}
+        </CollapsibleSection>
+
+        <CollapsibleSection title="技术详情" summary="内部标识、原始结果、运行范围与诊断信息。">
+          <Stack spacing={1} sx={{ mb: 2 }}>
+            <InfoRow label="Job ID" value={job.job_id} mono />
+            <InfoRow label="位姿范围" value={poseScopeText(job)} />
+            <InfoRow label="表面帧范围" value={job.run_scope ? `第 ${job.run_scope.surface_start_frame}–${job.run_scope.surface_end_frame ?? '末尾'} 帧` : '未登记'} />
+            <InfoRow label="标定依据" value="待确认；原始设备配置保留在设备与算法配置中。" />
+            <InfoRow label="验收记录" value={job.validation_scope || '未登记'} mono />
+          </Stack>
+          <RawResultDetails manifest={stage?.manifest ?? null} />
+          {stage ? <Stack spacing={1}>
+            <InfoRow label="后端能力状态" value={BACKEND_STATUS_LABELS[stage.backend_status] ?? stage.backend_status} />
+            <InfoRow label="原始单位" value={stage.unit || '—'} />
+            <InfoRow label="原始消息" value={stage.message || '—'} />
+            <Typography>运行中的 Surface 输入进度来自当前运行中成功返回的 compute 调用数 / 选中帧总量；已关联与已跳过计数由 reader 上报。输入结束后的导出与 GLB 生成独立显示；Distance 百分比只表示当前环节。</Typography>
+            <InfoRow label="启动限制" value={stage.run_blocked_reason || '无'} />
+          </Stack> : null}
+
+
+              <Typography sx={{ fontSize: 'var(--font-body)', fontWeight: 700 }}>
+                本次页面观测的进度
+              </Typography>
+              {observed.length > 1 ? <Chart
+                type="line"
+                className="detail-observe-chart"
+                series={[
+                  { name: '输入处理进度', data: inputSeries },
+                  { name: '阶段进度', data: stageSeries },
+                ]}
+                options={observedChartOptions}
+                sx={{ height: 220, mt: 1 }}
+              /> : <Typography>暂未积累足够的页面观测数据。</Typography>}
+              <Typography sx={{ mt: 0.5, fontSize: 'var(--font-secondary)', color: 'text.disabled' }}>
+                只记录本页面打开后的真实读数；刷新页面后重新观测，不补造历史。
+              </Typography>
+
         </CollapsibleSection>
 
         <CollapsibleSection
@@ -743,7 +698,7 @@ export function JobDetailPage() {
                 <InfoRow label="配置快照" value={job.device_config.snapshot} mono />
               </>
             ) : (
-              <Typography sx={{ fontSize: 14, color: 'text.secondary' }}>
+              <Typography sx={{ fontSize: 'var(--font-body)', color: 'text.secondary' }}>
                 本任务未绑定设备配置。
               </Typography>
             )}
@@ -759,7 +714,7 @@ export function JobDetailPage() {
                 />
               ) : null,
             )}
-            <InfoRow label="运行模式" value={job.run_mode === 'short' ? '短段' : '完整序列'} />
+            <InfoRow label="运行模式" value={job.run_mode === 'short' ? '短段' : job.run_mode === 'full' ? '完整序列' : '未登记'} />
             <InfoRow
               label="请求阶段"
               value={requestedStages.map((key) => STAGE_NAMES[key]).join(' → ') || '—'}
@@ -789,7 +744,7 @@ export function JobDetailPage() {
             {stage ? (
               <>
                 <Divider sx={{ my: 0.5 }} />
-                <Typography sx={{ fontSize: 13, color: 'text.disabled' }}>
+                <Typography sx={{ fontSize: 'var(--font-secondary)', color: 'text.disabled' }}>
                   后端原始技术字段（保留原文，便于排查）
                 </Typography>
                 <InfoRow label="阶段键" value={stage.stage} mono />
@@ -805,49 +760,9 @@ export function JobDetailPage() {
           </Stack>
         </CollapsibleSection>
 
-        <CollapsibleSection
-          title="运行范围与验收说明"
-          summary="包含运行范围、标定依据、预览简化与本次验收边界。"
-        >
-          <Stack spacing={1.25}>
-            {requestedStages.includes('distance') ? null : (
-              <Typography sx={{ fontSize: 15, fontWeight: 600 }}>
-                本任务未请求距离场。
-              </Typography>
-            )}
-            <InfoRow
-              label="位姿范围"
-              value={job.run_scope ? poseScopeText(job) : '—'}
-            />
-            <InfoRow
-              label="表面帧范围"
-              value={
-                job.run_scope
-                  ? `原始第 ${job.run_scope.surface_start_frame}–${
-                      job.run_scope.surface_end_frame ?? '末尾'
-                    } 帧`
-                  : '—'
-              }
-            />
-            <Typography sx={{ fontSize: 14, lineHeight: 1.7, color: 'text.secondary' }}>
-              {validationText(job.validation_scope)}
-            </Typography>
-            <Typography sx={{ fontSize: 14, lineHeight: 1.7, color: 'text.secondary' }}>
-              标定与预检说明：设备外参及 IMU 单位依据仍需确认；CPU 预检只验证数据结构与配置条件，不代表算法成功或精度合格。
-            </Typography>
-            {stage?.stage === 'surface' &&
-            stage.manifest?.metrics?.preview_simplification_applied === true ? (
-              <Typography sx={{ fontSize: 14, lineHeight: 1.7, color: 'text.secondary' }}>
-                浏览器 GLB 预览已简化：
-                {String(stage.manifest.metrics.preview_source_faces ?? '—')} →{' '}
-                {String(stage.manifest.metrics.preview_faces ?? '—')}{' '}
-                面。简化可能改变细小分量与边界；完整原生 Mesh 可在上方产物区下载。
-              </Typography>
-            ) : null}
-          </Stack>
-        </CollapsibleSection>
       </Box>
 
+      <RenameJobDialog open={renameOpen} jobId={job.job_id} name={jobDisplayName(job)} onClose={() => setRenameOpen(false)} onSaved={refresh} />
       <Dialog
         open={deleteOpen}
         onClose={() => {
@@ -858,8 +773,8 @@ export function JobDetailPage() {
       >
         <DialogTitle>删除任务</DialogTitle>
         <DialogContent>
-          <DialogContentText sx={{ fontSize: 16 }}>
-            确认删除任务 <Box component="code">{job.job_id}</Box> ？
+          <DialogContentText sx={{ fontSize: 'var(--font-body)' }}>
+            确认删除任务 <Box component="span">{jobDisplayName(job)}</Box> ？
             该操作会删除其磁盘上的所有数据，且不可恢复。
           </DialogContentText>
           {deleteError ? (
@@ -898,14 +813,14 @@ function InfoRow({
   return (
     <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ minWidth: 0 }}>
       <Typography
-        sx={{ flex: 'none', width: 96, fontSize: 14, color: 'text.secondary' }}
+        sx={{ flex: 'none', width: 96, fontSize: 'var(--font-body)', color: 'text.secondary' }}
       >
         {label}
       </Typography>
       <Typography
         sx={{
           minWidth: 0,
-          fontSize: 14,
+          fontSize: 'var(--font-body)',
           wordBreak: 'break-all',
           fontFamily: mono ? 'var(--mono)' : undefined,
         }}
@@ -920,11 +835,14 @@ function CollapsibleSection({
   title,
   summary,
   children,
+  defaultOpen = false,
 }: {
   title: string;
   summary: string;
   children: ReactNode;
+  defaultOpen?: boolean;
 }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
     <Box
       component="section"
@@ -932,6 +850,8 @@ function CollapsibleSection({
     >
       <Box
         component="details"
+        open={open}
+        onToggle={(event) => setOpen(event.currentTarget.open)}
         sx={{ '&[open] .collapse-arrow': { transform: 'rotate(90deg)' } }}
       >
         <Box
@@ -957,13 +877,13 @@ function CollapsibleSection({
           />
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography sx={{ fontSize: 18, fontWeight: 700 }}>{title}</Typography>
-            <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>{summary}</Typography>
+            <Typography sx={{ fontSize: 'var(--font-secondary)', color: 'text.secondary' }}>{summary}</Typography>
           </Box>
-          <Typography sx={{ flex: 'none', fontSize: 12, color: 'text.disabled' }}>
+          <Typography sx={{ flex: 'none', fontSize: 'var(--font-secondary)', color: 'text.disabled' }}>
             展开 / 收起
           </Typography>
         </Box>
-        <Box sx={{ px: 1.75, pb: 2 }}>{children}</Box>
+        {open ? <Box sx={{ px: 1.75, pb: 2 }}>{children}</Box> : null}
       </Box>
     </Box>
   );
@@ -983,7 +903,7 @@ function PreviewNote({ metrics }: { metrics: Record<string, unknown> }) {
           px: 1.25,
           py: 0.9,
           cursor: 'pointer',
-          fontSize: 14,
+          fontSize: 'var(--font-body)',
           color: 'text.secondary',
           listStyle: 'none',
           '&::-webkit-details-marker': { display: 'none' },
@@ -991,10 +911,9 @@ function PreviewNote({ metrics }: { metrics: Record<string, unknown> }) {
       >
         预览简化说明
       </Box>
-      <Typography sx={{ px: 1.25, pb: 1.25, fontSize: 14, lineHeight: 1.7 }}>
-        浏览器 GLB 预览已简化：{String(metrics.preview_source_faces ?? '—')} →{' '}
-        {String(metrics.preview_faces ?? '—')} 面。简化可能改变细小分量与边界；完整原生
-        Mesh 可在下方“产物、完整指标与算法细节”中下载。
+      <Typography sx={{ px: 1.25, pb: 1.25, fontSize: 'var(--font-body)', lineHeight: 1.7 }}>
+        浏览器 GLB 预览已简化：{typeof metrics.preview_source_faces === 'number' ? readableNumber(metrics.preview_source_faces, 0) : '—'} →{' '}
+        {typeof metrics.preview_faces === 'number' ? readableNumber(metrics.preview_faces, 0) : '—'} 面。完整原生 Mesh 可在“下载”中单独获取。
       </Typography>
     </Box>
   );
@@ -1006,12 +925,18 @@ function StageViewer({
   manifest,
   connected,
   waitingOnly,
+  resultStage,
+  onOpenResult,
+  elapsed,
 }: {
   jobId: string;
   stage: StageDetail;
   manifest: Manifest | null;
   connected: boolean;
   waitingOnly: boolean;
+  resultStage: StageKey | null;
+  onOpenResult: (key: StageKey) => void;
+  elapsed?: number;
 }) {
   const slices = useMemo(() => {
     const value = manifest?.metrics?.slices;
@@ -1020,12 +945,12 @@ function StageViewer({
 
   const hasTraj = manifestArtifact(stage, 'trajectory_model') !== null;
 
-  if (waitingOnly) return <WaitingPreview stage={stage} connected={connected} runKey={`${jobId}:${stage.stage}:${stage.started_at ?? 'pending'}`} />;
+  if (waitingOnly) return <WaitingPreview stage={stage} connected={connected} runKey={`${jobId}:${stage.stage}:${stage.started_at ?? 'pending'}`} resultStage={resultStage} onOpenResult={onOpenResult} elapsed={elapsed} />;
 
   // 查看器按阶段键固定映射（架构约束：不按算法分支）。
   if (stage.stage === 'pose') {
     if (hasTraj) return <TrajectoryViewer jobId={jobId} stage={stage.stage} />;
-    return <WaitingPreview stage={stage} connected={connected} runKey={`${jobId}:${stage.stage}:${stage.started_at ?? 'pending'}`} />;
+    return <WaitingPreview stage={stage} connected={connected} runKey={`${jobId}:${stage.stage}:${stage.started_at ?? 'pending'}`} resultStage={resultStage} onOpenResult={onOpenResult} />;
   }
 
   if (stage.stage === 'surface') {
@@ -1038,7 +963,7 @@ function StageViewer({
         />
       );
     }
-    return <WaitingPreview stage={stage} connected={connected} runKey={`${jobId}:${stage.stage}:${stage.started_at ?? 'pending'}`} />;
+    return <WaitingPreview stage={stage} connected={connected} runKey={`${jobId}:${stage.stage}:${stage.started_at ?? 'pending'}`} resultStage={resultStage} onOpenResult={onOpenResult} />;
   }
 
   if (stage.stage === 'distance') {
@@ -1052,7 +977,7 @@ function StageViewer({
         />
       );
     }
-    return <WaitingPreview stage={stage} connected={connected} runKey={`${jobId}:${stage.stage}:${stage.started_at ?? 'pending'}`} />;
+    return <WaitingPreview stage={stage} connected={connected} runKey={`${jobId}:${stage.stage}:${stage.started_at ?? 'pending'}`} resultStage={resultStage} onOpenResult={onOpenResult} />;
   }
 
   return null;

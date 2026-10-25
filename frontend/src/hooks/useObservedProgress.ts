@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { progressBarState } from '../components/progressLabel';
+import { measuredProgress } from '../components/runInsight';
 import type { JobDetail, StageKey } from '../types';
 import {
   appendProgressSample,
@@ -38,12 +38,12 @@ export function useObservedProgress(
   const stage = job && stageKey ? job.stages[stageKey] : undefined;
   const runKey =
     job && stageKey && stage ? `${job.job_id}:${stageKey}:${stage.started_at ?? 'pending'}` : '';
-  const bar = stage ? progressBarState(stage) : null;
+  const bar = stage ? measuredProgress(stage) : null;
   const percent = bar?.percent ?? null;
-  const kind: ProgressKind = bar?.kind ?? 'stage';
+  const kind: ProgressKind = bar?.kind === 'input' ? 'input' : 'stage';
   const shouldSample =
     !!stage &&
-    percent !== null &&
+    percent !== null && bar?.kind !== 'step' &&
     (ACTIVE_STATUSES.has(stage.status) || TERMINAL_STATUSES.has(stage.status));
   const terminal = !!stage && TERMINAL_STATUSES.has(stage.status);
 

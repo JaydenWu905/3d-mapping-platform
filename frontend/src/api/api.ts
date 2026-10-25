@@ -53,8 +53,9 @@ export const api = {
 
   listJobs: () => request<JobSummary[]>('/jobs'),
   getJob: (jobId: string) => request<JobDetail>(jobUrl(jobId)),
-  createJob: (body: { run_mode?: string; dataset: string; backends: Record<string, string>; fail_stage?: string | null; requested_stages?: string[] }) =>
+  createJob: (body: { name?: string; run_mode?: string; dataset: string; backends: Record<string, string>; fail_stage?: string | null; requested_stages?: string[] }) =>
     request<JobDetail>('/jobs', { method: 'POST', body: JSON.stringify(body) }),
+  renameJob: (jobId: string, name: string) => request<JobDetail>(jobUrl(jobId), { method: 'PATCH', body: JSON.stringify({ name }) }),
   deleteJob: (jobId: string) => request<void>(jobUrl(jobId), { method: 'DELETE' }),
 
   runAll: (jobId: string) =>

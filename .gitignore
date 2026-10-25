@@ -42,3 +42,11 @@ ops/device_runtime.json
 ops/backend-installed.txt
 ops/frontend-installed.json
 ops/releases/*/verification.local.json
+
+# Shared deployment data/environment links in isolated worktrees
+/backend/.venv
+/jobs
+/uploads
+/frontend/*.tsbuildinfo
+/backend/scripts/esdf_cpp/build/
+/backend/scripts/esdf_cpp/third_party/

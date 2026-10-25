@@ -19,6 +19,7 @@ done
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 PLATFORM_PYTHON="$SCRIPT_DIR/../.venv/bin/python"
 [[ -x "$PLATFORM_PYTHON" ]] || PLATFORM_PYTHON=python3
+unset OMP_NUM_THREADS OPENBLAS_NUM_THREADS
 case "$BACKEND" in
   mrhash_lidar)
     exec "$PLATFORM_PYTHON" "$SCRIPT_DIR/mrhash_surface_adapter.py" --job-dir "$JOB_DIR" --mode "$MODE"

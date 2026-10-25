@@ -3,13 +3,27 @@ from __future__ import annotations
 
 import time
 import uuid
+import unicodedata
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 from app.config import STAGE_LABELS, STAGES
 
-StageStatusValue = Literal["waiting", "queued", "running", "completed", "failed", "cancelled", "not_integrated"]
+StageStatusValue = Literal["waiting", "queued", "running", "cancelling", "completed", "failed", "cancelled", "not_integrated"]
+
+
+def normalize_job_name(value: str) -> str:
+    """Display metadata only; never a directory name or Job identifier."""
+    if not isinstance(value, str):
+        raise ValueError("任务名称必须是文本")
+    value = unicodedata.normalize("NFC", value)
+    if any(unicodedata.category(char).startswith("C") or char in "<>\\" for char in value):
+        raise ValueError("任务名称不能包含控制字符、尖括号或反斜杠")
+    value = " ".join(value.split())
+    if not value or len(value) > 80:
+        raise ValueError("任务名称须为 1–80 个字符")
+    return value
 
 
 def new_job_id() -> str:
@@ -34,12 +48,14 @@ def new_job(
     job_id: Optional[str] = None,
     preview_job: bool = False,
     requested_stages: list[str] | None = None,
+    name: str | None = None,
 ) -> dict[str, Any]:
     """Create the in-memory / on-disk structure of a job."""
     job_id = job_id or new_job_id()
     requested_stages = requested_stages or list(STAGES)
     result = {
         "job_id": job_id,
+        "name": normalize_job_name(name) if name is not None else None,
         "created_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "status": "created",
         "dataset": dataset,
@@ -60,7 +76,7 @@ def new_job(
 def derive_job_status(job: dict[str, Any]) -> str:
     """Recompute the overall job status from its stage statuses (server of truth = disk)."""
     statuses = [job["stages"][s]["status"] for s in job.get("requested_stages", STAGES)]
-    if any(s in ("running", "queued") for s in statuses):
+    if any(s in ("running", "queued", "cancelling") for s in statuses):
         return "running"
     if any(s == "failed" for s in statuses):
         return "failed"
@@ -104,11 +120,27 @@ class BackendStageResponse(BaseModel):
 
 
 class CreateJobRequest(BaseModel):
+    name: Optional[str] = None
     run_mode: Optional[Literal["full", "short"]] = None
     dataset: str
     backends: dict[str, str]
     fail_stage: Optional[str] = None
     requested_stages: Optional[list[str]] = None
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def validate_name(cls, value):
+        return normalize_job_name(value) if value is not None else None
+
+
+class RenameJobRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def validate_name(cls, value):
+        return normalize_job_name(value)
 
 
 class DatasetResponse(BaseModel):
@@ -139,6 +171,7 @@ class StageDetail(BaseModel):
 
 class JobSummary(BaseModel):
     job_id: str
+    name: Optional[str] = None
     created_at: str
     status: str
     dataset: str

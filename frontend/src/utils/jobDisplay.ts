@@ -1,4 +1,5 @@
 import type { JobSummary, StageKey } from '../types';
+import { jobDisplayName } from './jobName';
 
 // ----------------------------------------------------------------------
 // 任务展示语义（仅前端派生，不写入后端业务字段）
@@ -113,6 +114,7 @@ export function filterJobs(
     if (!keyword) return true;
 
     return (
+      jobDisplayName(job).toLowerCase().includes(keyword) ||
       job.job_id.toLowerCase().includes(keyword) ||
       job.dataset.toLowerCase().includes(keyword)
     );

@@ -26,8 +26,8 @@ HEARTBEAT_SECONDS = 15.0
 
 @router.get("")
 async def stream_job_events(job_id: str, request: Request):
-    jobs = get_job_service()
-    events: EventService = get_event_service()
+    jobs = request.app.state.jobs
+    events: EventService = request.app.state.events
     queue = events.subscribe(job_id)
 
     async def _stream():

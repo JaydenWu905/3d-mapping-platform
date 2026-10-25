@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
 import AppBar from '@mui/material/AppBar';
@@ -13,6 +13,7 @@ import { Sidebar } from './components/Sidebar';
 import { JobDetailPage } from './pages/JobDetailPage';
 import { JobsPage } from './pages/JobsPage';
 import { NewJobPage } from './pages/NewJobPage';
+import { TaskTitleContext, type TaskTitle } from './hooks/taskTitle';
 
 function pageTitle(pathname: string) {
   if (pathname === '/jobs/new') return '新建任务';
@@ -23,9 +24,11 @@ function pageTitle(pathname: string) {
 function Shell() {
   const { pathname } = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [taskTitle, setTaskTitle] = useState<TaskTitle>({ path: '', title: '' });
+  useEffect(() => { document.title = `${taskTitle.path === pathname ? taskTitle.title : pageTitle(pathname)} · 三维建图平台`; }, [pathname, taskTitle]);
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
+    <TaskTitleContext.Provider value={setTaskTitle}><Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
       <Sidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
 
       <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
@@ -53,17 +56,17 @@ function Shell() {
             >
               <MenuRoundedIcon />
             </IconButton>
-            <Typography sx={{ fontSize: 14, color: 'text.secondary', display: { xs: 'none', sm: 'block' } }}>
+            <Typography sx={{ fontSize: 'var(--font-secondary)', color: 'text.secondary', display: { xs: 'none', sm: 'block' } }}>
               三维建图平台
             </Typography>
-            <Typography sx={{ fontSize: 14, color: 'text.disabled', display: { xs: 'none', sm: 'block' } }}>
+            <Typography sx={{ fontSize: 'var(--font-secondary)', color: 'text.disabled', display: { xs: 'none', sm: 'block' } }}>
               /
             </Typography>
-            <Typography sx={{ fontSize: 18, fontWeight: 700 }}>{pageTitle(pathname)}</Typography>
+            <Typography className="page-breadcrumb" noWrap sx={{ minWidth: 0, fontSize: 18, fontWeight: 700 }}>{taskTitle.path === pathname ? taskTitle.title : pageTitle(pathname)}</Typography>
             <Box sx={{ flex: 1 }} />
             <Typography
               sx={{
-                fontSize: 12,
+                fontSize: 15,
                 color: 'text.secondary',
                 border: '1px solid',
                 borderColor: 'divider',
@@ -87,7 +90,7 @@ function Shell() {
           </Routes>
         </Box>
       </Box>
-    </Box>
+    </Box></TaskTitleContext.Provider>
   );
 }
 
