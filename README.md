@@ -4,7 +4,7 @@
 
 同一物理设备的新 Livox 序列、其他设备的真实算法结果、ROS2 bag、不同消息格式、RGB-D、自适应网格和新机器完整三阶段重建均未验收。上传入口支持单个 ROS1 bag v2.0，LiDAR 为 `livox_ros_driver2/msg/CustomMsg`，IMU 为 `sensor_msgs/msg/Imu`。[设备配置与消息适配](docs/换设备修改指南.md)。仅更换同格式设备的话题、frame、标定、IMU 单位、时间配置，可新建设备 profile 并核查 GLIM 配置；其他消息结构需要修改 bag 预检、桥接和 MrHash reader。CPU 预检不代表真实算法验收。
 
-## 新成员最快看到相同页面
+## 如何操作
 
 在 Ubuntu 22.04、Python 3.12、Node 24（本机为 24.21.0）上，从本 PR 的**明确提交 SHA** 检出；合并后可用 main 对应提交。请勿把随时间变化的分支名当成固定版本。
 
@@ -27,7 +27,7 @@ curl --noproxy '*' -f http://127.0.0.1:8000/api/health
 
 ## 真实三阶段部署
 
-[完整可重建步骤与检查脚本](docs/RELEASE_DEPLOYMENT.md)给出 ROS2 Humble、GLIM 1.2.2 CUDA 12.6、Python 桥接、MrHash Pixi、Voxblox 固定源码、构建、配置和 GPU 预检。只克隆平台**不足以**运行真实链路：还需可取得的 MrHash 修改提交、原始 bag、系统/算法环境及新机器原生验收。部署脚本不会把本机编译产物打包到 Git。GPU 和足够内存用于真实 GLIM/MrHash；Distance 构建和真实运行也按 GPU 模式预检。历史 2 GiB 内存限制只属于无卡模式，不是 GPU 部署规格。原机三阶段资源采样最大 32.568 GiB RAM、20,642 MiB GPU 显存。
+[完整可重建步骤与检查脚本](docs/RELEASE_DEPLOYMENT.md)给出 ROS2 Humble、GLIM 1.2.2 CUDA 12.6、Python 桥接、MrHash Pixi、Voxblox 固定源码、构建、配置和 GPU 预检。只克隆平台**不足以**运行真实链路：还需可取得的 MrHash 修改提交、原始 bag、系统/算法环境及新机器原生验收。
 
 有数据与依赖后，在 `/jobs/new` 选对应已预检的数据集、设备 profile、`Pose + Surface + Distance` 和完整运行，再点击创建并一键运行。短段模式仍对整包新运行 Pose，但 Surface 仅取第 1–100 帧。下载的原生 PLY/ESDF 与网页简化预览不同。新机器须用**独立新 Job**验证，不能用演示 Job、Mock 或复制历史产物代替。[数据单独交付清单](docs/RELEASE_DEPLOYMENT.md#数据单独交付)。
 
