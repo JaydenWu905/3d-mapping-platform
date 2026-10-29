@@ -34,7 +34,7 @@ export function resultMetrics(stage: string, manifest: Manifest): { label: strin
 const ARTIFACT_NAMES: Record<string,string> = {
   trajectory_model:'轨迹预览',trajectory_raw:'轨迹数据',registered_trajectory:'已关联位姿轨迹',glim_native_trajectory:'GLIM 原生轨迹',pose_timestamp_association:'时间关联记录',glim_bag_frame_index:'输入帧索引',glim_effective_config:'位姿算法配置',glim_run_log:'位姿运行日志',
   surface_mesh:'原生 Mesh（PLY）',voxel_points:'原生体素数据',hash_points:'哈希点数据',run_config:'重建配置',frame_accounting:'帧处理统计',fused_frame_ledger:'已融合帧清单',navigation_input:'下阶段输入数据',
-  esdf_map:'原生距离场地图',tsdf_map:'原生 TSDF 地图',slices_archive:'距离场切片压缩包',gradient:'距离梯度预览',slice_xy:'XY 距离切片',slice_xz:'XZ 距离切片',slice_yz:'YZ 距离切片',observed_xy:'XY 观测掩码',observed_xz:'XZ 观测掩码',observed_yz:'YZ 观测掩码',
+  esdf_map:'原生距离场地图',tsdf_map:'原生 TSDF 地图',esdf_vis_ply:'原生距离场点云（PLY，可下载）',esdf_web_ply:'距离场点云预览（3D）',slices_meta:'切片元信息（JSON）',slices_archive:'距离场切片压缩包',gradient:'距离梯度预览',slice_xy:'XY 距离切片',slice_xz:'XZ 距离切片',slice_yz:'YZ 距离切片',observed_xy:'XY 观测掩码',observed_xz:'XZ 观测掩码',observed_yz:'YZ 观测掩码',
 };
 export function artifactLabel(a: ArtifactInfo, manifest: Manifest): string {
   if (a.artifact_id === 'surface_model') return manifest.metrics?.preview_simplification_applied === true ? '简化 GLB 预览' : 'GLB 模型预览';

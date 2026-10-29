@@ -458,6 +458,122 @@ body.display-mode .detail-duration-chart {
   line-height: 1.5;
 }
 
+/* 切片 / 点云的物理含义元信息：紧贴预览图下方，同一行内自动折行 */
+.esdf-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 24px;
+  margin: 0;
+  padding: 9px 12px;
+  background: #f9fafb;
+  border-top: 1px solid #dfe3e8;
+}
+
+.esdf-meta-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.esdf-meta dt {
+  flex: none;
+  color: #637381;
+  font-size: var(--font-secondary);
+}
+
+.esdf-meta dt::after {
+  content: '：';
+}
+
+.esdf-meta dd {
+  margin: 0;
+  color: #1c252e;
+  font-size: var(--font-secondary);
+  font-family: var(--mono);
+  overflow-wrap: anywhere;
+}
+
+/* 3D 点云视图：宽度沿用 .esdf-stage，只把方形换成更适合三维观察的横向比例 */
+.detail-viewer .esdf-stage-3d,
+.esdf-stage-3d {
+  aspect-ratio: 16 / 10;
+}
+
+.point-cloud-viewer {
+  position: absolute;
+  inset: 0;
+}
+
+.point-cloud-viewer canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.point-cloud-loading,
+.point-cloud-error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  color: #c4cdd5;
+  font-size: var(--font-body);
+  text-align: center;
+  pointer-events: none;
+}
+
+.point-cloud-error {
+  color: #ff9c99;
+}
+
+.point-cloud-footer {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  z-index: 4;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  pointer-events: none;
+}
+
+.point-cloud-footer span {
+  color: #d7e1ec;
+  font-size: var(--font-secondary);
+  background: rgba(11, 17, 24, 0.72);
+  padding: 3px 8px;
+}
+
+.point-cloud-count {
+  font-family: var(--mono);
+}
+
+.point-cloud-toolbar {
+  flex-wrap: wrap;
+  max-width: calc(100% - 24px);
+}
+
+.point-cloud-toolbar .toggle {
+  color: #d7e1ec;
+}
+
+.point-cloud-toolbar .point-size input[type='range'] {
+  width: 84px;
+  accent-color: #1877f2;
+}
+
+.point-cloud-toolbar .btn {
+  padding: 4px 10px;
+  font-size: var(--font-secondary);
+}
+
 /* ---------- 日志 ---------- */
 
 .log-panel {
