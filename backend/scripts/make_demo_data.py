@@ -228,6 +228,96 @@ def _mask_png(arr: np.ndarray, thresh: float = 0.30) -> np.ndarray:
     return np.dstack([m, m, m])
 
 
+# demo 房间几何（与 _make_surface 的 16x16x3 m 房间 + 障碍保持一致）
+_DEMO_SOLIDS = [
+    ((0.0, 0.0, 1.5), (8.0, 8.0, 1.5)),      # 房间外壳
+    ((2.5, 1.0, 0.45), (0.50, 0.40, 0.45)),  # 货箱
+    ((-3.0, -1.5, 0.38), (0.70, 0.30, 0.38)),
+    ((0.5, 3.2, 0.70), (0.30, 0.30, 0.70)),
+    ((-1.0, 2.2, 0.08), (0.60, 0.075, 0.075)),
+]
+_DEMO_SPHERES = [((3.0, 2.0, 2.4), 0.35)]
+
+
+def _demo_esdf_cloud(points: int = 40000, max_abs_distance: float = 1.2) -> np.ndarray:
+    """合成一份"贴着表面"的 ESDF 预览点云，列格式与真实导出一致 (x y z distance r g b)。"""
+    faces = []
+    for center, half in _DEMO_SOLIDS:
+        c = np.asarray(center, dtype=float)
+        h = np.asarray(half, dtype=float)
+        for axis in range(3):
+            for sign in (-1, 1):
+                others = [i for i in range(3) if i != axis]
+                faces.append({
+                    "center": c, "half": h, "axis": axis, "sign": sign,
+                    "area": 4.0 * h[others[0]] * h[others[1]],
+                })
+    for center, radius in _DEMO_SPHERES:
+        faces.append({"center": np.asarray(center, dtype=float), "radius": float(radius),
+                      "area": 4.0 * np.pi * radius ** 2})
+
+    total_area = sum(f["area"] for f in faces)
+    chunks_pts, chunks_dist = [], []
+    for face in faces:
+        count = max(60, int(round(points * face["area"] / total_area)))
+        if "radius" in face:  # 球面
+            vec = np.random.normal(size=(count, 3))
+            vec /= np.linalg.norm(vec, axis=1, keepdims=True)
+            base = face["center"] + vec * face["radius"]
+            normal = vec
+        else:                 # 长方体的一个面
+            axis, sign = face["axis"], face["sign"]
+            base = np.tile(face["center"], (count, 1))
+            base[:, axis] = face["center"][axis] + sign * face["half"][axis]
+            for i in [i for i in range(3) if i != axis]:
+                base[:, i] = face["center"][i] + (np.random.random(count) * 2.0 - 1.0) * face["half"][i]
+            normal = np.zeros(3)
+            normal[axis] = float(sign)
+        offset = np.random.uniform(-max_abs_distance, max_abs_distance, size=count)
+        chunks_pts.append(base + normal * offset[:, None])
+        chunks_dist.append(offset)
+
+    pts = np.vstack(chunks_pts)
+    dist = np.concatenate(chunks_dist)
+    norm = np.clip((dist + 1.5) / 3.0, 0.0, 1.0)
+    rgb = np.column_stack([255.0 * (1.0 - norm), np.zeros_like(norm), 255.0 * norm])
+    return np.hstack([pts, dist.reshape(-1, 1), rgb])
+
+
+def _write_ascii_ply(path: Path, data: np.ndarray) -> None:
+    """写与真实产物同格式的 ASCII PLY（x y z distance r g b），供 demo 演示"下载原始点云"。"""
+    header = "\n".join([
+        "ply",
+        "format ascii 1.0",
+        f"element vertex {data.shape[0]}",
+        "property float x",
+        "property float y",
+        "property float z",
+        "property float distance",
+        "property uchar red",
+        "property uchar green",
+        "property uchar blue",
+        "end_header",
+    ])
+    np.savetxt(path, data, fmt="%.4f %.4f %.4f %.4f %d %d %d", header=header, comments="")
+
+
+def _write_demo_clouds(stage: Path, points: int = 40000) -> dict:
+    import sys as _sys
+    _sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from esdf_postprocess import write_web_preview
+
+    data = _demo_esdf_cloud(points)
+    info = write_web_preview(data, stage / "esdf_vis_web.ply", max_points=0)
+    info["bounds_m"] = {
+        axis: [float(data[:, i].min()), float(data[:, i].max())]
+        for i, axis in enumerate(("x", "y", "z"))
+    }
+    # demo 没有真实 C++ 运行，用同一批合成点云补一份可下载的"完整 PLY"，让下载清单与真实任务一致
+    _write_ascii_ply(stage / "esdf_vis.ply", data)
+    return info
+
+
 def _make_distance() -> None:
     d = OUT / KEY["distance"]
     sl = d / "slices"
@@ -256,6 +346,40 @@ def _make_distance() -> None:
             zf.write(sl / f"{name}.png", arcname=f"{name}.png")
             zf.write(sl / f"observed_{name}.png", arcname=f"observed_{name}.png")
 
+    web = _write_demo_clouds(d)
+
+    def _plane_meta(file_name: str, u_axis: str, v_axis: str, normal_axis: str,
+                    u_range: list, v_range: list, center: float) -> dict:
+        span = max(u_range[1] - u_range[0], v_range[1] - v_range[0])
+        return {
+            "file": file_name,
+            "u_axis": u_axis, "v_axis": v_axis, "normal_axis": normal_axis,
+            "u_range": u_range, "v_range": v_range,
+            "image_size_px": [480, 480],
+            "pixel_size_m": round(span / 479, 4),
+            "distance_range": [-1.5, 1.5],
+            "distance_range_observed": [-1.2, 1.2],
+            "center_m": center, "half_thickness_m": 0.1, "thickness_m": 0.2,
+            "sampled_points": 20000, "unit": "meter", "unknown_color": "white",
+            "preview_abs_distance_max_m": 1.5, "image_orientation": "row0=v_max",
+        }
+
+    slices_meta = {
+        "schema_version": "1.0",
+        "unit": "meter",
+        "image_resolution_px": 480,
+        "distance_legend_range_m": [-1.5, 1.5],
+        "preview_abs_distance_max_m": 1.5,
+        "bounds_m": web["bounds_m"],
+        "planes": {
+            "xy": _plane_meta("slices/xy.png", "x", "y", "z", [-8.0, 8.0], [-8.0, 8.0], 1.5),
+            "xz": _plane_meta("slices/xz.png", "x", "z", "y", [-8.0, 8.0], [0.0, 3.0], 0.0),
+            "yz": _plane_meta("slices/yz.png", "y", "z", "x", [-8.0, 8.0], [0.0, 3.0], 0.0),
+        },
+        "web_preview": web,
+    }
+    (d / "slices_meta.json").write_text(json.dumps(slices_meta, indent=2), encoding="utf-8")
+
     (d / "progress.json").write_text(json.dumps({
         "stage": "distance", "backend": BACKENDS["distance"], "status": "completed",
         "phase": "completed", "progress": 100.0, "current": 120, "total": 120,
@@ -274,7 +398,8 @@ def _make_distance() -> None:
         "frame_id": "world",
         "unit": "meter",
         "metrics": {"resolution_m": 0.1, "voxel_count": sum(vox.values()),
-                    "max_distance_m": 9.0, "slices": list(slices)},
+                    "max_distance_m": 9.0, "slices": list(slices),
+                    "slices_meta": slices_meta},
         "artifacts": [
             {"artifact_id": "gradient", "role": "preview", "path": "gradient.json",
              "content_type": "application/json"},
@@ -288,6 +413,14 @@ def _make_distance() -> None:
                  "path": f"slices/observed_{name}.png", "content_type": "image/png"}
                 for name in slices
             ],
+            {"artifact_id": "esdf_vis_ply", "role": "preview", "path": "esdf_vis.ply",
+             "content_type": "application/octet-stream", "download": True,
+             "note": "synthetic demo cloud, ASCII PLY (same points as the 3D preview)"},
+            {"artifact_id": "esdf_web_ply", "role": "preview", "path": "esdf_vis_web.ply",
+             "content_type": "application/octet-stream",
+             "note": "downsampled binary point cloud for the in-page 3D viewer"},
+            {"artifact_id": "slices_meta", "role": "data", "path": "slices_meta.json",
+             "content_type": "application/json", "download": True},
             {"artifact_id": "slices_archive", "role": "data", "path": "slices.zip",
              "content_type": "application/zip", "download": True},
         ],

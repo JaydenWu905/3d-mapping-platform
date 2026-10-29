@@ -15,7 +15,179 @@
       "xy",
       "xz",
       "yz"
-    ]
+    ],
+    "slices_meta": {
+      "schema_version": "1.0",
+      "unit": "meter",
+      "image_resolution_px": 480,
+      "distance_legend_range_m": [
+        -1.5,
+        1.5
+      ],
+      "preview_abs_distance_max_m": 1.5,
+      "bounds_m": {
+        "x": [
+          -9.198277124175032,
+          9.198779237649843
+        ],
+        "y": [
+          -9.199981786653588,
+          9.198584712818128
+        ],
+        "z": [
+          -1.1999562525223577,
+          4.199645955468694
+        ]
+      },
+      "planes": {
+        "xy": {
+          "file": "slices/xy.png",
+          "u_axis": "x",
+          "v_axis": "y",
+          "normal_axis": "z",
+          "u_range": [
+            -8.0,
+            8.0
+          ],
+          "v_range": [
+            -8.0,
+            8.0
+          ],
+          "image_size_px": [
+            480,
+            480
+          ],
+          "pixel_size_m": 0.0334,
+          "distance_range": [
+            -1.5,
+            1.5
+          ],
+          "distance_range_observed": [
+            -1.2,
+            1.2
+          ],
+          "center_m": 1.5,
+          "half_thickness_m": 0.1,
+          "thickness_m": 0.2,
+          "sampled_points": 20000,
+          "unit": "meter",
+          "unknown_color": "white",
+          "preview_abs_distance_max_m": 1.5,
+          "image_orientation": "row0=v_max"
+        },
+        "xz": {
+          "file": "slices/xz.png",
+          "u_axis": "x",
+          "v_axis": "z",
+          "normal_axis": "y",
+          "u_range": [
+            -8.0,
+            8.0
+          ],
+          "v_range": [
+            0.0,
+            3.0
+          ],
+          "image_size_px": [
+            480,
+            480
+          ],
+          "pixel_size_m": 0.0334,
+          "distance_range": [
+            -1.5,
+            1.5
+          ],
+          "distance_range_observed": [
+            -1.2,
+            1.2
+          ],
+          "center_m": 0.0,
+          "half_thickness_m": 0.1,
+          "thickness_m": 0.2,
+          "sampled_points": 20000,
+          "unit": "meter",
+          "unknown_color": "white",
+          "preview_abs_distance_max_m": 1.5,
+          "image_orientation": "row0=v_max"
+        },
+        "yz": {
+          "file": "slices/yz.png",
+          "u_axis": "y",
+          "v_axis": "z",
+          "normal_axis": "x",
+          "u_range": [
+            -8.0,
+            8.0
+          ],
+          "v_range": [
+            0.0,
+            3.0
+          ],
+          "image_size_px": [
+            480,
+            480
+          ],
+          "pixel_size_m": 0.0334,
+          "distance_range": [
+            -1.5,
+            1.5
+          ],
+          "distance_range_observed": [
+            -1.2,
+            1.2
+          ],
+          "center_m": 0.0,
+          "half_thickness_m": 0.1,
+          "thickness_m": 0.2,
+          "sampled_points": 20000,
+          "unit": "meter",
+          "unknown_color": "white",
+          "preview_abs_distance_max_m": 1.5,
+          "image_orientation": "row0=v_max"
+        }
+      },
+      "web_preview": {
+        "file": "esdf_vis_web.ply",
+        "format": "ply/binary_little_endian",
+        "properties": [
+          "x",
+          "y",
+          "z",
+          "distance",
+          "red",
+          "green",
+          "blue"
+        ],
+        "point_count": 40640,
+        "source_point_count": 40640,
+        "downsample_ratio": 1.0,
+        "max_points": 0,
+        "distance_range": [
+          -1.5,
+          1.5
+        ],
+        "distance_range_observed": [
+          -1.1998637914657593,
+          1.1999818086624146
+        ],
+        "size_bytes": 772481,
+        "unit": "meter",
+        "bounds_m": {
+          "x": [
+            -9.198277124175032,
+            9.198779237649843
+          ],
+          "y": [
+            -9.199981786653588,
+            9.198584712818128
+          ],
+          "z": [
+            -1.1999562525223577,
+            4.199645955468694
+          ]
+        }
+      }
+    }
   },
   "artifacts": [
     {
@@ -59,6 +231,28 @@
       "role": "preview",
       "path": "slices/observed_yz.png",
       "content_type": "image/png"
+    },
+    {
+      "artifact_id": "esdf_vis_ply",
+      "role": "preview",
+      "path": "esdf_vis.ply",
+      "content_type": "application/octet-stream",
+      "download": true,
+      "note": "synthetic demo cloud, ASCII PLY (same points as the 3D preview)"
+    },
+    {
+      "artifact_id": "esdf_web_ply",
+      "role": "preview",
+      "path": "esdf_vis_web.ply",
+      "content_type": "application/octet-stream",
+      "note": "downsampled binary point cloud for the in-page 3D viewer"
+    },
+    {
+      "artifact_id": "slices_meta",
+      "role": "data",
+      "path": "slices_meta.json",
+      "content_type": "application/json",
+      "download": true
     },
     {
       "artifact_id": "slices_archive",

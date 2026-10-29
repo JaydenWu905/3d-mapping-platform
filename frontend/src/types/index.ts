@@ -196,3 +196,57 @@ export interface GradientPlane {
   magnitude_max: number;
   arrows: GradientArrow[];
 }
+
+// ---- 距离场切片 / 点云元信息 ----
+// 由 backend/scripts/esdf_postprocess.py 写入 preview/slices_meta.json，并整份塞进
+// manifest.metrics.slices_meta，前端无需额外请求即可展示物理含义。
+// 兼容老格式：slices_meta 直接是 { xy: {...}, xz: {...}, yz: {...} }。
+
+export type AxisRange = [number, number];
+
+export interface SlicePlaneMeta {
+  file?: string;
+  u_axis?: string;
+  v_axis?: string;
+  normal_axis?: string;
+  u_range?: AxisRange;
+  v_range?: AxisRange;
+  image_size_px?: [number, number];
+  pixel_size_m?: number;
+  distance_range?: AxisRange; // 图例范围（固定 ±1.5 m）
+  distance_range_observed?: AxisRange; // 实际采样到的距离极值
+  center_m?: number; // 切片法向位置
+  half_thickness_m?: number;
+  thickness_m?: number;
+  sampled_points?: number;
+  unit?: string;
+  unknown_color?: string;
+  preview_abs_distance_max_m?: number;
+  image_orientation?: string;
+}
+
+export interface EsdfWebPreviewMeta {
+  file?: string;
+  format?: string;
+  properties?: string[];
+  point_count?: number;
+  source_point_count?: number;
+  downsample_ratio?: number;
+  distance_range?: AxisRange;
+  distance_range_observed?: AxisRange;
+  size_bytes?: number;
+  bounds_m?: Record<string, AxisRange>;
+  max_points?: number;
+  unit?: string;
+}
+
+export interface SlicesMeta {
+  schema_version?: string;
+  unit?: string;
+  image_resolution_px?: number;
+  distance_legend_range_m?: AxisRange;
+  preview_abs_distance_max_m?: number;
+  bounds_m?: Record<string, AxisRange>;
+  planes?: Record<string, SlicePlaneMeta>;
+  web_preview?: EsdfWebPreviewMeta;
+}
