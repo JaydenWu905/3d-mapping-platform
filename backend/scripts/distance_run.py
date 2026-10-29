@@ -62,14 +62,19 @@ def main():
         (stage/'native-readback.json').write_text(readback.stdout);validation=json.loads(readback.stdout)
         reporter.emit('loading_preview',force=True)
         subprocess.run([sys.executable,str(Path(__file__).with_name('esdf_postprocess.py')),'--input_ply',str(stage/'preview/esdf_vis.ply'),'--output_dir',str(stage/'preview'),'--resolution','480'],check=True,env=child_env())
-        conversion=json.loads((stage/'conversion.json').read_text());slices=json.loads((stage/'preview/slices_meta.json').read_text())
-        specs=[('esdf_map','data','map.esdf','application/octet-stream',True),('esdf_vis_ply','preview','preview/esdf_vis.ply','application/octet-stream',False),('conversion','data','conversion.json','application/json',True),('provenance','data','provenance.json','application/json',True),('native_readback','data','native-readback.json','application/json',True),('slices_meta','data','preview/slices_meta.json','application/json',True)]+[(f'slice_{plane}','preview',f'preview/slice_{plane}.png','image/png',False) for plane in slices]
+        conversion=json.loads((stage/'conversion.json').read_text());slices_meta=json.loads((stage/'preview/slices_meta.json').read_text())
+        planes=slices_meta['planes'] if 'planes' in slices_meta else {key:value for key,value in slices_meta.items() if key in ('xy','xz','yz')}
+        # esdf_vis.ply 既是页面预览源，也允许下载（MeshLab 等专业软件）；esdf_web_ply 只服务浏览器 3D 查看器。
+        specs=[('esdf_map','data','map.esdf','application/octet-stream',True),('esdf_vis_ply','preview','preview/esdf_vis.ply','application/octet-stream',True),('esdf_web_ply','preview','preview/esdf_vis_web.ply','application/octet-stream',False),('conversion','data','conversion.json','application/json',True),('provenance','data','provenance.json','application/json',True),('native_readback','data','native-readback.json','application/json',True),('slices_meta','data','preview/slices_meta.json','application/json',True)]+[(f'slice_{plane}','preview',f'preview/slice_{plane}.png','image/png',False) for plane in planes]
+        if not (stage/'preview/esdf_vis_web.ply').is_file():
+            print('[distance_run] 未生成 esdf_vis_web.ply，跳过 3D 预览产物（切片与下载产物不受影响）')
+            specs=[spec for spec in specs if spec[0]!='esdf_web_ply']
         files=[stage/path for _,_,path,_,_ in specs]
         for path in files:
             if not path.is_file() or not path.stat().st_size:raise RuntimeError(f'Missing artifact {path}')
         hashes=hash_files(files,reporter,'hashing_outputs')
         artifacts=[dict(artifact_id=id,role=role,path=path,content_type=ctype,download=download,size_bytes=file.stat().st_size,sha256=digest) for (id,role,path,ctype,download),file,digest in zip(specs,files,hashes)]
-        manifest=dict(schema_version='0.1',job_id=args.job_dir.name,stage='distance',backend='voxel_esdf',status='completed',frame_id='world',unit='meter',runtime_sec=time.monotonic()-start,metrics=dict(resolution_m=h,slices=list(slices),**validation),artifacts=artifacts,backend_details=dict(mock_backend=False,algorithm=conversion['algorithm'],voxel_size_m=h,max_esdf_distance_m=2.5,unknown_policy=conversion['unknown_policy'],surface_definition='piecewise linear TSDF zero isosurface, six tetrahedra/cell; exact BVH triangle distance at supported centers; sign from same linear field',input_sha256=provenance['input_sha256']))
+        manifest=dict(schema_version='0.1',job_id=args.job_dir.name,stage='distance',backend='voxel_esdf',status='completed',frame_id='world',unit='meter',runtime_sec=time.monotonic()-start,metrics=dict(resolution_m=h,slices=list(planes),slices_meta=slices_meta,**validation),artifacts=artifacts,backend_details=dict(mock_backend=False,algorithm=conversion['algorithm'],voxel_size_m=h,max_esdf_distance_m=2.5,unknown_policy=conversion['unknown_policy'],surface_definition='piecewise linear TSDF zero isosurface, six tetrahedra/cell; exact BVH triangle distance at supported centers; sign from same linear field',input_sha256=provenance['input_sha256']))
         atomic_write_json(stage/'result_manifest.json',manifest)
         reporter.emit('finalizing',force=True)
         if not managed:atomic_write_json(stage/'progress.json',dict(stage='distance',backend='voxel_esdf',status='completed',phase='completed',progress=100))
